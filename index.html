@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LCC Strokes">
+<title>LCC · Strokes Gained</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green:    #2d5a27;
+    --green2:   #3d7a35;
+    --fairway:  #4a8c40;
+    --gold:     #c9a84c;
+    --gold2:    #e8c96a;
+    --cream:    #f5f0e8;
+    --dark:     #1a1f16;
+    --card:     #ffffff;
+    --muted:    #6b7280;
+    --red:      #c0392b;
+    --blue:     #2563eb;
+    --radius:   16px;
+    --shadow:   0 4px 24px rgba(0,0,0,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--cream); font-family: 'DM Sans', sans-serif; color: var(--dark); overflow-x: hidden; }
+
+  /* ── screens ── */
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── header ── */
+  .hdr {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green2) 100%);
+    padding: 52px 20px 20px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .hdr::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.03) 20px, rgba(255,255,255,0.03) 40px);
+  }
+  .hdr-title { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 900; position: relative; }
+  .hdr-sub { font-size: 13px; opacity: 0.75; margin-top: 2px; position: relative; letter-spacing: 0.05em; }
+  .hdr-gold { color: var(--gold2); }
+  .back-btn {
+    position: absolute; top: 52px; left: 16px;
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    width: 36px; height: 36px; border-radius: 50%; font-size: 18px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+  }
+
+  /* ── content ── */
+  .content { flex: 1; padding: 16px; overflow-y: auto; }
+
+  /* ── cards ── */
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 10px; font-weight: 600; }
+
+  /* ── buttons ── */
+  .btn {
+    border: none; border-radius: 12px; padding: 14px 20px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; width: 100%; display: block; text-align: center;
+  }
+  .btn-primary { background: var(--green); color: white; }
+  .btn-primary:active { background: var(--green2); transform: scale(0.98); }
+  .btn-gold { background: var(--gold); color: var(--dark); }
+  .btn-gold:active { background: var(--gold2); transform: scale(0.98); }
+  .btn-ghost { background: transparent; border: 2px solid var(--green); color: var(--green); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-sm { padding: 10px 14px; font-size: 13px; border-radius: 10px; }
+
+  /* ── grid buttons ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
+
+  .sel-btn {
+    border: 2px solid #e5e7eb; border-radius: 10px; padding: 12px 8px;
+    background: white; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: center;
+    color: var(--dark);
+  }
+  .sel-btn.active { border-color: var(--green); background: #edf7eb; color: var(--green); font-weight: 600; }
+  .sel-btn:active { transform: scale(0.96); }
+  .sel-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+  /* ── distance slider ── */
+  .dist-display {
+    text-align: center; padding: 16px;
+    font-family: 'Playfair Display', serif; font-size: 52px; font-weight: 900;
+    color: var(--green); line-height: 1;
+  }
+  .dist-display span { font-size: 18px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-weight: 400; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 6px;
+    border-radius: 3px; background: #e5e7eb; outline: none; margin: 8px 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 28px; height: 28px;
+    border-radius: 50%; background: var(--green); cursor: pointer;
+    box-shadow: 0 2px 8px rgba(45,90,39,0.4);
+  }
+  .dist-presets { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+  .dist-preset {
+    border: 1.5px solid #d1d5db; border-radius: 20px; padding: 5px 12px;
+    font-size: 12px; font-weight: 600; background: white; cursor: pointer;
+    color: var(--muted); transition: all 0.15s;
+  }
+  .dist-preset:active { border-color: var(--green); color: var(--green); background: #edf7eb; }
+
+  /* ── miss compass ── */
+  .compass {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 6px; max-width: 280px; margin: 0 auto;
+  }
+  .compass-btn {
+    border: 2px solid #e5e7eb; border-radius: 10px; padding: 10px 6px;
+    background: white; font-size: 11px; font-weight: 600; cursor: pointer;
+    text-align: center; color: var(--muted); transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .compass-btn.active { border-color: var(--gold); background: #fdf8ee; color: #8b6914; }
+  .compass-btn.center { border-color: var(--green); background: #edf7eb; color: var(--green); font-size: 12px; }
+  .compass-btn.center.active { border-color: var(--green2); background: var(--green); color: white; }
+  .compass-btn:active { transform: scale(0.95); }
+
+  /* ── hole list ── */
+  .hole-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-radius: 12px; cursor: pointer;
+    transition: background 0.15s; margin-bottom: 4px;
+    background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .hole-item:active { background: #edf7eb; }
+  .hole-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--green); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; flex-shrink: 0;
+  }
+  .hole-num.has-data { background: var(--gold); color: var(--dark); }
+  .hole-info { flex: 1; }
+  .hole-name { font-weight: 600; font-size: 15px; }
+  .hole-detail { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .hole-sg { font-size: 13px; font-weight: 700; }
+  .sg-pos { color: var(--green2); }
+  .sg-neg { color: var(--red); }
+
+  /* ── shot list ── */
+  .shot-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid #f3f4f6;
+  }
+  .shot-row:last-child { border-bottom: none; }
+  .shot-num { width: 24px; height: 24px; border-radius: 50%; background: var(--green); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .shot-info { flex: 1; font-size: 13px; }
+  .shot-type { font-weight: 600; }
+  .shot-detail { color: var(--muted); font-size: 12px; }
+  .shot-sg-val { font-size: 13px; font-weight: 700; }
+
+  /* ── stats ── */
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { font-size: 14px; color: var(--dark); }
+  .stat-val { font-size: 16px; font-weight: 700; }
+  .big-stat { text-align: center; padding: 20px; }
+  .big-stat .num { font-family: 'Playfair Display', serif; font-size: 56px; font-weight: 900; line-height: 1; }
+  .big-stat .lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* ── miss heatmap ── */
+  .miss-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; max-width: 240px; margin: 0 auto; }
+  .miss-cell { padding: 12px 4px; border-radius: 8px; text-align: center; font-size: 11px; font-weight: 700; }
+
+  /* ── tab bar ── */
+  .tabbar {
+    display: flex; background: white; border-top: 1px solid #e5e7eb;
+    padding: 8px 0 20px; position: sticky; bottom: 0;
+  }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px; cursor: pointer; color: var(--muted); font-size: 10px; font-weight: 600; border: none; background: none; font-family: 'DM Sans', sans-serif; }
+  .tab.active { color: var(--green); }
+  .tab-icon { font-size: 22px; }
+
+  /* ── home ── */
+  .home-hero {
+    background: linear-gradient(160deg, var(--green) 0%, #1a3d15 100%);
+    padding: 60px 24px 36px; color: white; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .home-hero::before {
+    content: '⛳'; font-size: 160px; opacity: 0.06;
+    position: absolute; bottom: -20px; right: -20px;
+  }
+  .home-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 900; line-height: 1.1; }
+  .home-course { font-size: 13px; letter-spacing: 0.1em; opacity: 0.7; margin-top: 6px; text-transform: uppercase; }
+  .home-actions { padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  .round-card {
+    background: white; border-radius: 14px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer;
+  }
+  .round-card:active { background: #f9fafb; }
+  .round-icon { font-size: 28px; }
+  .round-info { flex: 1; }
+  .round-date { font-size: 13px; font-weight: 600; }
+  .round-detail { font-size: 12px; color: var(--muted); }
+  .round-score { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--green); }
+
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill-green { background: #dcfce7; color: #166534; }
+  .pill-red { background: #fee2e2; color: #991b1b; }
+  .pill-gold { background: #fef3c7; color: #92400e; }
+
+  /* number input */
+  .num-input-row { display: flex; align-items: center; gap: 12px; justify-content: center; padding: 8px 0; }
+  .num-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--green); background: white; color: var(--green); font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .num-val { font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 900; color: var(--green); min-width: 80px; text-align: center; }
+
+  .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 16px 0 8px; }
+  .progress-bar { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; margin-top: 6px; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #f3f4f6; color: var(--muted); }
+
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: HOME
+═══════════════════════════════════════════════════ -->
+<div class="screen active" id="s-home">
+  <div class="home-hero">
+    <div class="home-title">Strokes<br><span class="hdr-gold">Gained</span></div>
+    <div class="home-course">Latrobe Country Club · White Tees</div>
+  </div>
+  <div class="home-actions">
+    <button class="btn btn-primary" style="font-size:17px;padding:18px;" onclick="startNewRound()">⛳ Start New Round</button>
+    <div id="recent-rounds"></div>
+    <button class="btn btn-ghost btn-sm" onclick="showStats()">📊 View All Stats & Trends</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: HOLE SELECT
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-holes">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Select Hole</div>
+      <div class="hdr-sub" id="round-date-label"></div>
+    </div>
+    <div style="position:absolute;top:52px;right:16px;">
+      <button class="btn btn-sm btn-gold" style="width:auto;padding:8px 14px;" onclick="finishRound()">Finish ✓</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card" style="padding:12px 16px;">
+      <div style="display:flex;gap:16px;justify-content:center;text-align:center;">
+        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;" id="round-score-disp">—</div><div style="font-size:11px;color:var(--muted);">Score</div></div>
+        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;color:var(--green);" id="round-sg-disp">—</div><div style="font-size:11px;color:var(--muted);">Total SG</div></div>
+        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;color:var(--gold);" id="round-holes-disp">0</div><div style="font-size:11px;color:var(--muted);">Holes</div></div>
+        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;" id="round-shots-disp">0</div><div style="font-size:11px;color:var(--muted);">Shots</div></div>
+      </div>
+    </div>
+    <div id="hole-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: HOLE DETAIL / SHOT ENTRY
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-hole">
+  <div class="hdr">
+    <button class="back-btn" onclick="showScreen('s-holes')">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="hole-hdr-title">Hole 1</div>
+      <div class="hdr-sub" id="hole-hdr-sub">Par 4 · 396 yds</div>
+    </div>
+    <div style="position:absolute;top:52px;right:16px;">
+      <button class="btn btn-sm btn-gold" style="width:auto;padding:8px 14px;" onclick="addShotModal()">+ Shot</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card">
+      <div style="display:flex;gap:16px;justify-content:center;text-align:center;">
+        <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;" id="hole-score-disp">—</div><div style="font-size:11px;color:var(--muted);">Score</div></div>
+        <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;" id="hole-vs-par-disp">—</div><div style="font-size:11px;color:var(--muted);">vs Par</div></div>
+        <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:var(--green);" id="hole-sg-disp">—</div><div style="font-size:11px;color:var(--muted);">SG Total</div></div>
+      </div>
+    </div>
+    <div class="card-title" style="padding:0 4px;margin-top:4px;">Shots</div>
+    <div id="shot-list-container"></div>
+    <div style="height:16px;"></div>
+    <button class="btn btn-primary" onclick="addShotModal()">+ Add Shot</button>
+    <div style="height:8px;"></div>
+    <button class="btn btn-ghost" onclick="showScreen('s-holes')">← Back to Holes</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: ADD SHOT (modal-style)
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-shot">
+  <div class="hdr">
+    <button class="back-btn" onclick="showScreen('s-hole')">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Log Shot</div>
+      <div class="hdr-sub" id="shot-hdr-sub">Shot #1</div>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- Shot Type -->
+    <div class="card-title">Shot Type</div>
+    <div class="grid-2" style="margin-bottom:14px;" id="shot-type-grid">
+      <button class="sel-btn" onclick="selectShotType('tee')" id="st-tee"><span class="icon">🏌️</span>Tee Shot</button>
+      <button class="sel-btn" onclick="selectShotType('approach')" id="st-approach"><span class="icon">🎯</span>Approach</button>
+      <button class="sel-btn" onclick="selectShotType('chip')" id="st-chip"><span class="icon">⛳</span>Chip/Pitch</button>
+      <button class="sel-btn" onclick="selectShotType('putt')" id="st-putt"><span class="icon">🏳️</span>Putt</button>
+      <button class="sel-btn" onclick="selectShotType('sand')" id="st-sand"><span class="icon">🏖️</span>Sand</button>
+      <button class="sel-btn" onclick="selectShotType('penalty')" id="st-penalty"><span class="icon">⚠️</span>Penalty</button>
+    </div>
+
+    <!-- Distance FROM -->
+    <div class="card-title">Distance to Pin (Before Shot)</div>
+    <div class="card" style="padding:12px 16px;">
+      <div class="dist-display"><span id="dist-from-val">150</span><span> yds</span></div>
+      <input type="range" id="dist-from-slider" min="1" max="600" value="150" oninput="updateDistFrom(this.value)">
+      <div class="dist-presets" id="dist-from-presets">
+        <div class="dist-preset" onclick="setDistFrom(3)">3</div>
+        <div class="dist-preset" onclick="setDistFrom(6)">6</div>
+        <div class="dist-preset" onclick="setDistFrom(10)">10</div>
+        <div class="dist-preset" onclick="setDistFrom(20)">20</div>
+        <div class="dist-preset" onclick="setDistFrom(40)">40</div>
+        <div class="dist-preset" onclick="setDistFrom(75)">75</div>
+        <div class="dist-preset" onclick="setDistFrom(100)">100</div>
+        <div class="dist-preset" onclick="setDistFrom(125)">125</div>
+        <div class="dist-preset" onclick="setDistFrom(150)">150</div>
+        <div class="dist-preset" onclick="setDistFrom(175)">175</div>
+        <div class="dist-preset" onclick="setDistFrom(200)">200</div>
+      </div>
+    </div>
+
+    <!-- Distance TO -->
+    <div class="card-title">Distance to Pin (After Shot)</div>
+    <div class="card" style="padding:12px 16px;">
+      <div class="dist-display"><span id="dist-to-val">0</span><span> yds</span></div>
+      <input type="range" id="dist-to-slider" min="0" max="600" value="0" oninput="updateDistTo(this.value)">
+      <div class="dist-presets">
+        <div class="dist-preset" onclick="setDistTo(0)">Holed</div>
+        <div class="dist-preset" onclick="setDistTo(2)">2</div>
+        <div class="dist-preset" onclick="setDistTo(4)">4</div>
+        <div class="dist-preset" onclick="setDistTo(8)">8</div>
+        <div class="dist-preset" onclick="setDistTo(15)">15</div>
+        <div class="dist-preset" onclick="setDistTo(30)">30</div>
+        <div class="dist-preset" onclick="setDistTo(50)">50</div>
+        <div class="dist-preset" onclick="setDistTo(80)">80</div>
+        <div class="dist-preset" onclick="setDistTo(100)">100</div>
+        <div class="dist-preset" onclick="setDistTo(150)">150</div>
+      </div>
+    </div>
+
+    <!-- Miss Direction -->
+    <div class="card-title">Miss Direction</div>
+    <div class="card">
+      <div class="compass" id="miss-compass">
+        <button class="compass-btn" onclick="selectMiss('long-left')" id="miss-long-left">Long<br>Left</button>
+        <button class="compass-btn" onclick="selectMiss('long')" id="miss-long">Long</button>
+        <button class="compass-btn" onclick="selectMiss('long-right')" id="miss-long-right">Long<br>Right</button>
+        <button class="compass-btn" onclick="selectMiss('left')" id="miss-left">Left</button>
+        <button class="compass-btn center active" onclick="selectMiss('on-target')" id="miss-on-target">✓<br>On Target</button>
+        <button class="compass-btn" onclick="selectMiss('right')" id="miss-right">Right</button>
+        <button class="compass-btn" onclick="selectMiss('short-left')" id="miss-short-left">Short<br>Left</button>
+        <button class="compass-btn" onclick="selectMiss('short')" id="miss-short">Short</button>
+        <button class="compass-btn" onclick="selectMiss('short-right')" id="miss-short-right">Short<br>Right</button>
+      </div>
+    </div>
+
+    <!-- Club -->
+    <div class="card-title">Club Used</div>
+    <div id="club-grid" style="margin-bottom:14px;"></div>
+
+    <!-- Save -->
+    <button class="btn btn-primary" style="font-size:16px;padding:16px;" onclick="saveShot()">Save Shot</button>
+    <div style="height:20px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: STATS
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-stats">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Stats & Trends</div>
+      <div class="hdr-sub">All Rounds · Latrobe CC</div>
+    </div>
+  </div>
+  <div class="content" id="stats-content">
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: ROUND SUMMARY
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-summary">
+  <div class="hdr">
+    <div style="text-align:center;padding-top:0;">
+      <div class="hdr-title">Round Summary</div>
+      <div class="hdr-sub" id="summary-date"></div>
+    </div>
+  </div>
+  <div class="content" id="summary-content"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// COURSE DATA
+// ═══════════════════════════════════════════════════════════════════
+const COURSE = {
+  name: "Latrobe Country Club",
+  tees: "White",
+  holes: [
+    {n:1,  par:4, yds:396},
+    {n:2,  par:3, yds:114},
+    {n:3,  par:5, yds:485},
+    {n:4,  par:3, yds:185},
+    {n:5,  par:4, yds:283},
+    {n:6,  par:5, yds:469},
+    {n:7,  par:4, yds:381},
+    {n:8,  par:4, yds:437},
+    {n:9,  par:4, yds:303},
+    {n:10, par:3, yds:218},
+    {n:11, par:4, yds:363},
+    {n:12, par:4, yds:318},
+    {n:13, par:3, yds:153},
+    {n:14, par:5, yds:452},
+    {n:15, par:5, yds:484},
+    {n:16, par:4, yds:390},
+    {n:17, par:4, yds:334},
+    {n:18, par:4, yds:345},
+  ]
+};
+
+const CLUBS = ['Dr','3W','5W','Hy','4i','5i','6i','7i','8i','9i','PW','GW','SW','LW','Put'];
+
+// ═══════════════════════════════════════════════════════════════════
+// STROKES GAINED BASELINE TABLE
+// Expected strokes to hole out from distance (yards) - PGA Tour baseline
+// Adjusted for amateur play at ~90-95 scoring level
+// ═══════════════════════════════════════════════════════════════════
+const SG_BASELINE = {
+  // putting (yards): expected putts
+  putt: {0:0,0.5:1.0,1:1.0,2:1.05,3:1.15,4:1.25,5:1.35,6:1.5,8:1.65,10:1.8,15:1.9,20:2.0,25:2.05,30:2.1,40:2.2,50:2.3,60:2.4},
+  // all other shots (yards): expected strokes to hole
+  full: {
+    0:0,
+    5:1.6, 10:1.8, 15:1.9, 20:2.0, 25:2.1, 30:2.2, 40:2.35, 50:2.5,
+    75:2.7, 100:2.85, 125:2.95, 150:3.05, 175:3.15, 200:3.25,
+    225:3.4, 250:3.55, 275:3.65, 300:3.8, 350:4.0, 400:4.2,
+    450:4.4, 500:4.6, 550:4.8, 600:5.0
+  }
+};
+
+function getExpected(dist, isPutt) {
+  const table = isPutt ? SG_BASELINE.putt : SG_BASELINE.full;
+  const keys = Object.keys(table).map(Number).sort((a,b)=>a-b);
+  if (dist <= keys[0]) return table[keys[0]];
+  if (dist >= keys[keys.length-1]) return table[keys[keys.length-1]];
+  for (let i = 0; i < keys.length-1; i++) {
+    if (dist >= keys[i] && dist <= keys[i+1]) {
+      const t = (dist - keys[i]) / (keys[i+1] - keys[i]);
+      return table[keys[i]] + t * (table[keys[i+1]] - table[keys[i]]);
+    }
+  }
+  return 2.5;
+}
+
+function calcSG(distFrom, distTo, shotType) {
+  const isPutt = shotType === 'putt';
+  const expBefore = getExpected(distFrom, isPutt);
+  const expAfter  = distTo === 0 ? 0 : getExpected(distTo, isPutt);
+  // SG = expected_before - (1 + expected_after)
+  return parseFloat((expBefore - 1 - expAfter).toFixed(2));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let state = {
+  rounds: [],
+  currentRound: null,
+  currentHole: null,
+  currentShot: { type:'approach', distFrom:150, distTo:0, miss:'on-target', club:'' }
+};
+
+function loadState() {
+  try {
+    const s = localStorage.getItem('lcc_sg_v2');
+    if (s) { const d = JSON.parse(s); state.rounds = d.rounds || []; }
+  } catch(e) {}
+}
+function saveState() {
+  localStorage.setItem('lcc_sg_v2', JSON.stringify({ rounds: state.rounds }));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function goHome() {
+  renderHome();
+  showScreen('s-home');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HOME
+// ═══════════════════════════════════════════════════════════════════
+function renderHome() {
+  const el = document.getElementById('recent-rounds');
+  if (!state.rounds.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">⛳</div><p>No rounds yet.<br>Start your first round to begin tracking strokes gained.</p></div>`;
+    return;
+  }
+  const recent = [...state.rounds].reverse().slice(0,5);
+  el.innerHTML = '<div class="section-label">Recent Rounds</div>' + recent.map(r => {
+    const totalSG = getRoundTotalSG(r);
+    const score = getRoundScore(r);
+    const par = getRoundPar(r);
+    const diff = score - par;
+    const diffStr = diff === 0 ? 'E' : (diff > 0 ? '+'+diff : diff);
+    const sgStr = totalSG >= 0 ? '+'+totalSG.toFixed(1) : totalSG.toFixed(1);
+    return `<div class="round-card" onclick="viewRound('${r.id}')">
+      <div class="round-icon">🏌️</div>
+      <div class="round-info">
+        <div class="round-date">${r.date}</div>
+        <div class="round-detail">${r.holes.length} holes · ${getRoundShots(r)} shots</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="round-score">${diffStr}</div>
+        <div style="font-size:11px;color:${totalSG>=0?'var(--green2)':'var(--red)'};">${sgStr} SG</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ROUNDS
+// ═══════════════════════════════════════════════════════════════════
+function startNewRound() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  state.currentRound = { id: Date.now().toString(), date: dateStr, holes: [] };
+  document.getElementById('round-date-label').textContent = dateStr;
+  renderHoleList();
+  updateRoundHeader();
+  showScreen('s-holes');
+}
+
+function viewRound(id) {
+  const r = state.rounds.find(x => x.id === id);
+  if (!r) return;
+  state.currentRound = JSON.parse(JSON.stringify(r));
+  document.getElementById('round-date-label').textContent = r.date;
+  renderHoleList();
+  updateRoundHeader();
+  showScreen('s-holes');
+}
+
+function finishRound() {
+  if (!state.currentRound.holes.length) { alert('Add at least one hole first!'); return; }
+  const existing = state.rounds.findIndex(r => r.id === state.currentRound.id);
+  if (existing >= 0) state.rounds[existing] = state.currentRound;
+  else state.rounds.push(state.currentRound);
+  saveState();
+  showRoundSummary(state.currentRound);
+}
+
+function getRoundTotalSG(r) {
+  return parseFloat(r.holes.reduce((s,h) => s + getHoleTotalSG(h), 0).toFixed(2));
+}
+function getRoundScore(r) { return r.holes.reduce((s,h) => s + h.shots.length, 0); }
+function getRoundPar(r) { return r.holes.reduce((s,h) => s + h.par, 0); }
+function getRoundShots(r) { return r.holes.reduce((s,h) => s + h.shots.length, 0); }
+function getHoleTotalSG(h) {
+  return parseFloat(h.shots.reduce((s,sh) => s + sh.sg, 0).toFixed(2));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLE LIST
+// ═══════════════════════════════════════════════════════════════════
+function renderHoleList() {
+  const el = document.getElementById('hole-list');
+  el.innerHTML = COURSE.holes.map(h => {
+    const hd = state.currentRound.holes.find(x => x.n === h.n);
+    const hasData = !!hd;
+    const sg = hasData ? getHoleTotalSG(hd) : null;
+    const score = hasData ? hd.shots.length : null;
+    const diff = hasData ? score - h.par : null;
+    const diffStr = diff === null ? '' : (diff === 0 ? 'E' : (diff > 0 ? '+'+diff : diff));
+    const sgStr = sg !== null ? (sg >= 0 ? '+'+sg.toFixed(1) : sg.toFixed(1)) : '';
+    return `<div class="hole-item" onclick="openHole(${h.n})">
+      <div class="hole-num ${hasData?'has-data':''}">${h.n}</div>
+      <div class="hole-info">
+        <div class="hole-name">Hole ${h.n} · Par ${h.par}</div>
+        <div class="hole-detail">${h.yds} yds${hasData?' · '+score+' shots':''}</div>
+      </div>
+      <div style="text-align:right;">
+        ${hasData ? `<div style="font-size:15px;font-weight:700;">${diffStr}</div><div class="hole-sg ${sg>=0?'sg-pos':'sg-neg'}">${sgStr} SG</div>` : '<div style="color:var(--muted);font-size:20px;">›</div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateRoundHeader() {
+  const r = state.currentRound;
+  const totalSG = getRoundTotalSG(r);
+  const score = getRoundScore(r);
+  const par = getRoundPar(r);
+  const diff = score - par;
+  document.getElementById('round-score-disp').textContent = r.holes.length ? (diff===0?'E':(diff>0?'+'+diff:diff)) : '—';
+  document.getElementById('round-sg-disp').textContent = r.holes.length ? (totalSG>=0?'+':'')+totalSG.toFixed(1) : '—';
+  document.getElementById('round-holes-disp').textContent = r.holes.length;
+  document.getElementById('round-shots-disp').textContent = getRoundShots(r);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLE DETAIL
+// ═══════════════════════════════════════════════════════════════════
+function openHole(n) {
+  const hInfo = COURSE.holes.find(h => h.n === n);
+  state.currentHole = state.currentRound.holes.find(h => h.n === n);
+  if (!state.currentHole) {
+    state.currentHole = { n, par: hInfo.par, yds: hInfo.yds, shots: [] };
+    state.currentRound.holes.push(state.currentHole);
+    state.currentRound.holes.sort((a,b)=>a.n-b.n);
+  }
+  document.getElementById('hole-hdr-title').textContent = `Hole ${n}`;
+  document.getElementById('hole-hdr-sub').textContent = `Par ${hInfo.par} · ${hInfo.yds} yds`;
+  renderHoleDetail();
+  showScreen('s-hole');
+}
+
+function renderHoleDetail() {
+  const h = state.currentHole;
+  const sg = getHoleTotalSG(h);
+  const diff = h.shots.length - h.par;
+  document.getElementById('hole-score-disp').textContent = h.shots.length || '—';
+  document.getElementById('hole-vs-par-disp').textContent = h.shots.length ? (diff===0?'E':(diff>0?'+'+diff:diff)) : '—';
+  document.getElementById('hole-sg-disp').textContent = h.shots.length ? (sg>=0?'+':'')+sg.toFixed(2) : '—';
+  document.getElementById('hole-sg-disp').style.color = sg >= 0 ? 'var(--green2)' : 'var(--red)';
+
+  const container = document.getElementById('shot-list-container');
+  if (!h.shots.length) {
+    container.innerHTML = `<div class="card"><div style="text-align:center;padding:20px;color:var(--muted);">No shots yet. Tap "+ Add Shot" to begin.</div></div>`;
+    return;
+  }
+  container.innerHTML = `<div class="card">${h.shots.map((s,i) => {
+    const sgStr = s.sg >= 0 ? '+'+s.sg.toFixed(2) : s.sg.toFixed(2);
+    const missLabel = s.miss === 'on-target' ? '✓ On Target' : s.miss.replace(/-/g,' ');
+    return `<div class="shot-row">
+      <div class="shot-num">${i+1}</div>
+      <div class="shot-info">
+        <div class="shot-type">${shotTypeLabel(s.type)} ${s.club ? '· '+s.club : ''}</div>
+        <div class="shot-detail">${s.distFrom}→${s.distTo} yds · ${missLabel}</div>
+      </div>
+      <div class="shot-sg-val" style="color:${s.sg>=0?'var(--green2)':'var(--red)'};">${sgStr}</div>
+      <button onclick="deleteShot(${i})" style="border:none;background:none;color:var(--muted);font-size:16px;padding:4px;cursor:pointer;">✕</button>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function deleteShot(i) {
+  if (!confirm('Delete this shot?')) return;
+  state.currentHole.shots.splice(i,1);
+  saveRoundState();
+  renderHoleDetail();
+  renderHoleList();
+  updateRoundHeader();
+}
+
+function shotTypeLabel(t) {
+  return {tee:'🏌️ Tee',approach:'🎯 Approach',chip:'⛳ Chip/Pitch',putt:'🏳️ Putt',sand:'🏖️ Sand',penalty:'⚠️ Penalty'}[t] || t;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADD SHOT
+// ═══════════════════════════════════════════════════════════════════
+function addShotModal() {
+  const shotNum = state.currentHole.shots.length + 1;
+  document.getElementById('shot-hdr-sub').textContent = `Shot #${shotNum} · Hole ${state.currentHole.n}`;
+
+  // Smart defaults
+  let defaultType = 'approach';
+  let defaultDist = 150;
+  if (shotNum === 1) {
+    defaultType = state.currentHole.par === 3 ? 'approach' : 'tee';
+    defaultDist = state.currentHole.yds;
+  } else if (shotNum > 1) {
+    const prev = state.currentHole.shots[shotNum-2];
+    defaultDist = prev ? prev.distTo : 150;
+    if (defaultDist <= 20) defaultType = 'putt';
+    else if (defaultDist <= 50) defaultType = 'chip';
+    else defaultType = 'approach';
+  }
+
+  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '' };
+
+  // Update UI
+  selectShotType(defaultType);
+  setDistFrom(defaultDist);
+  setDistTo(0);
+  selectMiss('on-target');
+  renderClubs();
+  showScreen('s-shot');
+}
+
+function selectShotType(t) {
+  state.currentShot.type = t;
+  ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
+    document.getElementById('st-'+x).classList.toggle('active', x === t);
+  });
+  // Adjust dist slider max
+  const max = t === 'putt' ? 80 : 600;
+  document.getElementById('dist-from-slider').max = max;
+  document.getElementById('dist-to-slider').max = max;
+}
+
+function updateDistFrom(v) { state.currentShot.distFrom = parseInt(v); document.getElementById('dist-from-val').textContent = v; }
+function updateDistTo(v)   { state.currentShot.distTo   = parseInt(v); document.getElementById('dist-to-val').textContent   = v; }
+function setDistFrom(v) { state.currentShot.distFrom = v; document.getElementById('dist-from-val').textContent = v; document.getElementById('dist-from-slider').value = v; }
+function setDistTo(v)   { state.currentShot.distTo   = v; document.getElementById('dist-to-val').textContent   = v === 0 ? 0 : v; document.getElementById('dist-to-slider').value = v; }
+
+function selectMiss(m) {
+  state.currentShot.miss = m;
+  document.querySelectorAll('.compass-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('miss-'+m.replace('-','-')).classList.add('active');
+}
+
+function renderClubs() {
+  document.getElementById('club-grid').innerHTML = `<div class="grid-4" style="margin-bottom:4px;">${CLUBS.map(c =>
+    `<button class="sel-btn btn-sm ${state.currentShot.club===c?'active':''}" onclick="selectClub('${c}')">${c}</button>`
+  ).join('')}</div>`;
+}
+
+function selectClub(c) {
+  state.currentShot.club = c;
+  renderClubs();
+}
+
+function saveShot() {
+  const s = state.currentShot;
+  if (!s.type) { alert('Please select a shot type.'); return; }
+  const sg = calcSG(s.distFrom, s.distTo, s.type);
+  const shot = { type: s.type, distFrom: s.distFrom, distTo: s.distTo, miss: s.miss, club: s.club, sg };
+  state.currentHole.shots.push(shot);
+  saveRoundState();
+  renderHoleDetail();
+  renderHoleList();
+  updateRoundHeader();
+  showScreen('s-hole');
+}
+
+function saveRoundState() {
+  const existing = state.rounds.findIndex(r => r.id === state.currentRound.id);
+  if (existing >= 0) state.rounds[existing] = state.currentRound;
+  else state.rounds.push(state.currentRound);
+  saveState();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ROUND SUMMARY
+// ═══════════════════════════════════════════════════════════════════
+function showRoundSummary(r) {
+  document.getElementById('summary-date').textContent = r.date;
+  const allShots = r.holes.flatMap(h => h.shots);
+  const totalSG = getRoundTotalSG(r);
+  const score = getRoundScore(r);
+  const par = getRoundPar(r);
+  const diff = score - par;
+  const diffStr = diff===0?'E':(diff>0?'+'+diff:diff);
+
+  const sgByType = {};
+  const missByType = {};
+  allShots.forEach(s => {
+    sgByType[s.type] = (sgByType[s.type]||0) + s.sg;
+    if (s.miss !== 'on-target') {
+      if (!missByType[s.type]) missByType[s.type] = {};
+      missByType[s.type][s.miss] = (missByType[s.type][s.miss]||0)+1;
+    }
+  });
+
+  const typeOrder = ['tee','approach','chip','sand','putt'];
+  const typeLabels = {tee:'Off the Tee',approach:'Approach',chip:'Short Game',sand:'Sand',putt:'Putting'};
+
+  document.getElementById('summary-content').innerHTML = `
+    <div class="card" style="text-align:center;padding:24px 16px;">
+      <div style="font-family:'Playfair Display',serif;font-size:64px;font-weight:900;color:${diff<=0?'var(--green2)':'var(--red)'};">${diffStr}</div>
+      <div style="color:var(--muted);font-size:14px;">${score} strokes · Par ${par}</div>
+      <div style="margin-top:12px;font-size:18px;font-weight:700;color:${totalSG>=0?'var(--green2)':'var(--red)'};">${totalSG>=0?'+':''}${totalSG.toFixed(2)} Strokes Gained</div>
+    </div>
+
+    <div class="card-title">Strokes Gained by Category</div>
+    <div class="card">
+      ${typeOrder.filter(t => sgByType[t] !== undefined).map(t => {
+        const val = sgByType[t] || 0;
+        const pct = Math.min(100, Math.abs(val) / 3 * 100);
+        return `<div class="stat-row">
+          <div class="stat-label">${typeLabels[t]}</div>
+          <div>
+            <div class="stat-val" style="color:${val>=0?'var(--green2)':'var(--red)'};">${val>=0?'+':''}${val.toFixed(2)}</div>
+            <div class="progress-bar" style="width:80px;"><div class="progress-fill" style="width:${pct}%;background:${val>=0?'var(--green2)':'var(--red)'}"></div></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="card-title">Miss Patterns This Round</div>
+    <div class="card">
+      ${Object.keys(missByType).length ? Object.entries(missByType).map(([type, misses]) => {
+        const topMiss = Object.entries(misses).sort((a,b)=>b[1]-a[1])[0];
+        return `<div class="stat-row"><div class="stat-label">${typeLabels[type]||type}</div><div><span class="pill pill-gold">${topMiss[0].replace(/-/g,' ')}</span></div></div>`;
+      }).join('') : '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No misses recorded — great round! 🎯</div>'}
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="goHome()">← Home</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="showStats()">📊 All Stats</button>
+    </div>
+    <div style="height:20px;"></div>
+  `;
+  showScreen('s-summary');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ALL-TIME STATS
+// ═══════════════════════════════════════════════════════════════════
+function showStats() {
+  const el = document.getElementById('stats-content');
+  if (!state.rounds.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📊</div><p>No rounds yet.<br>Play a round to see your stats and trends.</p></div>`;
+    showScreen('s-stats');
+    return;
+  }
+
+  const allShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const rounds = state.rounds;
+
+  // SG by category across all rounds
+  const sgCats = {tee:0, approach:0, chip:0, sand:0, putt:0};
+  const sgCounts = {tee:0, approach:0, chip:0, sand:0, putt:0};
+  allShots.forEach(s => {
+    if (sgCats[s.type] !== undefined) { sgCats[s.type]+=s.sg; sgCounts[s.type]++; }
+  });
+
+  // Miss patterns by type and distance bucket
+  const missData = {};
+  allShots.forEach(s => {
+    if (s.miss === 'on-target') return;
+    const bucket = s.distFrom <= 20 ? '0–20 yds' : s.distFrom <= 50 ? '20–50 yds' : s.distFrom <= 100 ? '50–100 yds' : s.distFrom <= 150 ? '100–150 yds' : '150+ yds';
+    const key = `${s.type}|${bucket}`;
+    if (!missData[key]) missData[key] = {};
+    missData[key][s.miss] = (missData[key][s.miss]||0)+1;
+  });
+
+  // SG trend (last 10 rounds)
+  const trendRounds = rounds.slice(-10);
+
+  const typeLabels = {tee:'Off the Tee',approach:'Approach',chip:'Short Game',sand:'Sand',putt:'Putting'};
+  const typeOrder = ['tee','approach','chip','sand','putt'];
+
+  // Best/worst category
+  const avgSG = typeOrder.map(t => ({ t, avg: sgCounts[t] ? sgCats[t]/sgCounts[t] : 0 }));
+  avgSG.sort((a,b)=>b.avg-a.avg);
+  const best = avgSG[0];
+  const worst = avgSG[avgSG.length-1];
+
+  el.innerHTML = `
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <div style="flex:1;background:#edf7eb;border-radius:12px;padding:12px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Strength</div>
+          <div style="font-size:15px;font-weight:700;color:var(--green);margin-top:4px;">${typeLabels[best.t]}</div>
+          <div style="font-size:12px;color:var(--green2);">${best.avg>=0?'+':''}${best.avg.toFixed(2)}/shot</div>
+        </div>
+        <div style="flex:1;background:#fee2e2;border-radius:12px;padding:12px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Weakness</div>
+          <div style="font-size:15px;font-weight:700;color:var(--red);margin-top:4px;">${typeLabels[worst.t]}</div>
+          <div style="font-size:12px;color:var(--red);">${worst.avg>=0?'+':''}${worst.avg.toFixed(2)}/shot</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-title">Avg SG Per Shot by Category (${allShots.length} total shots)</div>
+    <div class="card">
+      ${typeOrder.filter(t=>sgCounts[t]>0).map(t => {
+        const avg = sgCats[t]/sgCounts[t];
+        const pct = Math.min(100, Math.abs(avg)/0.5*100);
+        return `<div class="stat-row">
+          <div><div class="stat-label">${typeLabels[t]}</div><div style="font-size:11px;color:var(--muted);">${sgCounts[t]} shots</div></div>
+          <div style="text-align:right;">
+            <div class="stat-val" style="color:${avg>=0?'var(--green2)':'var(--red)'};">${avg>=0?'+':''}${avg.toFixed(2)}</div>
+            <div class="progress-bar" style="width:80px;"><div class="progress-fill" style="width:${pct}%;background:${avg>=0?'var(--green2)':'var(--red)'}"></div></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="card-title">Miss Pattern Analysis</div>
+    <div class="card">
+      ${Object.entries(missData).length ? Object.entries(missData).map(([key, misses]) => {
+        const [type, bucket] = key.split('|');
+        const total = Object.values(misses).reduce((a,b)=>a+b,0);
+        const sorted = Object.entries(misses).sort((a,b)=>b[1]-a[1]);
+        return `<div style="margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${typeLabels[type]||type} · ${bucket}</div>
+          ${sorted.map(([miss,count]) =>
+            `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="font-size:12px;color:var(--muted);width:90px;">${miss.replace(/-/g,' ')}</span>
+              <div style="flex:1;background:#f3f4f6;border-radius:4px;height:8px;overflow:hidden;">
+                <div style="height:100%;background:var(--gold);border-radius:4px;width:${count/total*100}%"></div>
+              </div>
+              <span style="font-size:12px;color:var(--muted);">${Math.round(count/total*100)}%</span>
+            </div>`
+          ).join('')}
+        </div>`;
+      }).join('') : '<div style="color:var(--muted);font-size:13px;">No misses recorded yet.</div>'}
+    </div>
+
+    <div class="card-title">Round History (${rounds.length} rounds)</div>
+    <div class="card">
+      ${[...rounds].reverse().map(r => {
+        const sg = getRoundTotalSG(r);
+        const diff = getRoundScore(r) - getRoundPar(r);
+        const diffStr = diff===0?'E':(diff>0?'+'+diff:diff);
+        return `<div class="stat-row" onclick="viewRound('${r.id}')" style="cursor:pointer;">
+          <div><div style="font-size:14px;font-weight:600;">${r.date}</div><div style="font-size:12px;color:var(--muted);">${r.holes.length} holes</div></div>
+          <div style="text-align:right;">
+            <div style="font-size:15px;font-weight:700;">${diffStr}</div>
+            <div style="font-size:12px;font-weight:600;color:${sg>=0?'var(--green2)':'var(--red)'};">${sg>=0?'+':''}${sg.toFixed(1)} SG</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="height:20px;"></div>
+  `;
+  showScreen('s-stats');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+loadState();
+renderHome();
+</script>
+</body>
+</html>
