@@ -2150,75 +2150,159 @@ function showPuttStats() {
       <div style="font-size:11px;color:var(--muted);text-align:center;">${allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length} putts 11–25 ft</div>
     </div>` : ''}
 
-    <!-- ── Break Analysis ────────────────────────────────── -->
-    ${breakData.length ? `
-    <div class="card-title">Performance by Break</div>
-    <div class="card" style="padding:0;">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-            <th style="padding:10px 12px;text-align:left;">Break</th>
-            <th style="padding:10px 8px;text-align:center;">Make %</th>
-            <th style="padding:10px 8px;text-align:center;">Putts</th>
-            <th style="padding:10px 8px;text-align:left;">Top Miss</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${breakData.map((b,i) => `
-          <tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
-            <td style="padding:10px 12px;font-weight:600;">${b.label}</td>
-            <td style="padding:10px 8px;text-align:center;font-weight:700;color:${b.pct>=60?'var(--green2)':b.pct>=40?'var(--gold)':'var(--red)'};">${b.pct !== null ? b.pct+'%' : '—'}</td>
-            <td style="padding:10px 8px;text-align:center;color:var(--muted);">${b.total}</td>
-            <td style="padding:10px 12px;font-size:12px;color:var(--muted);">${b.topMiss ? b.topMiss.replace(/-/g,' ') : '—'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-      <div style="padding:10px 12px;font-size:11px;color:var(--muted);">Top Miss = most common miss direction on putts you didn't make.</div>
-    </div>` : ''}
-
-    <!-- ── Slope Analysis ────────────────────────────────── -->
-    ${slopeData.length ? `
-    <div class="card-title">Performance by Slope</div>
-    <div class="card">
-      ${slopeData.map(s => {
-        const pct = s.pct || 0;
-        return `<div class="stat-row">
-          <div><div class="stat-label">${s.label}</div><div style="font-size:11px;color:var(--muted);">${s.total} putts</div></div>
-          <div style="text-align:right;">
-            <div style="font-size:16px;font-weight:700;color:${pct>=60?'var(--green2)':pct>=40?'var(--gold)':'var(--red)'};">${pct}%</div>
-            <div class="progress-bar" style="width:80px;"><div class="progress-fill" style="width:${pct}%;background:${pct>=60?'var(--green2)':pct>=40?'var(--gold)':'var(--red)'}"></div></div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>` : ''}
-
-    <!-- ── Low-Side Miss Analysis ─────────────────────────── -->
-    ${breakData.filter(b=>b.total>=3).length >= 2 ? (() => {
-      const leftBreak = breakData.find(b=>b.br==='left');
-      const rightBreak = breakData.find(b=>b.br==='right');
-      const insights = [];
-      if (leftBreak && leftBreak.missDir) {
-        const lowSide = leftBreak.missDir['left'] || 0;
-        const total = Object.values(leftBreak.missDir).reduce((a,b)=>a+b,0);
-        if (total > 0 && lowSide/total > 0.4) insights.push(`On left-breaking putts you miss low-side (left) ${Math.round(lowSide/total*100)}% of the time — try aiming further right.`);
-      }
-      if (rightBreak && rightBreak.missDir) {
-        const lowSide = rightBreak.missDir['right'] || 0;
-        const total = Object.values(rightBreak.missDir).reduce((a,b)=>a+b,0);
-        if (total > 0 && lowSide/total > 0.4) insights.push(`On right-breaking putts you miss low-side (right) ${Math.round(lowSide/total*100)}% of the time — try aiming further left.`);
-      }
-      return insights.length ? `
-      <div class="card-title">💡 Tendencies</div>
-      <div class="card" style="padding:14px 16px;">
-        ${insights.map(t => `<div style="font-size:13px;line-height:1.6;margin-bottom:8px;padding-left:12px;border-left:3px solid var(--gold);">${t}</div>`).join('')}
-      </div>` : '';
-    })() : ''}
+    <!-- ── Break × Slope Combo Matrix ────────────────────── -->
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Break × Slope Analysis</span>
+      <div style="display:flex;gap:4px;">
+        <button id="dist-filter-short" class="sel-btn btn-sm active" style="font-size:11px;padding:4px 10px;" onclick="setPuttDistFilter('short')">≤20 ft</button>
+        <button id="dist-filter-long" class="sel-btn btn-sm" style="font-size:11px;padding:4px 10px;" onclick="setPuttDistFilter('long')">&gt;20 ft</button>
+      </div>
+    </div>
+    <div id="combo-matrix-wrap"></div>
 
     <div style="height:20px;"></div>
   `;
 
+  // ── Combo Matrix state & render ─────────────────────────────────
+  window._puttAllData = allPutts;
+  window._puttDistFilter = 'short';
+  window._puttSelectedCombo = null;
+  renderPuttComboMatrix();
+
   document.getElementById('putt-stats-sub').textContent = `${allPutts.length} putts · ${rounds} round${rounds!==1?'s':''} · Latrobe CC`;
   showScreen('s-putt-stats');
+}
+
+function setPuttDistFilter(f) {
+  window._puttDistFilter = f;
+  window._puttSelectedCombo = null;
+  document.getElementById('dist-filter-short').classList.toggle('active', f==='short');
+  document.getElementById('dist-filter-long').classList.toggle('active', f==='long');
+  renderPuttComboMatrix();
+}
+
+function selectPuttCombo(br, sl) {
+  const key = br+'|'+sl;
+  window._puttSelectedCombo = window._puttSelectedCombo === key ? null : key;
+  renderPuttComboMatrix();
+}
+
+function renderPuttComboMatrix() {
+  const allPutts = window._puttAllData;
+  const isShort  = window._puttDistFilter === 'short';
+  const putts    = allPutts.filter(s => isShort ? s.distFrom <= 20 : s.distFrom > 20);
+  const selected = window._puttSelectedCombo;
+  const wrap     = document.getElementById('combo-matrix-wrap');
+  if (!wrap) return;
+
+  const breaks = ['left','none','right'];
+  const slopes = ['uphill','flat','downhill'];
+  const breakEmoji = { left:'↰', none:'→', right:'↱' };
+  const slopeEmoji = { uphill:'⬆️', flat:'➡️', downhill:'⬇️' };
+  const breakLabel = { left:'Left', none:'Straight', right:'Right' };
+  const slopeLabel = { uphill:'Up', flat:'Flat', downhill:'Down' };
+
+  // Build 3×3 grid HTML
+  let gridHTML = `
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:separate;border-spacing:4px;">
+      <thead>
+        <tr>
+          <th style="width:60px;"></th>
+          ${slopes.map(sl => `<th style="text-align:center;font-size:12px;color:var(--muted);font-weight:600;padding:4px 0;">${slopeEmoji[sl]}<br>${slopeLabel[sl]}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+  breaks.forEach(br => {
+    gridHTML += `<tr>
+      <td style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;padding:4px 6px 4px 0;">${breakEmoji[br]} ${breakLabel[br]}</td>`;
+    slopes.forEach(sl => {
+      const combo = putts.filter(s => (s.puttBreak||'none')===br && (s.puttSlope||'flat')===sl);
+      const made  = combo.filter(s => s.distTo===0).length;
+      const pct   = combo.length ? Math.round(made/combo.length*100) : null;
+      const key   = br+'|'+sl;
+      const isSelected = selected === key;
+      const bgColor = pct === null ? '#f3f4f6'
+        : pct >= 70 ? '#dcfce7' : pct >= 50 ? '#fef9c3' : pct >= 30 ? '#fee2e2' : '#fecaca';
+      const textColor = pct === null ? 'var(--muted)'
+        : pct >= 70 ? '#166534' : pct >= 50 ? '#854d0e' : '#991b1b';
+      const border = isSelected ? '2px solid var(--green)' : '2px solid transparent';
+      gridHTML += `<td style="padding:2px;">
+        <div onclick="selectPuttCombo('${br}','${sl}')"
+          style="background:${bgColor};border:${border};border-radius:10px;padding:10px 4px;text-align:center;cursor:pointer;transition:all .15s;min-width:72px;">
+          ${pct !== null
+            ? `<div style="font-size:20px;font-weight:900;color:${textColor};">${pct}%</div>
+               <div style="font-size:10px;color:${textColor};opacity:.8;margin-top:1px;">${made}/${combo.length}</div>`
+            : `<div style="font-size:11px;color:var(--muted);">—</div>`}
+        </div>
+      </td>`;
+    });
+    gridHTML += `</tr>`;
+  });
+  gridHTML += `</tbody></table></div>
+  <div style="font-size:11px;color:var(--muted);padding:6px 4px 10px;">Tap a cell to see miss direction heatmap</div>`;
+
+  // Miss heatmap for selected combo
+  let heatmapHTML = '';
+  if (selected) {
+    const [selBr, selSl] = selected.split('|');
+    const combo = putts.filter(s => (s.puttBreak||'none')===selBr && (s.puttSlope||'flat')===selSl);
+    const missed = combo.filter(s => s.distTo > 0);
+    const breakName = breakLabel[selBr] + ' break';
+    const slopeName = slopeLabel[selSl];
+    const distLabel = isShort ? '≤20 ft' : '>20 ft';
+
+    if (combo.length === 0) {
+      heatmapHTML = `<div class="card" style="padding:14px;text-align:center;color:var(--muted);font-size:13px;">No putts recorded for this combination yet.</div>`;
+    } else {
+      const dirs = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
+      const freq = {};
+      missed.forEach(s => { freq[s.miss] = (freq[s.miss]||0)+1; });
+      freq['on-target'] = combo.length - missed.length;
+      const maxVal = Math.max(...dirs.map(d => freq[d]||0), 1);
+
+      const gridCells = dirs.map(d => {
+        const count = freq[d]||0;
+        const pct = combo.length ? Math.round(count/combo.length*100) : 0;
+        const isTarget = d==='on-target';
+        const intensity = isTarget ? 1 : maxVal>0 ? count/maxVal : 0;
+        const bg = isTarget ? 'var(--green2)' : count===0 ? '#f3f4f6' : `rgba(192,57,43,${0.15+intensity*0.75})`;
+        const col = isTarget || intensity>0.5 ? 'white' : count>0 ? 'var(--red)' : '#ccc';
+        const label = d==='on-target' ? 'Made ✓' : d.replace(/-/g,' ');
+        return `<div style="background:${bg};color:${col};border-radius:8px;padding:8px 3px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;">
+          <div style="font-size:9px;font-weight:600;line-height:1.3;">${label}</div>
+          <div style="font-size:16px;font-weight:900;margin-top:2px;">${pct}%</div>
+          <div style="font-size:9px;opacity:.75;">${count}</div>
+        </div>`;
+      }).join('');
+
+      // Low-side check
+      let insight = '';
+      if (selBr === 'left' && missed.length >= 3) {
+        const lowSide = (freq['left']||0) + (freq['short-left']||0) + (freq['long-left']||0);
+        if (lowSide/missed.length > 0.45) insight = `⚠️ You tend to miss the low side (left) on ${slopeLabel[selSl].toLowerCase()} left-breaking putts.`;
+      }
+      if (selBr === 'right' && missed.length >= 3) {
+        const lowSide = (freq['right']||0) + (freq['short-right']||0) + (freq['long-right']||0);
+        if (lowSide/missed.length > 0.45) insight = `⚠️ You tend to miss the low side (right) on ${slopeLabel[selSl].toLowerCase()} right-breaking putts.`;
+      }
+
+      heatmapHTML = `<div class="card" style="padding:14px 12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px;text-align:center;">
+          ${breakEmoji[selBr]} ${breakName} · ${slopeEmoji[selSl]} ${slopeName} · ${distLabel}
+          <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">${combo.length} putts</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:280px;margin:0 auto 8px;">${gridCells}</div>
+        ${insight ? `<div style="font-size:12px;color:var(--gold);background:#fef9c3;border-radius:8px;padding:8px 10px;margin-top:8px;">${insight}</div>` : ''}
+      </div>`;
+    }
+  }
+
+  wrap.innerHTML = `
+    <div class="card" style="padding:12px;">${gridHTML}</div>
+    ${heatmapHTML}
+  `;
 }
 
 // ═══════════════════════════════════════════════════════════════════
