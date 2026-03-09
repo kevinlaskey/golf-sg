@@ -255,6 +255,8 @@
     <div id="recent-rounds"></div>
     <button class="btn btn-ghost btn-sm" onclick="showStats()">📊 Strokes Gained Stats</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showPuttStats()">🏳️ Putting Stats</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDistances()">📏 My Distances</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showRangeScreen()">🎯 Practice Range</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDataScreen()">💾 Backup & Restore Data</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--red);border-color:var(--red);opacity:0.7;" onclick="resetAllData()">🗑️ Reset All Data</button>
   </div>
@@ -448,6 +450,17 @@
     <div class="card-title">Club Used</div>
     <div id="club-grid" style="margin-bottom:14px;"></div>
 
+    <!-- Wedge Swing Type (shown only for PW/52/56/60) -->
+    <div id="wedge-swing-section" style="display:none;">
+      <div class="card-title">Swing Type <span style="font-size:11px;font-weight:400;color:var(--muted);">Clock position</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('7:30')" id="swing-730">🕖 7:30</button>
+        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectSwing('9:00')" id="swing-900">🕘 9:00</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('11:30')" id="swing-1130">🕦 11:30</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('Full')" id="swing-Full">💪 Full</button>
+      </div>
+    </div>
+
     <!-- Shot Shape (hidden for putts) -->
     <div id="shot-shape-section">
       <div class="card-title">Shot Shape <span style="font-size:11px;font-weight:400;color:var(--muted);">Intended shape</span></div>
@@ -457,6 +470,16 @@
         <button class="sel-btn btn-sm" onclick="selectShape('fade')" id="shape-fade">↪️ Fade</button>
         <button class="sel-btn btn-sm" onclick="selectShape('punch')" id="shape-punch">⬇️ Punch</button>
         <button class="sel-btn btn-sm" onclick="selectShape('flop')" id="shape-flop">⬆️ Flop</button>
+      </div>
+    </div>
+
+    <!-- Lie (hidden for putts and tee shots) -->
+    <div id="lie-section">
+      <div class="card-title">Lie</div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectLie('fairway')" id="lie-fairway">🟩 Fairway</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('rough')" id="lie-rough">🌿 Rough</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('heavy')" id="lie-heavy">🌾 Heavy</button>
       </div>
     </div>
 
@@ -562,6 +585,94 @@
     </div>
   </div>
   <div class="content" id="summary-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: PRACTICE RANGE
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-range">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Practice Range</div>
+      <div class="hdr-sub" id="range-count-label">0 shots logged</div>
+    </div>
+    <div style="position:absolute;top:52px;right:16px;">
+      <button class="btn btn-sm btn-gold" style="width:auto;padding:8px 14px;" onclick="clearRangeSession()">Clear</button>
+    </div>
+  </div>
+  <div class="content">
+    <!-- Club picker -->
+    <div class="card-title">Club</div>
+    <div id="range-club-grid" style="margin-bottom:14px;"></div>
+
+    <!-- Wedge swing type -->
+    <div id="range-swing-section" style="display:none;">
+      <div class="card-title">Swing Type</div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectRangeSwing('7:30')" id="rswing-730">🕖 7:30</button>
+        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectRangeSwing('9:00')" id="rswing-900">🕘 9:00</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectRangeSwing('11:30')" id="rswing-1130">🕦 11:30</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectRangeSwing('Full')" id="rswing-Full">💪 Full</button>
+      </div>
+    </div>
+
+    <!-- Carry distance -->
+    <div class="card-title">Carry Distance (yds)</div>
+    <div class="card" style="padding:12px 16px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <div class="dist-display" style="flex:1;margin:0;"><span id="range-carry-val">100</span><span style="font-size:14px;color:var(--muted);"> yds</span></div>
+        <input type="number" id="range-carry-manual" min="0" max="400" value="100"
+          style="width:72px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
+          oninput="updateRangeCarry(this.value)" onchange="updateRangeCarry(this.value)">
+      </div>
+      <input type="range" id="range-carry-slider" min="0" max="400" value="100" oninput="updateRangeCarry(this.value)">
+    </div>
+
+    <!-- Miss direction -->
+    <div class="card-title">Miss Direction</div>
+    <div class="card">
+      <div class="compass" id="range-miss-compass">
+        <button class="compass-btn" onclick="selectRangeMiss('long-left')" id="rmiss-long-left">Long<br>Left</button>
+        <button class="compass-btn" onclick="selectRangeMiss('long')" id="rmiss-long">Long</button>
+        <button class="compass-btn" onclick="selectRangeMiss('long-right')" id="rmiss-long-right">Long<br>Right</button>
+        <button class="compass-btn" onclick="selectRangeMiss('left')" id="rmiss-left">Left</button>
+        <button class="compass-btn active" onclick="selectRangeMiss('on-target')" id="rmiss-on-target">✓<br>Target</button>
+        <button class="compass-btn" onclick="selectRangeMiss('right')" id="rmiss-right">Right</button>
+        <button class="compass-btn" onclick="selectRangeMiss('short-left')" id="rmiss-short-left">Short<br>Left</button>
+        <button class="compass-btn" onclick="selectRangeMiss('short')" id="rmiss-short">Short</button>
+        <button class="compass-btn" onclick="selectRangeMiss('short-right')" id="rmiss-short-right">Short<br>Right</button>
+      </div>
+    </div>
+
+    <!-- Strike quality -->
+    <div class="card-title">Strike Quality</div>
+    <div class="grid-2" style="margin-bottom:14px;">
+      <button class="sel-btn active" onclick="selectRangeStrike('good')" id="rstrike-good"><span class="icon">✅</span>Good</button>
+      <button class="sel-btn" onclick="selectRangeStrike('bad')" id="rstrike-bad"><span class="icon">❌</span>Bad</button>
+    </div>
+
+    <button class="btn btn-primary" style="font-size:16px;padding:16px;" onclick="logRangeShot()">＋ Log Shot</button>
+
+    <!-- Session log -->
+    <div class="card-title" style="margin-top:18px;">Session Log</div>
+    <div id="range-session-log" style="min-height:40px;"></div>
+    <div style="height:30px;"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: MY DISTANCES
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-distances">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">My Distances</div>
+      <div class="hdr-sub">Good strikes · punch excluded</div>
+    </div>
+  </div>
+  <div class="content" id="distances-content"></div>
 </div>
 
 <script>
@@ -742,17 +853,22 @@ let state = {
   rounds: [],
   currentRound: null,
   currentHole: null,
-  currentShot: { type:'approach', distFrom:150, distTo:0, miss:'on-target', club:'' }
+  currentShot: { type:'approach', distFrom:150, distTo:0, miss:'on-target', club:'' },
+  rangeShots: []    // practice range shot log
 };
 
 function loadState() {
   try {
     const s = localStorage.getItem('lcc_sg_v2');
-    if (s) { const d = JSON.parse(s); state.rounds = d.rounds || []; }
+    if (s) {
+      const d = JSON.parse(s);
+      state.rounds = d.rounds || [];
+      state.rangeShots = d.rangeShots || [];
+    }
   } catch(e) {}
 }
 function saveState() {
-  localStorage.setItem('lcc_sg_v2', JSON.stringify({ rounds: state.rounds }));
+  localStorage.setItem('lcc_sg_v2', JSON.stringify({ rounds: state.rounds, rangeShots: state.rangeShots }));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -973,7 +1089,7 @@ function addShotModal() {
     }
   }
 
-  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight', landedOnGreen: false, puttBreak: 'none', puttSlope: 'flat' };
+  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight', landedOnGreen: false, puttBreak: 'none', puttSlope: 'flat', lie: 'fairway' };
 
   ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
     document.getElementById('st-'+x).classList.toggle('active', x === defaultType);
@@ -1030,6 +1146,11 @@ function addShotModal() {
   selectShape('straight');
   selectBreak('none');
   selectSlope('flat');
+  selectLie('fairway');
+  state.currentShot.swingType = null;
+  document.getElementById('wedge-swing-section').style.display = 'none';
+  // Lie shown for approach/chip/sand; hidden for tee and putt
+  document.getElementById('lie-section').style.display = ['approach','chip','sand'].includes(defaultType) ? '' : 'none';
   document.getElementById('putt-read-section').style.display = isPutt ? '' : 'none';
   // Auto-select putter for putts
   if (isPutt) {
@@ -1083,6 +1204,7 @@ function selectShotType(t) {
   }
   document.getElementById('shot-shape-section').style.display = nowPutt ? 'none' : '';
   document.getElementById('putt-read-section').style.display = nowPutt ? '' : 'none';
+  document.getElementById('lie-section').style.display = ['approach','chip','sand'].includes(t) ? '' : 'none';
   const max = nowPutt ? 90 : 600;
   document.getElementById('dist-from-slider').max = max;
   document.getElementById('dist-to-slider').max = max;
@@ -1270,6 +1392,29 @@ function selectShape(s) {
   );
 }
 
+function selectLie(l) {
+  state.currentShot.lie = l;
+  ['fairway','rough','heavy'].forEach(x =>
+    document.getElementById('lie-'+x).classList.toggle('active', x === l)
+  );
+}
+
+const WEDGE_CLUBS = ['PW','52','56','60'];
+
+function selectSwing(sw) {
+  state.currentShot.swingType = sw;
+  ['7:30','9:00','11:30','Full'].forEach(x =>
+    document.getElementById('swing-'+x.replace(':','')).classList.toggle('active', x === sw)
+  );
+}
+
+function showWedgeSwing(club) {
+  const isWedge = WEDGE_CLUBS.includes(club);
+  document.getElementById('wedge-swing-section').style.display = isWedge ? '' : 'none';
+  if (isWedge && !state.currentShot.swingType) selectSwing('9:00');
+  if (!isWedge) state.currentShot.swingType = null;
+}
+
 function selectBreak(b) {
   state.currentShot.puttBreak = b;
   ['left','none','right'].forEach(x =>
@@ -1293,6 +1438,7 @@ function renderClubs() {
 function selectClub(c) {
   state.currentShot.club = c;
   renderClubs();
+  showWedgeSwing(c);
 }
 
 function saveShot() {
@@ -1311,7 +1457,9 @@ function saveShot() {
     strike: s.strike || 'good', shape: s.shape || 'straight',
     landedOnGreen,
     puttBreak: s.puttBreak || 'none',
-    puttSlope: s.puttSlope || 'flat'
+    puttSlope: s.puttSlope || 'flat',
+    lie: s.lie || 'fairway',
+    swingType: s.swingType || null
   };
   state.currentHole.shots.push(shot);
   saveRoundState();
@@ -1515,6 +1663,160 @@ function showDataScreen() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// SVG DISPERSION DIAGRAMS
+// ═══════════════════════════════════════════════════════════════════
+function _missMap(shots) {
+  const m = {};
+  shots.forEach(s => { m[s.miss] = (m[s.miss]||0)+1; });
+  return m;
+}
+function _pct(m, dir, total) { return total ? Math.round((m[dir]||0)/total*100) : 0; }
+function _zoneColor(p) {
+  if (p===0) return '#f0fdf4';
+  if (p<=5)  return '#dcfce7';
+  if (p<=15) return '#fef9c3';
+  if (p<=25) return '#fed7aa';
+  return '#fecaca';
+}
+function _textCol(p) { return p>20?'#991b1b':p>10?'#92400e':'#14532d'; }
+
+function buildFairwaySVG(shots) {
+  if (!shots.length) return '';
+  const m = _missMap(shots); const n = shots.length;
+  const leftPct  = _pct(m,'left',n) + _pct(m,'long-left',n) + _pct(m,'short-left',n);
+  const rightPct = _pct(m,'right',n) + _pct(m,'long-right',n) + _pct(m,'short-right',n);
+  const fairPct  = _pct(m,'on-target',n);
+  const W=320, H=200;
+  const cx=W/2;
+  // Fairway trapezoid — wide at near end, narrow at far
+  const nearHalf=70, farHalf=32, topY=24, botY=H-10;
+  // Zone colors
+  function barColor(p) {
+    if (p<=10) return '#4ade80';
+    if (p<=20) return '#facc15';
+    if (p<=35) return '#fb923c';
+    return '#f87171';
+  }
+  // Left rough bar height proportional to %
+  const maxBar = Math.max(leftPct, rightPct, 1);
+  const lH = Math.round(56 + (leftPct/maxBar)*40);
+  const rH = Math.round(56 + (rightPct/maxBar)*40);
+  const lY = botY - lH;
+  const rY = botY - rH;
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:340px;display:block;margin:0 auto;overflow:visible;font-family:sans-serif;">'
+    // Sky
+    +'<defs>'
+    +'<linearGradient id="skyFW" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#93c5fd" stop-opacity=".5"/><stop offset="100%" stop-color="#dbeafe" stop-opacity=".2"/></linearGradient>'
+    +'<linearGradient id="rwGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#166534"/><stop offset="100%" stop-color="#15803d"/></linearGradient>'
+    +'</defs>'
+    +'<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="url(#rwGrad)" rx="12"/>'
+    // Fairway
+    +'<polygon points="'+(cx-farHalf)+','+topY+' '+(cx+farHalf)+','+topY+' '+(cx+nearHalf)+','+botY+' '+(cx-nearHalf)+','+botY+'" fill="#4ade80" opacity=".9"/>'
+    // Dashed center line
+    +'<line x1="'+cx+'" y1="'+topY+'" x2="'+cx+'" y2="'+botY+'" stroke="white" stroke-width="1" stroke-dasharray="4,4" opacity=".4"/>'
+    // Left rough bar (colored)
+    +'<rect x="8" y="'+lY+'" width="'+Math.round((cx-nearHalf-16))+'" height="'+lH+'" rx="8" fill="'+barColor(leftPct)+'" opacity=".92"/>'
+    +'<text x="'+(8+Math.round((cx-nearHalf-16)/2))+'" y="'+(lY+lH/2-4)+'" text-anchor="middle" font-size="26" font-weight="900" fill="white">'+leftPct+'%</text>'
+    +'<text x="'+(8+Math.round((cx-nearHalf-16)/2))+'" y="'+(lY+lH/2+16)+'" text-anchor="middle" font-size="11" font-weight="700" fill="white" opacity=".9">LEFT</text>'
+    // Right rough bar
+    +'<rect x="'+(cx+nearHalf+8)+'" y="'+rY+'" width="'+Math.round((cx-nearHalf-16))+'" height="'+rH+'" rx="8" fill="'+barColor(rightPct)+'" opacity=".92"/>'
+    +'<text x="'+(cx+nearHalf+8+Math.round((cx-nearHalf-16)/2))+'" y="'+(rY+rH/2-4)+'" text-anchor="middle" font-size="26" font-weight="900" fill="white">'+rightPct+'%</text>'
+    +'<text x="'+(cx+nearHalf+8+Math.round((cx-nearHalf-16)/2))+'" y="'+(rY+rH/2+16)+'" text-anchor="middle" font-size="11" font-weight="700" fill="white" opacity=".9">RIGHT</text>'
+    // Fairway % in center
+    +'<text x="'+cx+'" y="'+(topY+(botY-topY)*0.45)+'" text-anchor="middle" font-size="32" font-weight="900" fill="white" stroke="#166634" stroke-width="3" paint-order="stroke">'+fairPct+'%</text>'
+    +'<text x="'+cx+'" y="'+(topY+(botY-topY)*0.65)+'" text-anchor="middle" font-size="11" font-weight="700" fill="white" opacity=".85">FAIRWAY</text>'
+    // Tee marker at bottom center
+    +'<circle cx="'+cx+'" cy="'+(botY-4)+'" r="5" fill="white" opacity=".7"/>'
+    // Labels
+    +'<text x="'+cx+'" y="'+(topY-8)+'" text-anchor="middle" font-size="9" fill="white" opacity=".6">← AWAY</text>'
+    +'<text x="'+(W-6)+'" y="12" text-anchor="end" font-size="9" fill="white" opacity=".6">'+n+' shots</text>'
+    +'</svg>';
+}
+
+function buildGreenSVG(shots) {
+  if (!shots.length) return '';
+  const m = _missMap(shots); const n = shots.length;
+  const ll=_pct(m,'long-left',n),  l=_pct(m,'left',n),  sl=_pct(m,'short-left',n);
+  const lo=_pct(m,'long',n),       ot=_pct(m,'on-target',n), sh=_pct(m,'short',n);
+  const lr=_pct(m,'long-right',n), r=_pct(m,'right',n), sr=_pct(m,'short-right',n);
+  // Wider canvas with proper padding on all sides
+  const W=320, H=300, cx=W/2, cy=H/2+4, gRx=80, gRy=62;
+  const flagX=cx+10, flagY=cy-12;
+  const z = _zoneColor, t = _textCol;
+  // Zone boxes: push inward from edges with guaranteed 8px margin
+  const zw=62, zh=34;
+  const zones = [
+    {key:'long left',   x:cx-gRx-30,        y:cy-gRy-42,   w:zw, h:zh, p:ll},
+    {key:'long',        x:cx-zw/2,          y:cy-gRy-50,   w:zw, h:zh, p:lo},
+    {key:'long right',  x:cx+gRx-32,        y:cy-gRy-42,   w:zw, h:zh, p:lr},
+    {key:'left',        x:8,                y:cy-zh/2,     w:zw, h:zh, p:l },
+    {key:'right',       x:W-zw-8,           y:cy-zh/2,     w:zw, h:zh, p:r },
+    {key:'short left',  x:cx-gRx-30,        y:cy+gRy+8,    w:zw, h:zh, p:sl},
+    {key:'short',       x:cx-zw/2,          y:cy+gRy+8,    w:zw, h:zh, p:sh},
+    {key:'short right', x:cx+gRx-32,        y:cy+gRy+8,    w:zw, h:zh, p:sr},
+  ];
+  let svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:340px;display:block;margin:0 auto;overflow:visible;">'
+    +'<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(gRx+22)+'" ry="'+(gRy+20)+'" fill="#86efac" opacity=".45"/>'
+    +'<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+gRx+'" ry="'+gRy+'" fill="#4ade80" stroke="#16a34a" stroke-width="2"/>'
+    +'<circle cx="'+flagX+'" cy="'+flagY+'" r="5" fill="white" stroke="#374151" stroke-width="1.5"/>'
+    +'<line x1="'+flagX+'" y1="'+(flagY-5)+'" x2="'+flagX+'" y2="'+(flagY-24)+'" stroke="#374151" stroke-width="1.5"/>'
+    +'<polygon points="'+flagX+','+(flagY-24)+' '+(flagX+14)+','+(flagY-18)+' '+flagX+','+(flagY-12)+'" fill="#ef4444"/>'
+    +'<text x="'+(cx-8)+'" y="'+(cy+7)+'" text-anchor="middle" font-size="20" font-weight="900" fill="white" stroke="#166634" stroke-width="3" paint-order="stroke">'+ot+'%</text>'
+    +'<text x="'+(cx-8)+'" y="'+(cy+21)+'" text-anchor="middle" font-size="9" fill="white" font-weight="600" opacity=".9">on green</text>';
+  zones.forEach(zn => {
+    svg += '<rect x="'+zn.x+'" y="'+zn.y+'" width="'+zn.w+'" height="'+zn.h+'" rx="6" fill="'+z(zn.p)+'" stroke="rgba(0,0,0,.1)" stroke-width="1"/>'
+      +'<text x="'+(zn.x+zn.w/2)+'" y="'+(zn.y+zn.h/2-4)+'" text-anchor="middle" font-size="8" fill="'+t(zn.p)+'" font-weight="600">'+zn.key+'</text>'
+      +'<text x="'+(zn.x+zn.w/2)+'" y="'+(zn.y+zn.h/2+9)+'" text-anchor="middle" font-size="13" font-weight="900" fill="'+t(zn.p)+'">'+zn.p+'%</text>';
+  });
+  svg += '<text x="'+(W-6)+'" y="12" text-anchor="end" font-size="9" fill="#374151">'+n+' shots</text></svg>';
+  return svg;
+}
+
+function buildPuttingHoleSVG(shots) {
+  if (!shots.length) return '';
+  const missed = shots.filter(s=>s.distTo>0);
+  const m = _missMap(missed); const n = shots.length;
+  const ll=_pct(m,'long-left',n),  l=_pct(m,'left',n),  sl=_pct(m,'short-left',n);
+  const lo=_pct(m,'long',n),       sh=_pct(m,'short',n);
+  const lr=_pct(m,'long-right',n), r=_pct(m,'right',n), sr=_pct(m,'short-right',n);
+  const made=shots.filter(s=>s.distTo===0).length;
+  const madePct=n?Math.round(made/n*100):0;
+  const W=320, H=320, cx=W/2, cy=H/2;
+  const holeR=20, ring1=56, ring2=96, dist=118;
+  const z=(p)=>{if(p===0)return'#f0fdf4';if(p<=5)return'#dcfce7';if(p<=15)return'#fef9c3';if(p<=25)return'#fed7aa';return'#fecaca';};
+  const t=_textCol;
+  const angleMap={'long':-90,'long-right':-45,'right':0,'short-right':45,'short':90,'short-left':135,'left':180,'long-left':-135};
+  const bubbles=[{key:'long',p:lo},{key:'long-right',p:lr},{key:'right',p:r},{key:'short-right',p:sr},{key:'short',p:sh},{key:'short-left',p:sl},{key:'left',p:l},{key:'long-left',p:ll}];
+  const bR=p=>Math.max(28,Math.min(38,28+p*0.6));
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:340px;display:block;margin:0 auto;overflow:visible;">'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+(ring2+34)+'" fill="#4ade80" opacity=".35"/>'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+ring2+'" fill="none" stroke="#15803d" stroke-width="1" stroke-dasharray="5,3" opacity=".6"/>'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+ring1+'" fill="none" stroke="#15803d" stroke-width="1" stroke-dasharray="5,3" opacity=".6"/>'
+    +'<text x="'+(cx+ring1+3)+'" y="'+(cy-3)+'" font-size="8" fill="#166534" opacity=".9">~10ft</text>'
+    +'<text x="'+(cx+ring2+3)+'" y="'+(cy-3)+'" font-size="8" fill="#166534" opacity=".9">~20ft</text>'
+    +'<circle cx="'+cx+'" cy="'+cy+'" r="'+holeR+'" fill="#111827" stroke="white" stroke-width="2.5"/>'
+    +'<text x="'+cx+'" y="'+(cy+5)+'" text-anchor="middle" font-size="9" fill="white" font-weight="700">HOLE</text>';
+  bubbles.forEach(b=>{
+    const a=(angleMap[b.key]||0)*Math.PI/180;
+    const bx=cx+Math.cos(a)*dist, by=cy+Math.sin(a)*dist;
+    const br=bR(b.p);
+    const lines=b.key.split('-');
+    svg+='<circle cx="'+bx+'" cy="'+by+'" r="'+br+'" fill="'+z(b.p)+'" stroke="rgba(0,0,0,.15)" stroke-width="1.5"/>';
+    if(lines.length>1){
+      svg+='<text x="'+bx+'" y="'+(by-6)+'" text-anchor="middle" font-size="8" font-weight="600" fill="'+t(b.p)+'">'+lines[0]+'</text>'
+        +'<text x="'+bx+'" y="'+(by+4)+'" text-anchor="middle" font-size="8" font-weight="600" fill="'+t(b.p)+'">'+lines[1]+'</text>'
+        +'<text x="'+bx+'" y="'+(by+17)+'" text-anchor="middle" font-size="14" font-weight="900" fill="'+t(b.p)+'">'+b.p+'%</text>';
+    } else {
+      svg+='<text x="'+bx+'" y="'+(by-3)+'" text-anchor="middle" font-size="8" font-weight="600" fill="'+t(b.p)+'">'+lines[0]+'</text>'
+        +'<text x="'+bx+'" y="'+(by+13)+'" text-anchor="middle" font-size="14" font-weight="900" fill="'+t(b.p)+'">'+b.p+'%</text>';
+    }
+  });
+  svg+='<text x="'+cx+'" y="'+(cy-16)+'" text-anchor="middle" font-size="20" font-weight="900" fill="white" stroke="#166634" stroke-width="3" paint-order="stroke">'+madePct+'%</text>'
+    +'<text x="'+(W-4)+'" y="12" text-anchor="end" font-size="9" fill="#374151">'+n+' putts</text></svg>';
+  return svg;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // ALL-TIME STATS
 // ═══════════════════════════════════════════════════════════════════
 function showStats() {
@@ -1683,31 +1985,24 @@ function showStats() {
       <div style="padding:10px 12px;font-size:11px;color:var(--muted);">Prox = avg distance to hole after shot. Range = 10th–90th percentile. Tap a club for full detail.</div>
     </div>` : ''}
 
-    <!-- ── Shot Dispersion (miss direction heat map) ─────────── -->
-    <div class="card-title">Shot Dispersion</div>
-    <div class="card">
+    <!-- ── Visual Dispersion Diagrams ──────────────────────── -->
+    <div class="card-title">Shot Dispersion — Visual</div>
+    <div class="card" id="dispersion-visual-card">
       ${(() => {
-        const dirs = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
-        const total = allShots.length;
-        const maxVal = Math.max(...dirs.map(d => missFreq[d]||0), 1);
-        return `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:280px;margin:0 auto 10px;">
-          ${dirs.map(d => {
-            const count = missFreq[d] || 0;
-            const pct = total ? Math.round(count/total*100) : 0;
-            const isTarget = d === 'on-target';
-            const intensity = isTarget ? 1 : count/maxVal;
-            const bg = isTarget ? 'var(--green2)' : count === 0 ? '#f3f4f6' : `rgba(192,57,43,${0.15 + intensity*0.75})`;
-            const textColor = isTarget || intensity > 0.5 ? 'white' : (count > 0 ? 'var(--red)' : 'var(--muted)');
-            return `<div style="background:${bg};color:${textColor};border-radius:8px;padding:10px 4px;text-align:center;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-              <div style="font-size:11px;font-weight:600;">${d.replace(/-/g,'<br>')}</div>
-              <div style="font-size:16px;font-weight:900;margin-top:2px;">${pct}%</div>
-            </div>`;
-          }).join('')}
-        </div>
-        <div style="font-size:11px;color:var(--muted);text-align:center;">% of all shots in each direction</div>`;
+        const teeShots      = allShots.filter(s => s.type === 'tee');
+        const approachShots = allShots.filter(s => s.type === 'approach');
+        const chipShots     = allShots.filter(s => s.type === 'chip');
+        const puttShots     = allShots.filter(s => s.type === 'putt');
+        const parts = [];
+        if (teeShots.length)      parts.push('<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;text-align:center;">🏌️ Tee Shots ('+teeShots.length+')</div>'+buildFairwaySVG(teeShots)+'</div>');
+        if (approachShots.length) parts.push('<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;text-align:center;">🎯 Approach Shots ('+approachShots.length+')</div>'+buildGreenSVG(approachShots)+'</div>');
+        if (chipShots.length)     parts.push('<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;text-align:center;">⛳ Chip/Pitch ('+chipShots.length+')</div>'+buildGreenSVG(chipShots)+'</div>');
+        if (puttShots.length)     parts.push('<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;text-align:center;">🏳️ Putting ('+puttShots.length+')</div>'+buildPuttingHoleSVG(puttShots)+'</div>');
+        return parts.length ? parts.join('') : '<div style="color:var(--muted);font-size:13px;">No shots recorded yet.</div>';
       })()}
     </div>
+
+    <!-- ── Miss Patterns by Category ────────────────────────── -->
 
     <!-- ── Miss Patterns by Category ────────────────────────── -->
     <div class="card-title">Miss Patterns by Category & Distance</div>
@@ -1730,6 +2025,47 @@ function showStats() {
         </div>`;
       }).join('') : '<div style="color:var(--muted);font-size:13px;">No misses recorded yet.</div>'}
     </div>
+
+    <!-- ── Lie Stats ─────────────────────────────────────── -->
+    ${(() => {
+      const lieShots = allShots.filter(s => s.lie && s.type !== 'tee' && s.type !== 'putt');
+      if (!lieShots.length) return '';
+      const lies = ['fairway','rough','heavy'];
+      const lieLabel = { fairway:'🟩 Fairway', rough:'🌿 Rough', heavy:'🌾 Heavy' };
+      return `<div class="card-title">Stats by Lie</div>
+      <div class="card" style="padding:0;">
+        <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+            <th style="padding:10px 12px;text-align:left;font-weight:700;">Lie</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;">Shots</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg Carry</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg Prox</th>
+            <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg SG</th>
+          </tr></thead>
+          <tbody>
+          ${lies.map((lie, i) => {
+            const s = lieShots.filter(x => (x.lie||'fairway') === lie);
+            if (!s.length) return '';
+            const carries = s.map(x => x.distFrom - x.distTo).filter(c => c > 0);
+            const avgCarry = carries.length ? Math.round(carries.reduce((a,b)=>a+b,0)/carries.length) : null;
+            const proxes = s.map(x => x.distTo).filter(x => x >= 0);
+            const avgProx = proxes.length ? Math.round(proxes.reduce((a,b)=>a+b,0)/proxes.length) : null;
+            const avgSG = s.reduce((a,x)=>a+x.sg,0)/s.length;
+            return `<tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'}">
+              <td style="padding:10px 12px;font-weight:700;">${lieLabel[lie]}</td>
+              <td style="padding:10px 8px;text-align:center;">${s.length}</td>
+              <td style="padding:10px 8px;text-align:center;">${avgCarry !== null ? avgCarry+'y' : '—'}</td>
+              <td style="padding:10px 8px;text-align:center;">${avgProx !== null ? avgProx+'y' : '—'}</td>
+              <td style="padding:10px 8px;text-align:center;font-weight:600;color:${avgSG>=0?'var(--green2)':'var(--red)'};">${avgSG>=0?'+':''}${avgSG.toFixed(2)}</td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+        </div>
+        <div style="padding:8px 12px;font-size:11px;color:var(--muted);">Approach, chip & sand shots only. Carry = distFrom − distTo. Prox = distance left after shot.</div>
+      </div>`;
+    })()}
 
     <!-- ── Round History ─────────────────────────────────────── -->
     <div class="card-title">Round History (${rounds.length} rounds)</div>
@@ -1760,21 +2096,44 @@ function showStats() {
 // ═══════════════════════════════════════════════════════════════════
 // CLUB DETAIL
 // ═══════════════════════════════════════════════════════════════════
+let _clubDetailName = '';
+let _clubDetailLie = 'all';
+
 function showClubDetail(club) {
-  const allShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
-  const clubShots = allShots.filter(s => s.club === club && s.type !== 'putt');
-  const goodShots = clubShots.filter(s => (s.strike||'good') === 'good');
+  _clubDetailName = club;
+  _clubDetailLie = 'fairway';
+  renderClubDetail();
+  showScreen('s-club');
+}
+
+function setClubLie(lie) {
+  _clubDetailLie = lie;
+  renderClubDetail();
+}
+
+function renderClubDetail() {
+  const club = _clubDetailName;
+  const lie  = _clubDetailLie;
+  // Merge round shots + range shots for this club
+  const roundShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  // Range shots converted to shot-like objects (no SG, no distFrom/distTo, just carry)
+  const rangeForClub = state.rangeShots.filter(s => s.club === club);
+
+  let allShots = roundShots.filter(s => s.club === club && s.type !== 'putt');
+  if (lie !== 'all') allShots = allShots.filter(s => (s.lie||'fairway') === lie);
+
+  const goodShots = allShots.filter(s => (s.strike||'good') === 'good');
 
   document.getElementById('club-detail-title').textContent = club;
-  document.getElementById('club-detail-sub').textContent = `${clubShots.length} shots total · ${goodShots.length} good strikes`;
+  const rangeNote = rangeForClub.length ? ` · ${rangeForClub.length} range` : '';
+  document.getElementById('club-detail-sub').textContent = `${allShots.length} shots${rangeNote}`;
 
-  if (!clubShots.length) {
+  if (!allShots.length && !rangeForClub.length) {
     document.getElementById('club-detail-content').innerHTML = `<div class="empty-state"><div class="icon">🏌️</div><p>No shots logged with ${club} yet.</p></div>`;
-    showScreen('s-club');
     return;
   }
 
-  // ── Distance stats by shape (good strikes only) ──────────────────
+  // ── Distance stats (good, non-punch strikes) ─────────────────────
   const shapes = ['straight','draw','fade','punch','flop'];
   const shapeEmoji = {straight:'➡️',draw:'↩️',fade:'↪️',punch:'⬇️',flop:'⬆️'};
   const shapeData = {};
@@ -1785,33 +2144,81 @@ function showClubDetail(club) {
     if (carry > 0) shapeData[sh].push({ carry, distTo: s.distTo, miss: s.miss });
   });
 
-  // Overall good-strike distance stats
-  const allCarries = goodShots.map(s => s.distFrom - s.distTo).filter(c => c > 0);
+  // Overall: good strikes, exclude punch shots
+  const normalGoodShots = goodShots.filter(s => (s.shape||'straight') !== 'punch');
+  // Also merge range shots (good strikes only) for distance stats
+  const rangeGood = rangeForClub.filter(s => (s.strike||'good') === 'good');
+  const allCarries = [
+    ...normalGoodShots.map(s => s.distFrom - s.distTo).filter(c => c > 0),
+    ...rangeGood.map(s => s.carry).filter(c => c > 0)
+  ];
   const avgCarry = allCarries.length ? Math.round(allCarries.reduce((a,b)=>a+b,0)/allCarries.length) : 0;
   const sortedCarries = [...allCarries].sort((a,b)=>a-b);
   const lo10 = sortedCarries[Math.floor(sortedCarries.length*0.1)] || sortedCarries[0] || 0;
   const hi90 = sortedCarries[Math.floor(sortedCarries.length*0.9)] || sortedCarries[sortedCarries.length-1] || 0;
 
-  // ── Distance dispersion bar chart ───────────────────────────────
-  // Bucket carries into 10-yard bins
+  // Distance distribution buckets (10yd bins)
   const buckets = {};
-  allCarries.forEach(c => {
-    const b = Math.floor(c/10)*10;
-    buckets[b] = (buckets[b]||0)+1;
-  });
+  allCarries.forEach(c => { const b = Math.floor(c/10)*10; buckets[b] = (buckets[b]||0)+1; });
   const bucketKeys = Object.keys(buckets).map(Number).sort((a,b)=>a-b);
   const maxBucket = Math.max(...Object.values(buckets), 1);
 
-  // ── Miss direction for this club ─────────────────────────────────
-  const missFreq = {};
-  clubShots.forEach(s => { missFreq[s.miss] = (missFreq[s.miss]||0)+1; });
-  const totalMiss = clubShots.length;
+  // ── Wedge swing matrix (52/56/60 only) ──────────────────────────
+  const isWedge = WEDGE_CLUBS.includes(club);
+  const swingTypes = ['7:30','9:00','11:30','Full'];
+  let wedgeMatrixHTML = '';
+  if (isWedge) {
+    const allWedgeShots = [
+      ...normalGoodShots.map(s => ({ carry: s.distFrom - s.distTo, swing: s.swingType||null })),
+      ...rangeGood.map(s => ({ carry: s.carry, swing: s.swingType||null }))
+    ].filter(s => s.carry > 0);
+    wedgeMatrixHTML = `
+    <div class="card-title">Swing Distance Matrix <span style="font-size:11px;font-weight:400;color:var(--muted);">Good strikes · incl. range</span></div>
+    <div class="card" style="padding:0;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+          <th style="padding:10px 12px;text-align:left;font-weight:700;">Swing</th>
+          <th style="padding:10px 8px;text-align:center;font-weight:700;">Shots</th>
+          <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg</th>
+          <th style="padding:10px 8px;text-align:center;font-weight:700;">Min</th>
+          <th style="padding:10px 8px;text-align:center;font-weight:700;">Max</th>
+        </tr></thead>
+        <tbody>
+        ${swingTypes.map((sw, i) => {
+          const swShots = allWedgeShots.filter(s => s.swing === sw);
+          const untagged = sw === '9:00' ? allWedgeShots.filter(s => !s.swing) : [];
+          const combined = [...swShots, ...untagged];
+          if (!combined.length) return `<tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'}"><td style="padding:10px 12px;font-weight:700;">${sw}</td><td colspan="4" style="text-align:center;color:var(--muted);font-size:12px;">—</td></tr>`;
+          const carries = combined.map(s => s.carry).sort((a,b)=>a-b);
+          const avg = Math.round(carries.reduce((a,b)=>a+b,0)/carries.length);
+          return `<tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'}">
+            <td style="padding:10px 12px;font-weight:700;color:var(--green);">${sw}</td>
+            <td style="padding:10px 8px;text-align:center;">${combined.length}</td>
+            <td style="padding:10px 8px;text-align:center;font-weight:700;font-size:16px;">${avg}</td>
+            <td style="padding:10px 8px;text-align:center;color:var(--muted);">${carries[0]}</td>
+            <td style="padding:10px 8px;text-align:center;color:var(--muted);">${carries[carries.length-1]}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+      <div style="padding:8px 12px;font-size:11px;color:var(--muted);">Punch shots excluded. Untagged shots counted in 9:00.</div>
+    </div>`;
+  }
 
   // ── Shape comparison table ───────────────────────────────────────
-  const shapesWithData = shapes.filter(sh => shapeData[sh].length > 0);
+  const shapesWithData = shapes.filter(sh => shapeData[sh].length > 0 && sh !== 'punch');
+  const clubShots = allShots; // alias for HTML template below
 
   const el = document.getElementById('club-detail-content');
   el.innerHTML = `
+
+    <!-- ── Lie Filter Tabs ────────────────────────────── -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      ${['all','fairway','rough','heavy'].map(l => {
+        const labels = {all:'All Lies',fairway:'🟩 Fairway',rough:'🌿 Rough',heavy:'🌾 Heavy'};
+        return `<button class="sel-btn btn-sm${l===lie?' active':''}" style="flex:1;font-size:11px;" onclick="setClubLie('${l}')">${labels[l]}</button>`;
+      }).join('')}
+    </div>
 
     <!-- ── Key Numbers ──────────────────────────────────── -->
     <div class="card" style="text-align:center;padding:16px;">
@@ -1853,6 +2260,8 @@ function showClubDetail(club) {
         <span>${bucketKeys[bucketKeys.length-1]+9}</span>
       </div>
     </div>` : ''}
+
+    ${wedgeMatrixHTML}
 
     <!-- ── Shape Comparison ──────────────────────────────── -->
     ${shapesWithData.length > 0 ? `
@@ -1896,30 +2305,21 @@ function showClubDetail(club) {
       <div style="padding:10px 12px;font-size:11px;color:var(--muted);">vs Straight = carry difference vs. your straight shots with this club. Prox = avg distance to hole.</div>
     </div>` : ''}
 
-    <!-- ── Shot Dispersion (this club) ──────────────────── -->
-    <div class="card-title">Shot Dispersion <span style="font-size:11px;font-weight:400;color:var(--muted);">All strikes</span></div>
-    <div class="card">
-      ${(() => {
-        const dirs = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
-        const maxVal = Math.max(...dirs.map(d => missFreq[d]||0), 1);
-        return `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:280px;margin:0 auto 10px;">
-          ${dirs.map(d => {
-            const count = missFreq[d] || 0;
-            const pct = totalMiss ? Math.round(count/totalMiss*100) : 0;
-            const isTarget = d === 'on-target';
-            const intensity = isTarget ? 1 : maxVal > 0 ? count/maxVal : 0;
-            const bg = isTarget ? 'var(--green2)' : count === 0 ? '#f3f4f6' : `rgba(192,57,43,${0.15 + intensity*0.75})`;
-            const textColor = isTarget || intensity > 0.5 ? 'white' : (count > 0 ? 'var(--red)' : 'var(--muted)');
-            return `<div style="background:${bg};color:${textColor};border-radius:8px;padding:10px 4px;text-align:center;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-              <div style="font-size:10px;font-weight:600;line-height:1.2;">${d.replace(/-/g,'<br>')}</div>
-              <div style="font-size:16px;font-weight:900;margin-top:2px;">${pct}%</div>
-            </div>`;
-          }).join('')}
-        </div>
-        <div style="font-size:11px;color:var(--muted);text-align:center;">% of ${totalMiss} shots with this club</div>`;
-      })()}
-    </div>
+    <!-- ── Tee Shot Dispersion (this club) ──────────────── -->
+    ${(() => {
+      const teeWithClub = clubShots.filter(s => s.type === 'tee');
+      if (!teeWithClub.length) return '';
+      return `<div class="card-title">🏌️ Tee Shot Dispersion <span style="font-size:11px;font-weight:400;color:var(--muted);">${teeWithClub.length} shots</span></div>
+      <div class="card">${buildFairwaySVG(teeWithClub)}</div>`;
+    })()}
+
+    <!-- ── Approach Dispersion (this club) ───────────────── -->
+    ${(() => {
+      const apprWithClub = clubShots.filter(s => s.type === 'approach');
+      if (!apprWithClub.length) return '';
+      return `<div class="card-title">🎯 Approach Dispersion <span style="font-size:11px;font-weight:400;color:var(--muted);">${apprWithClub.length} shots</span></div>
+      <div class="card">${buildGreenSVG(apprWithClub)}</div>`;
+    })()}
 
     <!-- ── All Shots Log ─────────────────────────────────── -->
     <div class="card-title">Shot Log <span style="font-size:11px;font-weight:400;color:var(--muted);">Most recent first</span></div>
@@ -1942,8 +2342,6 @@ function showClubDetail(club) {
     </div>
     <div style="height:20px;"></div>
   `;
-
-  showScreen('s-club');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2134,20 +2532,27 @@ function showPuttStats() {
       </div>
     </div>` : ''}
 
+    <!-- ── Putting Hole Diagram ──────────────────────────────── -->
+    <div class="card-title">Miss Direction — Visual</div>
+    <div class="card" style="padding:16px;">
+      ${buildPuttingHoleSVG(allPutts)}
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">Bubble size reflects miss frequency · all putts</div>
+    </div>
+
     <!-- ── Miss Heatmap (short putts ≤10 ft) ────────────── -->
-    ${shortMissed.length + allPutts.filter(s=>s.distFrom<=10).length > 0 ? `
+    ${allPutts.filter(s=>s.distFrom<=10).length > 0 ? `
     <div class="card-title">Miss Direction — Short Putts (≤10 ft)</div>
     <div class="card" style="padding:16px;">
-      ${missHeatmap(shortMissed, allPutts.filter(s=>s.distFrom<=10).length)}
-      <div style="font-size:11px;color:var(--muted);text-align:center;">${allPutts.filter(s=>s.distFrom<=10).length} putts ≤10 ft</div>
+      ${buildPuttingHoleSVG(allPutts.filter(s=>s.distFrom<=10))}
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">${allPutts.filter(s=>s.distFrom<=10).length} putts ≤10 ft</div>
     </div>` : ''}
 
     <!-- ── Miss Heatmap (mid putts 11–25 ft) ────────────── -->
-    ${medMissed.length + allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length > 0 ? `
+    ${allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length > 0 ? `
     <div class="card-title">Miss Direction — Mid-Range (11–25 ft)</div>
     <div class="card" style="padding:16px;">
-      ${missHeatmap(medMissed, allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length)}
-      <div style="font-size:11px;color:var(--muted);text-align:center;">${allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length} putts 11–25 ft</div>
+      ${buildPuttingHoleSVG(allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25))}
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">${allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length} putts 11–25 ft</div>
     </div>` : ''}
 
     <!-- ── Break × Slope Combo Matrix ────────────────────── -->
@@ -2202,22 +2607,22 @@ function renderPuttComboMatrix() {
   const breakLabel = { left:'Left', none:'Straight', right:'Right' };
   const slopeLabel = { uphill:'Up', flat:'Flat', downhill:'Down' };
 
-  // Build 3×3 grid HTML
+  // Build grid: slopes=rows, breaks=columns
   let gridHTML = `
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:separate;border-spacing:4px;">
       <thead>
         <tr>
-          <th style="width:60px;"></th>
-          ${slopes.map(sl => `<th style="text-align:center;font-size:12px;color:var(--muted);font-weight:600;padding:4px 0;">${slopeEmoji[sl]}<br>${slopeLabel[sl]}</th>`).join('')}
+          <th style="width:50px;"></th>
+          ${breaks.map(br => `<th style="text-align:center;font-size:12px;color:var(--muted);font-weight:600;padding:4px 0;">${breakEmoji[br]}<br>${breakLabel[br]}</th>`).join('')}
         </tr>
       </thead>
       <tbody>`;
 
-  breaks.forEach(br => {
+  slopes.forEach(sl => {
     gridHTML += `<tr>
-      <td style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;padding:4px 6px 4px 0;">${breakEmoji[br]} ${breakLabel[br]}</td>`;
-    slopes.forEach(sl => {
+      <td style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;padding:4px 6px 4px 0;">${slopeEmoji[sl]} ${slopeLabel[sl]}</td>`;
+    breaks.forEach(br => {
       const combo = putts.filter(s => (s.puttBreak||'none')===br && (s.puttSlope||'flat')===sl);
       const made  = combo.filter(s => s.distTo===0).length;
       const pct   = combo.length ? Math.round(made/combo.length*100) : null;
@@ -2256,44 +2661,23 @@ function renderPuttComboMatrix() {
     if (combo.length === 0) {
       heatmapHTML = `<div class="card" style="padding:14px;text-align:center;color:var(--muted);font-size:13px;">No putts recorded for this combination yet.</div>`;
     } else {
-      const dirs = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
-      const freq = {};
-      missed.forEach(s => { freq[s.miss] = (freq[s.miss]||0)+1; });
-      freq['on-target'] = combo.length - missed.length;
-      const maxVal = Math.max(...dirs.map(d => freq[d]||0), 1);
-
-      const gridCells = dirs.map(d => {
-        const count = freq[d]||0;
-        const pct = combo.length ? Math.round(count/combo.length*100) : 0;
-        const isTarget = d==='on-target';
-        const intensity = isTarget ? 1 : maxVal>0 ? count/maxVal : 0;
-        const bg = isTarget ? 'var(--green2)' : count===0 ? '#f3f4f6' : `rgba(192,57,43,${0.15+intensity*0.75})`;
-        const col = isTarget || intensity>0.5 ? 'white' : count>0 ? 'var(--red)' : '#ccc';
-        const label = d==='on-target' ? 'Made ✓' : d.replace(/-/g,' ');
-        return `<div style="background:${bg};color:${col};border-radius:8px;padding:8px 3px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:52px;">
-          <div style="font-size:9px;font-weight:600;line-height:1.3;">${label}</div>
-          <div style="font-size:16px;font-weight:900;margin-top:2px;">${pct}%</div>
-          <div style="font-size:9px;opacity:.75;">${count}</div>
-        </div>`;
-      }).join('');
-
-      // Low-side check
+      // Low-side miss insight
+      const missed = combo.filter(s => s.distTo > 0);
       let insight = '';
       if (selBr === 'left' && missed.length >= 3) {
-        const lowSide = (freq['left']||0) + (freq['short-left']||0) + (freq['long-left']||0);
+        const lowSide = missed.filter(s => ['left','short-left','long-left'].includes(s.miss)).length;
         if (lowSide/missed.length > 0.45) insight = `⚠️ You tend to miss the low side (left) on ${slopeLabel[selSl].toLowerCase()} left-breaking putts.`;
       }
       if (selBr === 'right' && missed.length >= 3) {
-        const lowSide = (freq['right']||0) + (freq['short-right']||0) + (freq['long-right']||0);
+        const lowSide = missed.filter(s => ['right','short-right','long-right'].includes(s.miss)).length;
         if (lowSide/missed.length > 0.45) insight = `⚠️ You tend to miss the low side (right) on ${slopeLabel[selSl].toLowerCase()} right-breaking putts.`;
       }
-
       heatmapHTML = `<div class="card" style="padding:14px 12px;">
         <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:10px;text-align:center;">
-          ${breakEmoji[selBr]} ${breakName} · ${slopeEmoji[selSl]} ${slopeName} · ${distLabel}
+          ${breakEmoji[selBr]} ${breakLabel[selBr]} break · ${slopeEmoji[selSl]} ${slopeLabel[selSl]} · ${distLabel}
           <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:6px;">${combo.length} putts</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:280px;margin:0 auto 8px;">${gridCells}</div>
+        ${buildPuttingHoleSVG(combo)}
         ${insight ? `<div style="font-size:12px;color:var(--gold);background:#fef9c3;border-radius:8px;padding:8px 10px;margin-top:8px;">${insight}</div>` : ''}
       </div>`;
     }
@@ -2302,6 +2686,349 @@ function renderPuttComboMatrix() {
   wrap.innerHTML = `
     <div class="card" style="padding:12px;">${gridHTML}</div>
     ${heatmapHTML}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PRACTICE RANGE
+// ═══════════════════════════════════════════════════════════════════
+let rangeSession = { club:'', swingType: '9:00', miss: 'on-target', carry: 100, strike: 'good' };
+
+function showRangeScreen() {
+  rangeSession = { club: CLUBS[9], swingType: '9:00', miss: 'on-target', carry: 100, strike: 'good' }; // default PW
+  renderRangeClubs();
+  selectRangeMiss('on-target');
+  selectRangeStrike('good');
+  selectRangeSwing('9:00');
+  updateRangeCarry(100);
+  document.getElementById('range-swing-section').style.display = WEDGE_CLUBS.includes(rangeSession.club) ? '' : 'none';
+  renderRangeLog();
+  showScreen('s-range');
+}
+
+function renderRangeClubs() {
+  document.getElementById('range-club-grid').innerHTML =
+    CLUBS.filter(c => c !== 'Put').map(c =>
+      `<button class="sel-btn btn-sm ${rangeSession.club===c?'active':''}" onclick="selectRangeClub('${c}')" style="margin:2px;">${c}</button>`
+    ).join('');
+}
+
+function selectRangeClub(c) {
+  rangeSession.club = c;
+  renderRangeClubs();
+  const isWedge = WEDGE_CLUBS.includes(c);
+  document.getElementById('range-swing-section').style.display = isWedge ? '' : 'none';
+  if (isWedge) selectRangeSwing(rangeSession.swingType || '9:00');
+}
+
+function selectRangeSwing(sw) {
+  rangeSession.swingType = sw;
+  ['7:30','9:00','11:30','Full'].forEach(x =>
+    document.getElementById('rswing-'+x.replace(':','')).classList.toggle('active', x === sw)
+  );
+}
+
+function selectRangeMiss(d) {
+  rangeSession.miss = d;
+  document.querySelectorAll('#range-miss-compass .compass-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('rmiss-'+d).classList.add('active');
+}
+
+function selectRangeStrike(s) {
+  rangeSession.strike = s;
+  document.getElementById('rstrike-good').classList.toggle('active', s === 'good');
+  document.getElementById('rstrike-bad').classList.toggle('active', s === 'bad');
+}
+
+function updateRangeCarry(v) {
+  const n = parseInt(v) || 0;
+  rangeSession.carry = n;
+  document.getElementById('range-carry-val').textContent = n;
+  document.getElementById('range-carry-slider').value = n;
+  document.getElementById('range-carry-manual').value = n;
+}
+
+function logRangeShot() {
+  if (!rangeSession.club) { alert('Select a club first.'); return; }
+  const shot = {
+    club: rangeSession.club,
+    swingType: WEDGE_CLUBS.includes(rangeSession.club) ? rangeSession.swingType : null,
+    carry: rangeSession.carry,
+    miss: rangeSession.miss,
+    strike: rangeSession.strike,
+    date: new Date().toLocaleDateString('en-US', {month:'short',day:'numeric'}),
+    ts: Date.now()
+  };
+  state.rangeShots.push(shot);
+  saveState();
+  renderRangeLog();
+  // Reset miss to on-target for quick re-logging
+  selectRangeMiss('on-target');
+}
+
+function deleteRangeShot(ts) {
+  state.rangeShots = state.rangeShots.filter(s => s.ts !== ts);
+  saveState();
+  renderRangeLog();
+}
+
+function clearRangeSession() {
+  if (!confirm('Clear all practice range shots? This cannot be undone.')) return;
+  state.rangeShots = [];
+  saveState();
+  renderRangeLog();
+}
+
+function renderRangeLog() {
+  const el = document.getElementById('range-session-log');
+  const shots = [...state.rangeShots].reverse();
+  document.getElementById('range-count-label').textContent = state.rangeShots.length + ' shots logged';
+  if (!shots.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:12px 0;">No shots yet. Log your first shot above.</div>';
+    return;
+  }
+  el.innerHTML = shots.slice(0,40).map(s =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:white;border-radius:10px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
+      <div style="font-size:18px;font-weight:900;color:var(--green);min-width:36px;">${s.club}</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;">${s.carry} yds carry${s.swingType?' · '+s.swingType:''}</div>
+        <div style="font-size:11px;color:var(--muted);">${s.miss==='on-target'?'On target':s.miss.replace(/-/g,' ')} · ${(s.strike||'good')==='good'?'✅ Good':'❌ Bad'} · ${s.date}</div>
+      </div>
+      <button onclick="deleteRangeShot(${s.ts})" style="background:none;border:none;color:#ccc;font-size:18px;cursor:pointer;padding:4px;">✕</button>
+    </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MY DISTANCES
+// ═══════════════════════════════════════════════════════════════════
+let _distancesLie = 'fairway';
+
+function showDistances() {
+  _distancesLie = 'fairway';
+  renderDistances();
+  showScreen('s-distances');
+}
+
+function setDistancesLie(lie) {
+  _distancesLie = lie;
+  renderDistances();
+}
+
+function renderDistances() {
+  const lie = _distancesLie;
+  const el = document.getElementById('distances-content');
+
+  const roundShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const rangeShots = state.rangeShots || [];
+
+  // Build per-club data
+  const clubData = {};
+  CLUBS.filter(c => c !== 'Put').forEach(c => { clubData[c] = { carries: [], bySwing: {} }; });
+
+  // Round shots: good strike, selected lie, not punch, not putt
+  roundShots.forEach(s => {
+    if (!clubData[s.club]) return;
+    if (s.type === 'putt') return;
+    if ((s.strike||'good') !== 'good') return;
+    if ((s.shape||'straight') === 'punch') return;
+    const shotLie = s.lie || 'fairway';
+    if (lie !== 'all' && shotLie !== lie) return;
+    const carry = s.distFrom - s.distTo;
+    if (carry <= 0) return;
+    clubData[s.club].carries.push(carry);
+    if (s.swingType) {
+      if (!clubData[s.club].bySwing[s.swingType]) clubData[s.club].bySwing[s.swingType] = [];
+      clubData[s.club].bySwing[s.swingType].push(carry);
+    }
+  });
+
+  // Range shots: good strike, fairway only (range = clean lies)
+  if (lie === 'fairway' || lie === 'all') {
+    rangeShots.forEach(s => {
+      if (!clubData[s.club]) return;
+      if ((s.strike||'good') !== 'good') return;
+      if (s.carry <= 0) return;
+      clubData[s.club].carries.push(s.carry);
+      if (s.swingType) {
+        if (!clubData[s.club].bySwing[s.swingType]) clubData[s.club].bySwing[s.swingType] = [];
+        clubData[s.club].bySwing[s.swingType].push(s.carry);
+      }
+    });
+  }
+
+  function stats(arr) {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a,b)=>a-b);
+    const avg = Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+    const lo  = s[Math.floor(s.length*0.1)] ?? s[0];
+    const hi  = s[Math.floor(s.length*0.9)] ?? s[s.length-1];
+    return { avg, lo, hi, n: arr.length, min: s[0], max: s[s.length-1] };
+  }
+
+  // ── All clubs distance table ──────────────────────────────────────
+  // For wedge clubs, expand into one row per swing type
+  const swingOrder = ['7:30','9:00','11:30','Full'];
+  const clubRows = [];
+  CLUBS.filter(c => c !== 'Put').forEach(c => {
+    const d = clubData[c];
+    if (WEDGE_CLUBS.includes(c)) {
+      // One row per swing type that has data; also add an "All" row if useful
+      swingOrder.forEach(sw => {
+        // tagged shots for this swing
+        const tagged = d.bySwing[sw] || [];
+        // for 9:00, fold in untagged shots
+        const untagged = sw === '9:00' ? d.carries.filter(carry => {
+          // we can't easily re-filter here — approximation: skip
+          return false;
+        }) : [];
+        const arr = [...tagged, ...untagged];
+        const st = stats(arr);
+        if (st) clubRows.push({ club: c, swing: sw, st, isWedgeSwing: true });
+      });
+    } else {
+      const st = stats(d.carries);
+      if (st) clubRows.push({ club: c, swing: null, st, isWedgeSwing: false });
+    }
+  });
+
+  // Scale: 0 → maxCarry across the full bar width
+  const maxCarry = Math.max(...clubRows.map(r => r.st.max), 1);
+
+  const clubTableHTML = clubRows.length ? `
+    <div class="card" style="padding:0 0 4px 0;overflow:hidden;">
+      ${clubRows.map((r, i) => {
+        const st = r.st;
+        const loP  = (st.lo  / maxCarry * 100).toFixed(1);
+        const hiP  = (st.hi  / maxCarry * 100).toFixed(1);
+        const avgP = (st.avg / maxCarry * 100).toFixed(1);
+        const spanW = Math.max(hiP - loP, 0).toFixed(1);
+        // Is this the first row for this club?
+        const isFirst = i === 0 || clubRows[i-1].club !== r.club;
+        const isLast  = i === clubRows.length-1 || clubRows[i+1].club !== r.club;
+        const topBorder = (i > 0 && isFirst) ? 'border-top:2px solid #e5e7eb;' : '';
+        const bg = r.isWedgeSwing ? (i%1===0 ? 'white' : '#fafafa') : (i%2?'#fafafa':'white');
+        return `
+        <div style="padding:${isFirst?'10px':'6px'} 14px ${isLast?'10px':'6px'};border-bottom:1px solid #f0f0f0;background:white;${topBorder}">
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+            ${isFirst
+              ? `<span style="font-weight:800;font-size:16px;color:var(--green);min-width:34px;">${r.club}</span>`
+              : `<span style="min-width:34px;"></span>`
+            }
+            ${r.swing
+              ? `<span style="font-size:11px;color:var(--muted);font-weight:600;background:#f3f4f6;border-radius:6px;padding:2px 7px;margin-right:2px;">${r.swing}</span>`
+              : ''
+            }
+            <span style="font-family:'Playfair Display',serif;font-size:${r.swing?'18px':'22px'};font-weight:900;color:var(--dark);line-height:1;">${st.avg}<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:2px;">yds</span></span>
+            <span style="margin-left:auto;font-size:10px;color:var(--muted);">${st.n} shot${st.n!==1?'s':''}</span>
+          </div>
+          <!-- dispersion bar -->
+          <div style="position:relative;height:12px;background:#e9f5e9;border-radius:6px;overflow:visible;margin-left:${r.swing?'42px':'0'};">
+            <div style="position:absolute;top:0;left:${loP}%;width:${spanW}%;height:100%;background:${r.swing?'var(--gold)':'var(--green2)'};border-radius:6px;opacity:0.85;"></div>
+            <div style="position:absolute;top:-3px;left:calc(${avgP}% - 1.5px);width:3px;height:18px;background:white;border-radius:2px;box-shadow:0 0 0 1.5px ${r.swing?'#b45309':'var(--green)'};"></div>
+          </div>
+          ${isLast && !r.swing ? `<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:#ccc;"><span>0</span><span>${Math.round(maxCarry/2)}</span><span>${maxCarry}</span></div>` : ''}
+        </div>`;
+      }).join('')}
+      <div style="padding:8px 14px;font-size:11px;color:var(--muted);">Bar = 10–90% carry range · white line = avg · <span style="color:var(--gold);font-weight:700;">■</span> wedge swings · punch excluded</div>
+    </div>` : `<div class="card"><div style="color:var(--muted);font-size:13px;text-align:center;padding:20px 0;">No distance data yet.<br>Log some shots or visit the Practice Range.</div></div>`;
+
+  // ── Wedge swing matrix ────────────────────────────────────────────
+  const swingTypes = ['7:30','9:00','11:30','Full'];
+  const wedgeClubs = WEDGE_CLUBS; // PW, 52, 56, 60
+
+  const matrixRows = swingTypes.map(sw => {
+    const cells = wedgeClubs.map(c => {
+      const d = clubData[c];
+      // shots tagged with this swing, or untagged going to 9:00
+      const arr = sw === '9:00'
+        ? [...(d.bySwing[sw]||[]), ...d.carries.filter((_,idx) => {
+            // need to re-check which carries have no swing — use a different approach
+            return false; // can't easily reconstruct here; just use tagged
+          })]
+        : (d.bySwing[sw] || []);
+      return stats(arr);
+    });
+    return { sw, cells };
+  });
+
+  // Rebuild wedge stats cleanly from shots directly
+  const wedgeData = {};
+  wedgeClubs.forEach(c => {
+    wedgeData[c] = {};
+    swingTypes.forEach(sw => { wedgeData[c][sw] = []; });
+  });
+  // Round shots
+  roundShots.forEach(s => {
+    if (!wedgeClubs.includes(s.club)) return;
+    if (s.type === 'putt') return;
+    if ((s.strike||'good') !== 'good') return;
+    if ((s.shape||'straight') === 'punch') return;
+    const carry = s.distFrom - s.distTo;
+    if (carry <= 0) return;
+    const sw = s.swingType || '9:00';
+    if (wedgeData[s.club][sw]) wedgeData[s.club][sw].push(carry);
+  });
+  // Range shots
+  rangeShots.forEach(s => {
+    if (!wedgeClubs.includes(s.club)) return;
+    if ((s.strike||'good') !== 'good') return;
+    if (s.carry <= 0) return;
+    const sw = s.swingType || '9:00';
+    if (wedgeData[s.club][sw]) wedgeData[s.club][sw].push(s.carry);
+  });
+
+  // Check if any wedge data exists
+  const hasWedgeData = wedgeClubs.some(c => swingTypes.some(sw => wedgeData[c][sw].length > 0));
+
+  const wedgeMatrixHTML = `
+    <div class="card-title">Wedge Distance Matrix</div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:280px;">
+        <thead>
+          <tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb;">
+            <th style="padding:10px 10px;text-align:left;font-weight:700;color:var(--muted);font-size:11px;text-transform:uppercase;width:56px;">Swing</th>
+            ${wedgeClubs.map(c => `<th style="padding:10px 8px;text-align:center;font-weight:800;font-size:14px;color:var(--green);">${c}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${swingTypes.map((sw, ri) => `
+            <tr style="border-bottom:1px solid #f3f4f6;background:${ri%2?'#fafafa':'white'};">
+              <td style="padding:10px 10px;font-weight:700;font-size:12px;color:var(--muted);white-space:nowrap;">${sw==='Full'?'💪 Full':'🕘 '+sw}</td>
+              ${wedgeClubs.map(c => {
+                const arr = wedgeData[c][sw];
+                if (!arr.length) return `<td style="padding:10px 8px;text-align:center;color:#d1d5db;font-size:13px;">—</td>`;
+                const avg = Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
+                const mn = Math.min(...arr), mx = Math.max(...arr);
+                return `<td style="padding:8px 6px;text-align:center;">
+                  <div style="font-size:20px;font-weight:900;font-family:'Playfair Display',serif;color:var(--dark);">${avg}</div>
+                  <div style="font-size:10px;color:var(--muted);margin-top:1px;">${mn}–${mx}</div>
+                  <div style="font-size:9px;color:var(--muted);">${arr.length} shot${arr.length!==1?'s':''}</div>
+                </td>`;
+              }).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+      ${!hasWedgeData ? '<div style="padding:14px;text-align:center;color:var(--muted);font-size:12px;">Log wedge shots in-round or at the Practice Range to populate this matrix.</div>' : ''}
+      <div style="padding:8px 12px;font-size:11px;color:var(--muted);">Avg carry yards. Untagged shots default to 9:00. Punch shots excluded.</div>
+    </div>`;
+
+  const lieLabels = { fairway: '🟩 Fairway', rough: '🌿 Rough', heavy: '🌾 Heavy', all: 'All Lies' };
+  const lieSubtitles = { fairway: 'Fairway · good strikes · no punch', rough: 'Rough · good strikes · no punch', heavy: 'Heavy rough · good strikes · no punch', all: 'All lies · good strikes · no punch' };
+
+  el.innerHTML = `
+    <!-- Lie filter tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      ${['fairway','rough','heavy','all'].map(l =>
+        `<button class="sel-btn btn-sm${l===lie?' active':''}" style="flex:1;font-size:11px;" onclick="setDistancesLie('${l}')">${lieLabels[l]}</button>`
+      ).join('')}
+    </div>
+    <div class="card-title">All Club Distances <span style="font-size:11px;font-weight:400;color:var(--muted);">${lieSubtitles[lie]}</span></div>
+    ${clubTableHTML}
+    ${lie === 'fairway' || lie === 'all' ? wedgeMatrixHTML : ''}
+    <div style="height:20px;"></div>
   `;
 }
 
