@@ -254,6 +254,8 @@
     <button class="btn btn-primary" style="font-size:17px;padding:18px;" onclick="startNewRound()">⛳ Start New Round</button>
     <div id="recent-rounds"></div>
     <button class="btn btn-ghost btn-sm" onclick="showStats()">📊 View All Stats & Trends</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDataScreen()">💾 Backup & Restore Data</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--red);border-color:var(--red);opacity:0.7;" onclick="resetAllData()">🗑️ Reset All Data</button>
   </div>
 </div>
 
@@ -398,6 +400,13 @@
     <div class="card-title">Club Used</div>
     <div id="club-grid" style="margin-bottom:14px;"></div>
 
+    <!-- Strike Quality -->
+    <div class="card-title">Strike Quality</div>
+    <div class="grid-2" style="margin-bottom:14px;">
+      <button class="sel-btn active" onclick="selectStrike('good')" id="strike-good"><span class="icon">✅</span>Good Strike</button>
+      <button class="sel-btn" onclick="selectStrike('bad')" id="strike-bad"><span class="icon">❌</span>Bad Strike</button>
+    </div>
+
     <!-- Save -->
     <button class="btn btn-primary" style="font-size:16px;padding:16px;" onclick="saveShot()">Save Shot</button>
     <div style="height:20px;"></div>
@@ -416,6 +425,44 @@
     </div>
   </div>
   <div class="content" id="stats-content">
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: DATA MANAGEMENT
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-data">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Data Backup</div>
+      <div class="hdr-sub">Export & Import Your Rounds</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card-title">Export (Backup)</div>
+    <div class="card" style="padding:16px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Download all your round data as a JSON file. Save this file somewhere safe — you can re-import it later to restore your history.</p>
+      <button class="btn btn-primary" onclick="exportData()">⬇️ Download Backup (.json)</button>
+      <div style="height:8px;"></div>
+      <button class="btn btn-ghost" onclick="exportCSV()">📋 Download as CSV (for Excel)</button>
+    </div>
+
+    <div class="card-title" style="margin-top:8px;">Import (Restore)</div>
+    <div class="card" style="padding:16px;">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Upload a previously exported .json backup to restore your data. <strong>This will merge with existing data</strong> — duplicate rounds are skipped.</p>
+      <label class="btn btn-ghost" style="display:block;text-align:center;cursor:pointer;">
+        ⬆️ Upload Backup (.json)
+        <input type="file" accept=".json" style="display:none;" onchange="importData(this)">
+      </label>
+      <div id="import-status" style="text-align:center;font-size:13px;margin-top:10px;min-height:20px;"></div>
+    </div>
+
+    <div class="card-title" style="margin-top:8px;">Storage Info</div>
+    <div class="card" style="padding:16px;" id="storage-info">
+      Loading…
+    </div>
+    <div style="height:20px;"></div>
   </div>
 </div>
 
@@ -465,40 +512,137 @@ const CLUBS = ['Dr','3W','5W','Hy','4i','5i','6i','7i','8i','9i','PW','GW','SW',
 
 // ═══════════════════════════════════════════════════════════════════
 // STROKES GAINED BASELINE TABLE
-// Expected strokes to hole out from distance (yards) - PGA Tour baseline
-// Adjusted for amateur play at ~90-95 scoring level
+// Source: Directly transcribed from "STROKES GAINED Shared" Google
+// Sheet (Referenced Charts tab) — which is itself sourced from
+// Mark Broadie's "Every Shot Counts", PGA Tour ShotLink 2004-2012,
+// expanded to 5-yard increments by the sheet author.
+//
+// Full shot table columns: [tee, fairway, rough, sand, recovery]
+// Putting table: distance in FEET → expected putts
+//
+// NOTE: PGA Tour baseline — your SG will be negative vs. tour pros.
+// Use for tracking personal improvement over time, not tour comparison.
 // ═══════════════════════════════════════════════════════════════════
-const SG_BASELINE = {
-  // putting (yards): expected putts
-  putt: {0:0,0.5:1.0,1:1.0,2:1.05,3:1.15,4:1.25,5:1.35,6:1.5,8:1.65,10:1.8,15:1.9,20:2.0,25:2.05,30:2.1,40:2.2,50:2.3,60:2.4},
-  // all other shots (yards): expected strokes to hole
-  full: {
-    0:0,
-    5:1.6, 10:1.8, 15:1.9, 20:2.0, 25:2.1, 30:2.2, 40:2.35, 50:2.5,
-    75:2.7, 100:2.85, 125:2.95, 150:3.05, 175:3.15, 200:3.25,
-    225:3.4, 250:3.55, 275:3.65, 300:3.8, 350:4.0, 400:4.2,
-    450:4.4, 500:4.6, 550:4.8, 600:5.0
-  }
+
+// Full shots: distance in YARDS → [tee, fairway, rough, sand, recovery]
+// null = no data (use fairway as fallback)
+const SG_FULL = {
+  10:  [null, 2.20, 2.49, 2.41, null],
+  15:  [null, 2.30, 2.54, 2.47, null],
+  20:  [null, 2.40, 2.59, 2.53, null],
+  25:  [null, 2.45, 2.64, 2.59, null],
+  30:  [null, 2.50, 2.69, 2.67, null],
+  35:  [null, 2.55, 2.74, 2.76, null],
+  40:  [null, 2.60, 2.78, 2.82, null],
+  45:  [null, 2.62, 2.82, 2.90, null],
+  50:  [null, 2.65, 2.85, 2.98, null],
+  55:  [null, 2.67, 2.88, 3.07, null],
+  60:  [null, 2.70, 2.91, 3.15, null],
+  65:  [null, 2.72, 2.92, 3.17, null],
+  70:  [null, 2.73, 2.93, 3.19, null],
+  75:  [null, 2.74, 2.95, 3.22, null],
+  80:  [null, 2.75, 2.96, 3.24, null],
+  85:  [null, 2.77, 2.97, 3.24, null],
+  90:  [null, 2.78, 2.99, 3.23, null],
+  95:  [null, 2.79, 3.01, 3.23, null],
+  100: [2.92, 2.80, 3.02, 3.23, 3.80],
+  105: [2.93, 2.81, 3.03, 3.23, 3.80],
+  110: [2.95, 2.83, 3.04, 3.22, 3.80],
+  115: [2.97, 2.84, 3.06, 3.21, 3.80],
+  120: [2.99, 2.85, 3.08, 3.21, 3.78],
+  125: [2.99, 2.86, 3.09, 3.21, 3.78],
+  130: [2.97, 2.88, 3.11, 3.21, 3.78],
+  135: [2.97, 2.90, 3.13, 3.22, 3.78],
+  140: [2.97, 2.91, 3.15, 3.22, 3.80],
+  145: [2.97, 2.93, 3.17, 3.23, 3.80],
+  150: [2.99, 2.95, 3.19, 3.25, 3.80],
+  155: [2.99, 2.97, 3.21, 3.26, 3.80],
+  160: [2.99, 2.98, 3.23, 3.28, 3.81],
+  165: [3.01, 3.00, 3.25, 3.30, 3.81],
+  170: [3.02, 3.03, 3.27, 3.33, 3.81],
+  175: [3.04, 3.06, 3.29, 3.36, 3.81],
+  180: [3.05, 3.08, 3.31, 3.40, 3.82],
+  185: [3.07, 3.11, 3.34, 3.43, 3.83],
+  190: [3.09, 3.13, 3.37, 3.47, 3.84],
+  195: [3.11, 3.16, 3.40, 3.51, 3.86],
+  200: [3.12, 3.19, 3.42, 3.55, 3.87],
+  210: [3.14, 3.26, 3.48, 3.62, 3.89],
+  220: [3.17, 3.32, 3.53, 3.70, 3.92],
+  230: [3.21, 3.39, 3.80, 3.77, 3.95],
+  240: [3.25, 3.45, 3.64, 3.84, 3.97],
+  250: [3.35, 3.52, 3.69, 3.88, 4.00],
+  260: [3.45, 3.58, 3.74, 3.93, 4.03],
+  270: [3.55, 3.63, 3.78, 3.96, 4.07],
+  280: [3.65, 3.69, 3.83, 4.00, 4.10],
+  290: [3.68, 3.74, 3.87, 4.02, 4.15],
+  300: [3.71, 3.78, 3.90, 4.04, 4.20],
+  320: [3.79, 3.84, 3.95, 4.12, 4.31],
+  340: [3.86, 3.88, 4.02, 4.26, 4.44],
+  360: [3.92, 3.95, 4.11, 4.41, 4.56],
+  380: [3.96, 4.03, 4.21, 4.55, 4.66],
+  400: [3.99, 4.11, 4.30, 4.69, 4.75],
+  420: [4.02, 4.15, 4.34, 4.73, 4.79],
+  440: [4.08, 4.20, 4.39, 4.78, 4.84],
+  460: [4.17, 4.29, 4.48, 4.87, 4.93],
+  480: [4.28, 4.40, 4.59, 4.98, 5.04],
+  500: [4.41, 4.53, 4.72, 5.11, 5.17],
+  520: [4.54, 4.85, 4.85, 5.24, 5.30],
+  540: [4.65, 4.97, 4.97, 5.36, 5.42],
+  560: [4.74, 5.05, 5.05, 5.44, 5.50],
+  580: [4.79, 5.10, 5.10, 5.49, 5.55],
+  600: [4.82, 5.13, 5.13, 5.52, 5.58],
 };
 
-function getExpected(dist, isPutt) {
-  const table = isPutt ? SG_BASELINE.putt : SG_BASELINE.full;
+// Putting: distance in FEET → expected putts (directly from spreadsheet)
+const SG_PUTT = {
+  1: 1.00, 2: 1.00, 3: 1.04, 4: 1.13,
+  5: 1.23, 6: 1.34, 7: 1.42, 8: 1.50,
+  9: 1.56, 10: 1.61, 15: 1.78, 20: 1.87,
+  30: 1.98, 40: 2.06, 50: 2.14, 60: 2.21,
+  90: 2.40,
+};
+
+function _interp(table, key) {
   const keys = Object.keys(table).map(Number).sort((a,b)=>a-b);
-  if (dist <= keys[0]) return table[keys[0]];
-  if (dist >= keys[keys.length-1]) return table[keys[keys.length-1]];
-  for (let i = 0; i < keys.length-1; i++) {
-    if (dist >= keys[i] && dist <= keys[i+1]) {
-      const t = (dist - keys[i]) / (keys[i+1] - keys[i]);
+  if (key <= keys[0]) return table[keys[0]];
+  if (key >= keys[keys.length-1]) return table[keys[keys.length-1]];
+  for (let i=0; i<keys.length-1; i++) {
+    if (key >= keys[i] && key <= keys[i+1]) {
+      const t = (key - keys[i]) / (keys[i+1] - keys[i]);
       return table[keys[i]] + t * (table[keys[i+1]] - table[keys[i]]);
     }
   }
-  return 2.5;
+  return 3.0;
+}
+
+function getExpected(distYds, isPutt, shotType) {
+  if (distYds === 0) return 0;
+  if (isPutt) {
+    const distFt = distYds * 3;
+    return _interp(SG_PUTT, distFt);
+  }
+  // Full shots — pick column based on lie
+  const keys = Object.keys(SG_FULL).map(Number).sort((a,b)=>a-b);
+  let lo = keys[0], hi = keys[keys.length-1];
+  for (let i=0; i<keys.length-1; i++) {
+    if (distYds >= keys[i] && distYds <= keys[i+1]) { lo=keys[i]; hi=keys[i+1]; break; }
+  }
+  const t = lo===hi ? 0 : (distYds-lo)/(hi-lo);
+  // col: 0=tee, 1=fairway, 2=rough, 3=sand, 4=recovery
+  let col = 1;
+  if (shotType === 'tee') col = 0;
+  else if (shotType === 'sand') col = 3;
+  const rLo = SG_FULL[lo], rHi = SG_FULL[hi];
+  const vLo = rLo[col] != null ? rLo[col] : rLo[1];
+  const vHi = rHi[col] != null ? rHi[col] : rHi[1];
+  return vLo + t * (vHi - vLo);
 }
 
 function calcSG(distFrom, distTo, shotType) {
   const isPutt = shotType === 'putt';
-  const expBefore = getExpected(distFrom, isPutt);
-  const expAfter  = distTo === 0 ? 0 : getExpected(distTo, isPutt);
+  const expBefore = getExpected(distFrom, isPutt, shotType);
+  // After the shot, lie is always on green (putt) or fairway (chip/approach)
+  const expAfter  = distTo === 0 ? 0 : getExpected(distTo, distTo <= 10, null);
   // SG = expected_before - (1 + expected_after)
   return parseFloat((expBefore - 1 - expAfter).toFixed(2));
 }
@@ -685,7 +829,7 @@ function renderHoleDetail() {
     return `<div class="shot-row">
       <div class="shot-num">${i+1}</div>
       <div class="shot-info">
-        <div class="shot-type">${shotTypeLabel(s.type)} ${s.club ? '· '+s.club : ''}</div>
+        <div class="shot-type">${shotTypeLabel(s.type)} ${s.club ? '· '+s.club : ''} <span style="font-size:11px;padding:2px 6px;border-radius:10px;background:${s.strike==='bad'?'#fee2e2':'#dcfce7'};color:${s.strike==='bad'?'#991b1b':'#166534'};margin-left:4px;">${s.strike==='bad'?'❌ Bad':'✅ Good'}</span></div>
         <div class="shot-detail">${s.distFrom}→${s.distTo} yds · ${missLabel}</div>
       </div>
       <div class="shot-sg-val" style="color:${s.sg>=0?'var(--green2)':'var(--red)'};">${sgStr}</div>
@@ -728,13 +872,14 @@ function addShotModal() {
     else defaultType = 'approach';
   }
 
-  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '' };
+  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good' };
 
   // Update UI
   selectShotType(defaultType);
   setDistFrom(defaultDist);
   setDistTo(0);
   selectMiss('on-target');
+  selectStrike('good');
   renderClubs();
   showScreen('s-shot');
 }
@@ -761,6 +906,12 @@ function selectMiss(m) {
   document.getElementById('miss-'+m.replace('-','-')).classList.add('active');
 }
 
+function selectStrike(s) {
+  state.currentShot.strike = s;
+  document.getElementById('strike-good').classList.toggle('active', s === 'good');
+  document.getElementById('strike-bad').classList.toggle('active', s === 'bad');
+}
+
 function renderClubs() {
   document.getElementById('club-grid').innerHTML = `<div class="grid-4" style="margin-bottom:4px;">${CLUBS.map(c =>
     `<button class="sel-btn btn-sm ${state.currentShot.club===c?'active':''}" onclick="selectClub('${c}')">${c}</button>`
@@ -776,7 +927,7 @@ function saveShot() {
   const s = state.currentShot;
   if (!s.type) { alert('Please select a shot type.'); return; }
   const sg = calcSG(s.distFrom, s.distTo, s.type);
-  const shot = { type: s.type, distFrom: s.distFrom, distTo: s.distTo, miss: s.miss, club: s.club, sg };
+  const shot = { type: s.type, distFrom: s.distFrom, distTo: s.distTo, miss: s.miss, club: s.club, sg, strike: s.strike || 'good' };
   state.currentHole.shots.push(shot);
   saveRoundState();
   renderHoleDetail();
@@ -898,6 +1049,87 @@ function showRoundSummary(r) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// DATA BACKUP / RESTORE
+// ═══════════════════════════════════════════════════════════════════
+function resetAllData() {
+  if (!confirm('⚠️ Reset ALL data?\n\nThis will permanently delete all rounds and shots. This cannot be undone.\n\nTip: Use "Backup & Restore" first to save a copy.')) return;
+  if (!confirm('Are you sure? All your round history will be gone.')) return;
+  state.rounds = [];
+  saveState();
+  renderHome();
+}
+
+function exportData() {
+  const data = { version: 2, exportDate: new Date().toISOString(), rounds: state.rounds };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `latrobe-sg-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportCSV() {
+  const rows = [['Date','RoundID','Hole','Par','HoleYds','ShotNum','Type','Club','Strike','DistFrom','DistTo','Miss','SG']];
+  state.rounds.forEach(r => {
+    r.holes.forEach(h => {
+      h.shots.forEach((s, i) => {
+        rows.push([r.date, r.id, h.n, h.par, h.yds, i+1, s.type, s.club||'', s.strike||'good', s.distFrom, s.distTo, s.miss, s.sg]);
+      });
+    });
+  });
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `latrobe-sg-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const incoming = data.rounds || (Array.isArray(data) ? data : []);
+      let added = 0, skipped = 0;
+      incoming.forEach(r => {
+        if (!state.rounds.find(x => x.id === r.id)) {
+          state.rounds.push(r);
+          added++;
+        } else skipped++;
+      });
+      saveState();
+      renderHome();
+      document.getElementById('import-status').innerHTML = `<span style="color:var(--green2);">✅ Imported ${added} rounds (${skipped} duplicates skipped)</span>`;
+    } catch(err) {
+      document.getElementById('import-status').innerHTML = `<span style="color:var(--red);">❌ Invalid file. Please select a valid backup .json file.</span>`;
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function showDataScreen() {
+  const totalShots = state.rounds.reduce((n, r) => n + r.holes.reduce((m, h) => m + h.shots.length, 0), 0);
+  const stored = JSON.stringify({ rounds: state.rounds }).length;
+  const kb = (stored / 1024).toFixed(1);
+  document.getElementById('storage-info').innerHTML = `
+    <div class="stat-row"><div class="stat-label">Rounds stored</div><div class="stat-val">${state.rounds.length}</div></div>
+    <div class="stat-row"><div class="stat-label">Total shots</div><div class="stat-val">${totalShots}</div></div>
+    <div class="stat-row"><div class="stat-label">Data size</div><div class="stat-val">${kb} KB</div></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted);">Data is stored in your browser's localStorage. It will persist unless you clear browser data or switch browsers/devices. Use the backup download regularly to keep a safe copy.</div>
+  `;
+  document.getElementById('import-status').textContent = '';
+  showScreen('s-data');
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // ALL-TIME STATS
 // ═══════════════════════════════════════════════════════════════════
 function showStats() {
@@ -909,55 +1141,95 @@ function showStats() {
   }
 
   const allShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const goodShots = allShots.filter(s => (s.strike || 'good') === 'good');
   const rounds = state.rounds;
 
-  // SG by category across all rounds
-  const sgCats = {tee:0, approach:0, chip:0, sand:0, putt:0};
-  const sgCounts = {tee:0, approach:0, chip:0, sand:0, putt:0};
+  // ── SG by category ──────────────────────────────────────────────
+  const typeOrder = ['tee','approach','chip','sand','putt'];
+  const typeLabels = {tee:'Off the Tee',approach:'Approach',chip:'Short Game',sand:'Sand',putt:'Putting'};
+  const sgCats = {}, sgCounts = {};
+  typeOrder.forEach(t => { sgCats[t]=0; sgCounts[t]=0; });
   allShots.forEach(s => {
     if (sgCats[s.type] !== undefined) { sgCats[s.type]+=s.sg; sgCounts[s.type]++; }
   });
+  const avgSG = typeOrder.map(t => ({ t, avg: sgCounts[t] ? sgCats[t]/sgCounts[t] : 0 })).sort((a,b)=>b.avg-a.avg);
 
-  // Miss patterns by type and distance bucket
+  // ── Club distance analysis (good strikes only) ──────────────────
+  const clubDist = {};
+  goodShots.forEach(s => {
+    if (!s.club || s.type === 'putt') return;
+    const carry = s.distFrom - s.distTo; // yds carried
+    if (carry <= 0) return;
+    if (!clubDist[s.club]) clubDist[s.club] = [];
+    clubDist[s.club].push(carry);
+  });
+
+  // ── Distance dispersion (good strikes, how far from intended) ───
+  // "Dispersion" = distTo (distance left to hole after shot)
+  const clubDispersion = {};
+  goodShots.forEach(s => {
+    if (!s.club || s.type === 'putt') return;
+    if (!clubDispersion[s.club]) clubDispersion[s.club] = [];
+    clubDispersion[s.club].push(s.distTo);
+  });
+
+  // ── Shot miss direction frequency ───────────────────────────────
+  const missFreq = {};
+  allShots.forEach(s => {
+    missFreq[s.miss] = (missFreq[s.miss]||0)+1;
+  });
+
+  // ── Miss patterns by type & distance bucket ──────────────────────
   const missData = {};
   allShots.forEach(s => {
     if (s.miss === 'on-target') return;
-    const bucket = s.distFrom <= 20 ? '0–20 yds' : s.distFrom <= 50 ? '20–50 yds' : s.distFrom <= 100 ? '50–100 yds' : s.distFrom <= 150 ? '100–150 yds' : '150+ yds';
+    const bucket = s.distFrom <= 20 ? '0–20' : s.distFrom <= 50 ? '21–50' : s.distFrom <= 100 ? '51–100' : s.distFrom <= 150 ? '101–150' : '150+';
     const key = `${s.type}|${bucket}`;
     if (!missData[key]) missData[key] = {};
     missData[key][s.miss] = (missData[key][s.miss]||0)+1;
   });
 
-  // SG trend (last 10 rounds)
-  const trendRounds = rounds.slice(-10);
+  // ── Strike quality summary ───────────────────────────────────────
+  const goodCount = allShots.filter(s => (s.strike||'good')==='good').length;
+  const badCount  = allShots.filter(s => s.strike === 'bad').length;
+  const goodSG = goodCount ? goodShots.reduce((n,s)=>n+s.sg,0)/goodCount : 0;
+  const badSG  = badCount  ? allShots.filter(s=>s.strike==='bad').reduce((n,s)=>n+s.sg,0)/badCount : 0;
 
-  const typeLabels = {tee:'Off the Tee',approach:'Approach',chip:'Short Game',sand:'Sand',putt:'Putting'};
-  const typeOrder = ['tee','approach','chip','sand','putt'];
-
-  // Best/worst category
-  const avgSG = typeOrder.map(t => ({ t, avg: sgCounts[t] ? sgCats[t]/sgCounts[t] : 0 }));
-  avgSG.sort((a,b)=>b.avg-a.avg);
-  const best = avgSG[0];
-  const worst = avgSG[avgSG.length-1];
+  // ── Club order by avg carry ──────────────────────────────────────
+  const clubOrder = CLUBS.filter(c => clubDist[c]);
+  const clubStats = clubOrder.map(c => {
+    const dists = clubDist[c];
+    const avg = dists.reduce((a,b)=>a+b,0)/dists.length;
+    const sorted = [...dists].sort((a,b)=>a-b);
+    const lo = sorted[Math.floor(sorted.length*0.1)]||sorted[0];
+    const hi = sorted[Math.floor(sorted.length*0.9)]||sorted[sorted.length-1];
+    const disps = clubDispersion[c] || [];
+    const avgDisp = disps.length ? disps.reduce((a,b)=>a+b,0)/disps.length : null;
+    return { c, avg: Math.round(avg), lo: Math.round(lo), hi: Math.round(hi), n: dists.length, avgDisp: avgDisp !== null ? Math.round(avgDisp) : null };
+  });
 
   el.innerHTML = `
+
+    <!-- ── Overview ─────────────────────────────────────────── -->
     <div class="card" style="text-align:center;padding:16px;">
       <div style="display:flex;gap:8px;justify-content:center;">
         <div style="flex:1;background:#edf7eb;border-radius:12px;padding:12px;">
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Strength</div>
-          <div style="font-size:15px;font-weight:700;color:var(--green);margin-top:4px;">${typeLabels[best.t]}</div>
-          <div style="font-size:12px;color:var(--green2);">${best.avg>=0?'+':''}${best.avg.toFixed(2)}/shot</div>
+          <div style="font-size:15px;font-weight:700;color:var(--green);margin-top:4px;">${typeLabels[avgSG[0].t]}</div>
+          <div style="font-size:12px;color:var(--green2);">${avgSG[0].avg>=0?'+':''}${avgSG[0].avg.toFixed(2)}/shot</div>
         </div>
         <div style="flex:1;background:#fee2e2;border-radius:12px;padding:12px;">
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Weakness</div>
-          <div style="font-size:15px;font-weight:700;color:var(--red);margin-top:4px;">${typeLabels[worst.t]}</div>
-          <div style="font-size:12px;color:var(--red);">${worst.avg>=0?'+':''}${worst.avg.toFixed(2)}/shot</div>
+          <div style="font-size:15px;font-weight:700;color:var(--red);margin-top:4px;">${typeLabels[avgSG[avgSG.length-1].t]}</div>
+          <div style="font-size:12px;color:var(--red);">${avgSG[avgSG.length-1].avg>=0?'+':''}${avgSG[avgSG.length-1].avg.toFixed(2)}/shot</div>
         </div>
       </div>
     </div>
 
-    <div class="card-title">Avg SG Per Shot by Category (${allShots.length} total shots)</div>
+    <!-- ── SG by Category ───────────────────────────────────── -->
+    <div class="card-title">Avg SG Per Shot by Category</div>
     <div class="card">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">${allShots.length} total shots across ${rounds.length} round${rounds.length!==1?'s':''}</div>
       ${typeOrder.filter(t=>sgCounts[t]>0).map(t => {
         const avg = sgCats[t]/sgCounts[t];
         const pct = Math.min(100, Math.abs(avg)/0.5*100);
@@ -971,14 +1243,96 @@ function showStats() {
       }).join('')}
     </div>
 
-    <div class="card-title">Miss Pattern Analysis</div>
+    <!-- ── Strike Quality ───────────────────────────────────── -->
+    <div class="card-title">Strike Quality</div>
+    <div class="card">
+      <div style="display:flex;gap:12px;margin-bottom:14px;">
+        <div style="flex:1;background:#dcfce7;border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:900;color:var(--green);">${goodCount}</div>
+          <div style="font-size:11px;color:var(--muted);">Good Strikes</div>
+          <div style="font-size:13px;font-weight:600;color:var(--green2);">${goodSG>=0?'+':''}${goodSG.toFixed(2)} avg SG</div>
+        </div>
+        <div style="flex:1;background:#fee2e2;border-radius:10px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:900;color:var(--red);">${badCount}</div>
+          <div style="font-size:11px;color:var(--muted);">Bad Strikes</div>
+          <div style="font-size:13px;font-weight:600;color:var(--red);">${badSG>=0?'+':''}${badSG.toFixed(2)} avg SG</div>
+        </div>
+      </div>
+      ${allShots.length ? `
+      <div style="background:#f9fafb;border-radius:8px;padding:10px;font-size:13px;">
+        <div style="font-weight:600;margin-bottom:4px;">Good strike rate: ${Math.round(goodCount/allShots.length*100)}%</div>
+        <div class="progress-bar" style="width:100%;height:10px;">
+          <div class="progress-fill" style="width:${Math.round(goodCount/allShots.length*100)}%;background:var(--green2);"></div>
+        </div>
+        ${badCount > 0 ? `<div style="margin-top:8px;font-size:12px;color:var(--muted);">Each bad strike costs you an avg of ${Math.abs(badSG - goodSG).toFixed(2)} strokes vs. a good strike</div>` : ''}
+      </div>` : ''}
+    </div>
+
+    <!-- ── Club Distances (good strikes only) ───────────────── -->
+    ${clubStats.length ? `
+    <div class="card-title">Club Distances <span style="font-size:11px;font-weight:400;color:var(--muted);">Good strikes only · yds carry</span></div>
+    <div class="card" style="padding:0;">
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+              <th style="padding:10px 12px;text-align:left;font-weight:700;">Club</th>
+              <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg</th>
+              <th style="padding:10px 8px;text-align:center;font-weight:700;">Range</th>
+              <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg Left</th>
+              <th style="padding:10px 8px;text-align:center;font-weight:700;color:var(--muted);">n</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${clubStats.map((cs, i) => `
+            <tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
+              <td style="padding:10px 12px;font-weight:700;color:var(--green);">${cs.c}</td>
+              <td style="padding:10px 8px;text-align:center;font-weight:600;">${cs.avg}</td>
+              <td style="padding:10px 8px;text-align:center;color:var(--muted);font-size:12px;">${cs.lo}–${cs.hi}</td>
+              <td style="padding:10px 8px;text-align:center;color:${cs.avgDisp !== null && cs.avgDisp <= 10 ? 'var(--green2)':'var(--muted)'};">${cs.avgDisp !== null ? cs.avgDisp+' yds' : '—'}</td>
+              <td style="padding:10px 8px;text-align:center;color:var(--muted);font-size:11px;">${cs.n}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:10px 12px;font-size:11px;color:var(--muted);">Avg Left = avg distance to hole after shot (proximity). Range = 10th–90th percentile carry.</div>
+    </div>` : ''}
+
+    <!-- ── Shot Dispersion (miss direction heat map) ─────────── -->
+    <div class="card-title">Shot Dispersion</div>
+    <div class="card">
+      ${(() => {
+        const dirs = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
+        const total = allShots.length;
+        const maxVal = Math.max(...dirs.map(d => missFreq[d]||0), 1);
+        return `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:280px;margin:0 auto 10px;">
+          ${dirs.map(d => {
+            const count = missFreq[d] || 0;
+            const pct = total ? Math.round(count/total*100) : 0;
+            const isTarget = d === 'on-target';
+            const intensity = isTarget ? 1 : count/maxVal;
+            const bg = isTarget ? 'var(--green2)' : count === 0 ? '#f3f4f6' : `rgba(192,57,43,${0.15 + intensity*0.75})`;
+            const textColor = isTarget || intensity > 0.5 ? 'white' : (count > 0 ? 'var(--red)' : 'var(--muted)');
+            return `<div style="background:${bg};color:${textColor};border-radius:8px;padding:10px 4px;text-align:center;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div style="font-size:11px;font-weight:600;">${d.replace(/-/g,'<br>')}</div>
+              <div style="font-size:16px;font-weight:900;margin-top:2px;">${pct}%</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-align:center;">% of all shots in each direction</div>`;
+      })()}
+    </div>
+
+    <!-- ── Miss Patterns by Category ────────────────────────── -->
+    <div class="card-title">Miss Patterns by Category & Distance</div>
     <div class="card">
       ${Object.entries(missData).length ? Object.entries(missData).map(([key, misses]) => {
         const [type, bucket] = key.split('|');
         const total = Object.values(misses).reduce((a,b)=>a+b,0);
         const sorted = Object.entries(misses).sort((a,b)=>b[1]-a[1]);
-        return `<div style="margin-bottom:12px;">
-          <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${typeLabels[type]||type} · ${bucket}</div>
+        return `<div style="margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${typeLabels[type]||type} · ${bucket} yds</div>
           ${sorted.map(([miss,count]) =>
             `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
               <span style="font-size:12px;color:var(--muted);width:90px;">${miss.replace(/-/g,' ')}</span>
@@ -992,14 +1346,20 @@ function showStats() {
       }).join('') : '<div style="color:var(--muted);font-size:13px;">No misses recorded yet.</div>'}
     </div>
 
+    <!-- ── Round History ─────────────────────────────────────── -->
     <div class="card-title">Round History (${rounds.length} rounds)</div>
     <div class="card">
       ${[...rounds].reverse().map(r => {
         const sg = getRoundTotalSG(r);
         const diff = getRoundScore(r) - getRoundPar(r);
         const diffStr = diff===0?'E':(diff>0?'+'+diff:diff);
+        const rShots = r.holes.flatMap(h=>h.shots);
+        const rGood = rShots.filter(s=>(s.strike||'good')==='good').length;
         return `<div class="stat-row" onclick="viewRound('${r.id}')" style="cursor:pointer;">
-          <div><div style="font-size:14px;font-weight:600;">${r.date}</div><div style="font-size:12px;color:var(--muted);">${r.holes.length} holes</div></div>
+          <div>
+            <div style="font-size:14px;font-weight:600;">${r.date}</div>
+            <div style="font-size:12px;color:var(--muted);">${r.holes.length} holes · ${rShots.length} shots · ${rGood} good strikes</div>
+          </div>
           <div style="text-align:right;">
             <div style="font-size:15px;font-weight:700;">${diffStr}</div>
             <div style="font-size:12px;font-weight:600;color:${sg>=0?'var(--green2)':'var(--red)'};">${sg>=0?'+':''}${sg.toFixed(1)} SG</div>
