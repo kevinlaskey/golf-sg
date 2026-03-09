@@ -341,17 +341,18 @@
       <button class="sel-btn" onclick="selectShotType('penalty')" id="st-penalty"><span class="icon">⚠️</span>Penalty</button>
     </div>
 
-    <!-- Distance FROM — label only (editable for shot 1 or penalty) -->
+    <!-- Distance FROM — read-only label; editable only when Penalty is selected -->
     <div class="card-title" id="dist-from-title">Distance to Pin</div>
-    <div id="dist-from-label-mode" class="card" style="padding:12px 16px;">
+    <div id="dist-from-label-mode" class="card" style="padding:14px 16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:13px;color:var(--muted);margin-bottom:2px;">Starting distance (from previous shot)</div>
-          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--green);line-height:1;">
-            <span id="dist-from-val">150</span><span id="dist-from-unit" style="font-size:18px;font-weight:400;"> yds</span>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;">Starting distance</div>
+          <div style="font-family:'Playfair Display',serif;font-size:40px;font-weight:900;color:var(--green);line-height:1;">
+            <span id="dist-from-val">150</span><span id="dist-from-unit" style="font-size:20px;font-weight:400;"> yds</span>
           </div>
+          <div id="dist-from-label-sub" style="font-size:11px;color:var(--muted);margin-top:4px;">Carried over from previous shot</div>
         </div>
-        <div style="font-size:28px;opacity:0.3;">📍</div>
+        <div style="font-size:32px;opacity:0.2;">📍</div>
       </div>
     </div>
     <div id="dist-from-edit-mode" style="display:none;">
@@ -364,8 +365,6 @@
         </div>
         <input type="range" id="dist-from-slider" min="1" max="600" value="150" oninput="updateDistFrom(this.value)">
         <div class="dist-presets" id="dist-from-presets">
-          <div class="dist-preset" onclick="setDistFrom(3)">3</div>
-          <div class="dist-preset" onclick="setDistFrom(6)">6</div>
           <div class="dist-preset" onclick="setDistFrom(10)">10</div>
           <div class="dist-preset" onclick="setDistFrom(20)">20</div>
           <div class="dist-preset" onclick="setDistFrom(40)">40</div>
@@ -375,6 +374,8 @@
           <div class="dist-preset" onclick="setDistFrom(150)">150</div>
           <div class="dist-preset" onclick="setDistFrom(175)">175</div>
           <div class="dist-preset" onclick="setDistFrom(200)">200</div>
+          <div class="dist-preset" onclick="setDistFrom(250)">250</div>
+          <div class="dist-preset" onclick="setDistFrom(300)">300</div>
         </div>
       </div>
     </div>
@@ -981,9 +982,11 @@ function addShotModal() {
   document.getElementById('dist-to-slider').max = max;
   setDistFrom(Math.min(distFromDisplay, max));
   setDistTo(0);
-  // Shot 1 or penalty: show the editable distFrom; otherwise show label only
-  const isFirstShot = shotNum === 1;
-  setDistFromMode(isFirstShot); // editable for first shot; label for subsequent
+  // Always show label mode — edit only for penalty (handled by selectShotType)
+  setDistFromMode(false);
+  // Update label subtitle
+  const labelSub = document.getElementById('dist-from-label-sub');
+  if (labelSub) labelSub.textContent = shotNum === 1 ? 'Hole distance (white tees)' : 'Carried over from previous shot';
 
   selectMiss('on-target');
   selectStrike('good');
@@ -1027,10 +1030,8 @@ function selectShotType(t) {
     setDistTo(0);
   }
 
-  // Penalty = editable distFrom (drop scenario); first shot always editable (handled at open)
-  const isPenalty = t === 'penalty';
-  const isFirstShot = state.currentHole.shots.length === 0; // no shots saved yet = shot 1
-  setDistFromMode(isPenalty || isFirstShot);
+  // Only penalty gets editable distFrom (drop scenario changes your distance)
+  setDistFromMode(t === 'penalty');
 
   // Auto-select putter when switching to putt
   if (nowPutt && !wasPutt) {
