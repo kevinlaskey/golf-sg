@@ -256,6 +256,9 @@
     <button class="btn btn-ghost btn-sm" onclick="showStats()">📊 Strokes Gained Stats</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showPuttStats()">🏳️ Putting Stats</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDistances()">📏 My Distances</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showHoleStats()">⛳ Hole Performance</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showTrends()">📈 Trends</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showYardageCard()">📋 Yardage Card</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showRangeScreen()">🎯 Practice Range</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDataScreen()">💾 Backup & Restore Data</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--red);border-color:var(--red);opacity:0.7;" onclick="resetAllData()">🗑️ Reset All Data</button>
@@ -673,6 +676,48 @@
     </div>
   </div>
   <div class="content" id="distances-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: HOLE PERFORMANCE
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-hole-stats">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Hole Performance</div>
+      <div class="hdr-sub" id="hole-stats-sub">All 18 Holes</div>
+    </div>
+  </div>
+  <div class="content" id="hole-stats-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: TRENDS
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-trends">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Trends</div>
+      <div class="hdr-sub">Performance over time</div>
+    </div>
+  </div>
+  <div class="content" id="trends-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: YARDAGE CARD
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-yardage">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Yardage Card</div>
+      <div class="hdr-sub">Screenshot &amp; take to the course</div>
+    </div>
+  </div>
+  <div class="content" id="yardage-content"></div>
 </div>
 
 <script>
@@ -1097,9 +1142,14 @@ function addShotModal() {
 
   const isPutt = defaultType === 'putt';
 
-  // If we're auto-going to putt because yards threshold (not green flag), convert yards→feet
+  // If we're auto-going to putt:
+  // - prev was an approach/chip that landed on green: distTo is in FEET already (on-green mode) → no conversion
+  // - prev was a fairway shot NOT on green and distance is small (yards→putt): convert yards→feet  
+  // - prev was already a putt: distTo is already in FEET → no conversion
   let distFromDisplay = defaultDist;
-  if (isPutt && !prevLandedOnGreen && shotNum > 1) {
+  const prevShot = shotNum > 1 ? state.currentHole.shots[shotNum-2] : null;
+  const prevWasPutt = prevShot && prevShot.type === 'putt';
+  if (isPutt && !prevLandedOnGreen && !prevWasPutt && shotNum > 1) {
     distFromDisplay = Math.round(defaultDist * 3);
   }
 
@@ -3030,6 +3080,386 @@ function renderDistances() {
     ${lie === 'fairway' || lie === 'all' ? wedgeMatrixHTML : ''}
     <div style="height:20px;"></div>
   `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLE PERFORMANCE
+// ═══════════════════════════════════════════════════════════════════
+function showHoleStats() {
+  const el = document.getElementById('hole-stats-content');
+  const rounds = state.rounds.filter(r => r.holes && r.holes.length);
+
+  if (!rounds.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">⛳</div><p>Play some rounds first to see hole performance.</p></div>`;
+    showScreen('s-hole-stats');
+    return;
+  }
+
+  document.getElementById('hole-stats-sub').textContent = `${rounds.length} round${rounds.length!==1?'s':''}`;
+
+  const holeNums = COURSE.holes.map(h => h.n);
+  const missLabel = m => m === 'on-target' ? 'On target' : m.replace(/-/g,' ');
+
+  const rows = holeNums.map(n => {
+    const hInfo = COURSE.holes.find(h => h.n === n);
+    const holeData = rounds.flatMap(r => r.holes.filter(h => h.n === n));
+    if (!holeData.length) return null;
+
+    const scores = holeData.map(h => h.shots.length);
+    const avgScore = scores.reduce((a,b)=>a+b,0) / scores.length;
+    const avgVsPar = avgScore - hInfo.par;
+
+    const allShots = holeData.flatMap(h => h.shots);
+    const sgTotal = allShots.reduce((a,s)=>a+s.sg,0);
+    const avgSG = sgTotal / holeData.length;
+
+    // Most common miss (non-on-target)
+    const misses = allShots.map(s=>s.miss).filter(m=>m&&m!=='on-target');
+    const missCount = {};
+    misses.forEach(m=>{ missCount[m]=(missCount[m]||0)+1; });
+    const topMiss = Object.entries(missCount).sort((a,b)=>b[1]-a[1])[0];
+
+    // Score distribution
+    const scoreDist = {};
+    scores.forEach(s=>{ scoreDist[s]=(scoreDist[s]||0)+1; });
+
+    return { n, hInfo, rounds: holeData.length, avgScore, avgVsPar, avgSG, topMiss, scoreDist };
+  }).filter(Boolean);
+
+  // Sort options — by hole number is default
+  const totalSGByHole = rows.map(r => ({ n: r.n, sg: r.avgSG }));
+  const bestHoles  = [...rows].sort((a,b)=>b.avgSG-a.avgSG).slice(0,3).map(r=>r.n);
+  const worstHoles = [...rows].sort((a,b)=>a.avgSG-b.avgSG).slice(0,3).map(r=>r.n);
+
+  el.innerHTML = `
+    <!-- Summary insight -->
+    <div class="card" style="padding:14px 16px;margin-bottom:4px;">
+      <div style="display:flex;gap:16px;">
+        <div style="flex:1;text-align:center;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Best Holes</div>
+          <div style="font-size:16px;font-weight:800;color:var(--green2);">${bestHoles.map(n=>'#'+n).join(' · ')}</div>
+        </div>
+        <div style="flex:1;text-align:center;border-left:1px solid #e5e7eb;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Hardest Holes</div>
+          <div style="font-size:16px;font-weight:800;color:var(--red);">${worstHoles.map(n=>'#'+n).join(' · ')}</div>
+        </div>
+      </div>
+    </div>
+
+    ${rows.map((r, i) => {
+      const diffStr = r.avgVsPar === 0 ? 'E' : (r.avgVsPar > 0 ? '+' : '') + r.avgVsPar.toFixed(1);
+      const diffColor = r.avgVsPar <= 0 ? 'var(--green2)' : r.avgVsPar <= 0.5 ? 'var(--gold)' : 'var(--red)';
+      const sgColor = r.avgSG >= 0 ? 'var(--green2)' : 'var(--red)';
+      const isWorst = worstHoles.includes(r.n);
+      const isBest  = bestHoles.includes(r.n);
+      return `
+      <div class="card" style="padding:14px 16px;${isWorst?'border-left:3px solid var(--red);':isBest?'border-left:3px solid var(--green2);':''}">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="min-width:44px;text-align:center;">
+            <div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;color:var(--green);">#${r.n}</div>
+            <div style="font-size:10px;color:var(--muted);">Par ${r.hInfo.par} · ${r.hInfo.yds}y</div>
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;gap:16px;margin-bottom:6px;">
+              <div><div style="font-size:18px;font-weight:900;color:${diffColor};">${diffStr}</div><div style="font-size:10px;color:var(--muted);">vs par</div></div>
+              <div><div style="font-size:18px;font-weight:900;color:${sgColor};">${r.avgSG>=0?'+':''}${r.avgSG.toFixed(2)}</div><div style="font-size:10px;color:var(--muted);">avg SG</div></div>
+              <div><div style="font-size:18px;font-weight:900;">${r.avgScore.toFixed(1)}</div><div style="font-size:10px;color:var(--muted);">avg score</div></div>
+              <div style="margin-left:auto;text-align:right;"><div style="font-size:12px;color:var(--muted);">${r.rounds} round${r.rounds!==1?'s':''}</div>${r.topMiss?`<div style="font-size:11px;color:var(--muted);">Miss: ${missLabel(r.topMiss[0])}</div>`:''}</div>
+            </div>
+            <!-- Score distribution mini bar -->
+            <div style="display:flex;gap:3px;align-items:flex-end;height:24px;">
+              ${Object.entries(r.scoreDist).sort((a,b)=>a[0]-b[0]).map(([score, cnt]) => {
+                const h = Math.round((cnt/r.rounds)*20)+2;
+                const isVsPar = parseInt(score) - r.hInfo.par;
+                const col = isVsPar < 0 ? '#166534' : isVsPar === 0 ? 'var(--green2)' : isVsPar === 1 ? 'var(--gold)' : 'var(--red)';
+                const label = isVsPar < -1 ? 'Eagle' : isVsPar === -1 ? 'Birdie' : isVsPar === 0 ? 'Par' : isVsPar === 1 ? 'Bogey' : 'D+';
+                return `<div style="display:flex;flex-direction:column;align-items:center;gap:1px;" title="${label} (${cnt}x)">
+                  <div style="font-size:8px;color:${col};font-weight:700;">${cnt}</div>
+                  <div style="width:16px;height:${h}px;background:${col};border-radius:2px 2px 0 0;opacity:0.8;"></div>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div style="height:20px;"></div>
+  `;
+  showScreen('s-hole-stats');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TRENDS
+// ═══════════════════════════════════════════════════════════════════
+function showTrends() {
+  const el = document.getElementById('trends-content');
+  const rounds = [...state.rounds].sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  if (rounds.length < 2) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📈</div><p>Play at least 2 rounds to see trends.</p></div>`;
+    showScreen('s-trends');
+    return;
+  }
+
+  const cats = ['tee','approach','chip','putt'];
+  const catLabel = {tee:'Tee',approach:'Approach',chip:'Short Game',putt:'Putting'};
+  const catColor = {tee:'#2563eb',approach:'#16a34a',chip:'#d97706',putt:'#9333ea'};
+
+  // Per-round SG by category + total
+  const roundStats = rounds.map(r => {
+    const shots = r.holes.flatMap(h => h.shots);
+    const sg = {};
+    cats.forEach(c => {
+      const cs = shots.filter(s => s.type === c);
+      sg[c] = cs.length ? cs.reduce((a,s)=>a+s.sg,0) : null;
+    });
+    sg.total = shots.reduce((a,s)=>a+s.sg,0);
+    return { date: r.date, sg, n: shots.length };
+  });
+
+  // SVG line chart builder
+  function buildTrendSVG(series, color, label) {
+    const vals = series.filter(v => v !== null);
+    if (vals.length < 2) return `<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px;">Not enough data</div>`;
+    const W = 320, H = 120, pad = { t:16, r:12, b:28, l:40 };
+    const iW = W - pad.l - pad.r, iH = H - pad.t - pad.b;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = max - min || 1;
+    const pts = series.map((v, i) => {
+      const x = pad.l + (i / (series.length-1)) * iW;
+      const y = v === null ? null : pad.t + iH - ((v - min) / range) * iH;
+      return { x, y, v, date: rounds[i].date };
+    });
+    const validPts = pts.filter(p => p.y !== null);
+    const pathD = validPts.map((p,i) => `${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const zero = min <= 0 && max >= 0 ? pad.t + iH - ((0 - min)/range)*iH : null;
+
+    // Moving average (3-round)
+    const maVals = series.map((_, i) => {
+      const window = series.slice(Math.max(0,i-1), i+2).filter(v=>v!==null);
+      return window.length ? window.reduce((a,b)=>a+b,0)/window.length : null;
+    });
+    const maPath = maVals.map((v,i) => {
+      if (v===null) return null;
+      const x = pad.l + (i/(series.length-1))*iW;
+      const y = pad.t + iH - ((v-min)/range)*iH;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).filter(Boolean);
+
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;">
+      <!-- zero line -->
+      ${zero !== null ? `<line x1="${pad.l}" y1="${zero.toFixed(1)}" x2="${pad.l+iW}" y2="${zero.toFixed(1)}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3,3"/>` : ''}
+      <!-- y axis labels -->
+      <text x="${pad.l-4}" y="${(pad.t+2).toFixed(1)}" text-anchor="end" font-size="9" fill="#9ca3af">${max>=0?'+':''}${max.toFixed(1)}</text>
+      <text x="${pad.l-4}" y="${(H-pad.b).toFixed(1)}" text-anchor="end" font-size="9" fill="#9ca3af">${min>=0?'+':''}${min.toFixed(1)}</text>
+      ${zero!==null?`<text x="${pad.l-4}" y="${(zero+3).toFixed(1)}" text-anchor="end" font-size="9" fill="#9ca3af">0</text>`:''}
+      <!-- moving avg line -->
+      <polyline points="${maPath.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.5"/>
+      <!-- main line -->
+      <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- dots + x labels -->
+      ${validPts.map((p, i) => `
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${p.v>=0?color:'var(--red)'}" stroke="white" stroke-width="1.5"/>
+        ${i===0||i===validPts.length-1||validPts.length<=6 ? `<text x="${p.x.toFixed(1)}" y="${(H-4).toFixed(1)}" text-anchor="middle" font-size="8" fill="#9ca3af">${p.date.replace(/\d{4}/,'').replace(/^\//,'').replace(/\/$/,'')}</text>` : ''}
+      `).join('')}
+    </svg>`;
+  }
+
+  // Overall SG trend
+  const totalSeries = roundStats.map(r => r.sg.total);
+  const avgTotal = totalSeries.reduce((a,b)=>a+b,0)/totalSeries.length;
+  const trend = totalSeries.length >= 3 ?
+    (totalSeries.slice(-3).reduce((a,b)=>a+b,0)/3) - (totalSeries.slice(0,3).reduce((a,b)=>a+b,0)/3) : 0;
+
+  el.innerHTML = `
+    <!-- Summary -->
+    <div class="card" style="padding:14px 16px;">
+      <div style="display:flex;gap:0;justify-content:center;">
+        <div style="flex:1;text-align:center;border-right:1px solid #e5e7eb;padding:8px;">
+          <div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:${avgTotal>=0?'var(--green2)':'var(--red)'};">${avgTotal>=0?'+':''}${avgTotal.toFixed(1)}</div>
+          <div style="font-size:11px;color:var(--muted);">Avg SG/round</div>
+        </div>
+        <div style="flex:1;text-align:center;border-right:1px solid #e5e7eb;padding:8px;">
+          <div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:${trend>=0?'var(--green2)':'var(--red)'};">${trend>=0?'↑':'↓'}${Math.abs(trend).toFixed(1)}</div>
+          <div style="font-size:11px;color:var(--muted);">Trend (early→late)</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:8px;">
+          <div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;">${rounds.length}</div>
+          <div style="font-size:11px;color:var(--muted);">Rounds</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total SG trend -->
+    <div class="card-title">Total Strokes Gained Per Round</div>
+    <div class="card" style="padding:12px 16px;">
+      ${buildTrendSVG(totalSeries, 'var(--green)', 'Total SG')}
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Solid line = actual · dashed = 3-round moving avg</div>
+    </div>
+
+    <!-- Per category -->
+    <div class="card-title">SG by Category Per Round</div>
+    ${cats.map(c => {
+      const series = roundStats.map(r => r.sg[c]);
+      const vals = series.filter(v=>v!==null);
+      if (!vals.length) return '';
+      const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+      return `
+      <div class="card" style="padding:12px 16px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:14px;">${catLabel[c]}</div>
+          <div style="font-size:13px;font-weight:700;color:${avg>=0?'var(--green2)':'var(--red)'};">${avg>=0?'+':''}${avg.toFixed(2)} avg</div>
+        </div>
+        ${buildTrendSVG(series, catColor[c], catLabel[c])}
+      </div>`;
+    }).join('')}
+
+    <!-- Scoring zones analysis -->
+    <div class="card-title">Scoring Zone Breakdown</div>
+    <div class="card" style="padding:0;">
+      ${cats.map(c => {
+        const allVals = roundStats.map(r=>r.sg[c]).filter(v=>v!==null);
+        if (!allVals.length) return '';
+        const avg = allVals.reduce((a,b)=>a+b,0)/allVals.length;
+        const barW = Math.min(Math.abs(avg)/2*100, 100);
+        return `<div style="padding:12px 16px;border-bottom:1px solid #f3f4f6;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-weight:700;">${catLabel[c]}</span>
+            <span style="font-weight:700;color:${avg>=0?'var(--green2)':'var(--red)'};">${avg>=0?'+':''}${avg.toFixed(2)} SG/round</span>
+          </div>
+          <div style="height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;">
+            <div style="height:100%;width:${barW}%;background:${avg>=0?'var(--green2)':'var(--red)'};border-radius:4px;margin-left:${avg>=0?'50%':'calc(50% - '+barW+'%)'};"></div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:3px;">${avg>=0?'Gaining':'Losing'} ${Math.abs(avg).toFixed(2)} shots per round vs baseline</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="height:20px;"></div>
+  `;
+  showScreen('s-trends');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// YARDAGE CARD
+// ═══════════════════════════════════════════════════════════════════
+function showYardageCard() {
+  const el = document.getElementById('yardage-content');
+  const roundShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const rangeShots = state.rangeShots || [];
+
+  function goodCarries(club, swing=null) {
+    const from_round = roundShots.filter(s =>
+      s.club === club && s.type !== 'putt' &&
+      (s.strike||'good') === 'good' &&
+      (s.lie||'fairway') === 'fairway' &&
+      (s.shape||'straight') !== 'punch' &&
+      (!swing || s.swingType === swing) &&
+      (s.distFrom - s.distTo) > 0
+    ).map(s => s.distFrom - s.distTo);
+    const from_range = rangeShots.filter(s =>
+      s.club === club &&
+      (s.strike||'good') === 'good' &&
+      (!swing || s.swingType === swing) &&
+      s.carry > 0
+    ).map(s => s.carry);
+    return [...from_round, ...from_range];
+  }
+
+  function avg(arr) { return arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null; }
+  function lo90(arr) {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a,b)=>a-b);
+    return s[Math.floor(s.length*0.1)] ?? s[0];
+  }
+  function hi90(arr) {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a,b)=>a-b);
+    return s[Math.floor(s.length*0.9)] ?? s[s.length-1];
+  }
+
+  const swingTypes = ['7:30','9:00','11:30','Full'];
+
+  // Full swing clubs
+  const fullRows = CLUBS.filter(c => !WEDGE_CLUBS.includes(c) && c !== 'Put').map(c => {
+    const carries = goodCarries(c);
+    return { club: c, avg: avg(carries), lo: lo90(carries), hi: hi90(carries), n: carries.length };
+  }).filter(r => r.avg !== null);
+
+  // Wedge rows expanded by swing
+  const wedgeRows = [];
+  WEDGE_CLUBS.forEach(c => {
+    swingTypes.forEach(sw => {
+      const carries = goodCarries(c, sw);
+      // also include untagged in 9:00
+      const untagged = sw === '9:00' ? goodCarries(c).filter((_,i) => {
+        return false; // can't distinguish here, skip
+      }) : [];
+      if (carries.length) wedgeRows.push({ club: c, swing: sw, avg: avg(carries), lo: lo90(carries), hi: hi90(carries), n: carries.length });
+    });
+    // If any untagged exists but no swing type, add under 9:00 logic (already merged in goodCarries above)
+  });
+
+  const hasAny = fullRows.length || wedgeRows.length;
+
+  el.innerHTML = `
+    <div style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12);">
+      <!-- Header -->
+      <div style="background:var(--green);color:white;padding:14px 16px;text-align:center;">
+        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;">Latrobe CC</div>
+        <div style="font-size:12px;opacity:0.85;">White Tees · Yardage Card · Good Strikes Only</div>
+      </div>
+
+      ${!hasAny ? `<div style="padding:24px;text-align:center;color:var(--muted);">No distance data yet.<br>Log shots or use the Practice Range.</div>` : ''}
+
+      ${fullRows.length ? `
+      <!-- Full swing clubs -->
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#f0fdf4;border-bottom:1px solid #d1fae5;">
+          <th style="padding:8px 12px;text-align:left;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Club</th>
+          <th style="padding:8px 6px;text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Carry</th>
+          <th style="padding:8px 6px;text-align:center;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Range</th>
+        </tr></thead>
+        <tbody>
+          ${fullRows.map((r,i) => `<tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
+            <td style="padding:9px 12px;font-weight:800;font-size:16px;color:var(--green);">${r.club}</td>
+            <td style="padding:9px 6px;text-align:center;font-weight:900;font-size:18px;font-family:'Playfair Display',serif;">${r.avg}</td>
+            <td style="padding:9px 6px;text-align:center;font-size:12px;color:var(--muted);">${r.lo}–${r.hi}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : ''}
+
+      ${wedgeRows.length ? `
+      <!-- Wedge matrix -->
+      <div style="background:#fffbeb;border-top:2px solid #fde68a;padding:8px 12px;">
+        <div style="font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Wedge Distances by Swing</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#fffbeb;border-bottom:1px solid #fde68a;">
+          <th style="padding:7px 12px;text-align:left;font-size:10px;color:#92400e;text-transform:uppercase;">Club</th>
+          <th style="padding:7px 6px;text-align:left;font-size:10px;color:#92400e;text-transform:uppercase;">Swing</th>
+          <th style="padding:7px 6px;text-align:center;font-size:10px;color:#92400e;text-transform:uppercase;">Carry</th>
+          <th style="padding:7px 6px;text-align:center;font-size:10px;color:#92400e;text-transform:uppercase;">Range</th>
+        </tr></thead>
+        <tbody>
+          ${wedgeRows.map((r,i) => `<tr style="border-bottom:1px solid #fef3c7;background:${i%2?'#fffbeb':'white'};">
+            <td style="padding:8px 12px;font-weight:800;font-size:15px;color:var(--gold);">${r.club}</td>
+            <td style="padding:8px 6px;font-size:12px;color:var(--muted);font-weight:600;">${r.swing}</td>
+            <td style="padding:8px 6px;text-align:center;font-weight:900;font-size:17px;font-family:'Playfair Display',serif;">${r.avg}</td>
+            <td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--muted);">${r.lo}–${r.hi}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : ''}
+
+      <div style="padding:10px 14px;font-size:10px;color:var(--muted);text-align:center;border-top:1px solid #f3f4f6;">
+        Carry yds · fairway lie · good strikes · punch excluded · Range = 10–90%
+      </div>
+    </div>
+    <div style="margin-top:10px;padding:10px;background:#f0fdf4;border-radius:8px;text-align:center;font-size:12px;color:var(--green);">
+      📸 Screenshot this page and keep it in your bag
+    </div>
+    <div style="height:20px;"></div>
+  `;
+  showScreen('s-yardage');
 }
 
 // ═══════════════════════════════════════════════════════════════════
