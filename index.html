@@ -342,9 +342,14 @@
     </div>
 
     <!-- Distance FROM -->
-    <div class="card-title">Distance to Pin (Before Shot)</div>
+    <div class="card-title" id="dist-from-title">Distance to Pin (Before Shot)</div>
     <div class="card" style="padding:12px 16px;">
-      <div class="dist-display"><span id="dist-from-val">150</span><span> yds</span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <div class="dist-display" style="flex:1;margin:0;"><span id="dist-from-val">150</span><span id="dist-from-unit"> yds</span></div>
+        <input type="number" id="dist-from-manual" min="1" max="600" value="150"
+          style="width:72px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
+          oninput="manualDistFrom(this.value)" onchange="manualDistFrom(this.value)">
+      </div>
       <input type="range" id="dist-from-slider" min="1" max="600" value="150" oninput="updateDistFrom(this.value)">
       <div class="dist-presets" id="dist-from-presets">
         <div class="dist-preset" onclick="setDistFrom(3)">3</div>
@@ -362,11 +367,16 @@
     </div>
 
     <!-- Distance TO -->
-    <div class="card-title">Distance to Pin (After Shot)</div>
+    <div class="card-title" id="dist-to-title">Distance to Pin (After Shot)</div>
     <div class="card" style="padding:12px 16px;">
-      <div class="dist-display"><span id="dist-to-val">0</span><span> yds</span></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <div class="dist-display" style="flex:1;margin:0;"><span id="dist-to-val">0</span><span id="dist-to-unit"> yds</span></div>
+        <input type="number" id="dist-to-manual" min="0" max="600" value="0"
+          style="width:72px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
+          oninput="manualDistTo(this.value)" onchange="manualDistTo(this.value)">
+      </div>
       <input type="range" id="dist-to-slider" min="0" max="600" value="0" oninput="updateDistTo(this.value)">
-      <div class="dist-presets">
+      <div class="dist-presets" id="dist-to-presets">
         <div class="dist-preset" onclick="setDistTo(0)">Holed</div>
         <div class="dist-preset" onclick="setDistTo(2)">2</div>
         <div class="dist-preset" onclick="setDistTo(4)">4</div>
@@ -399,6 +409,18 @@
     <!-- Club -->
     <div class="card-title">Club Used</div>
     <div id="club-grid" style="margin-bottom:14px;"></div>
+
+    <!-- Shot Shape (hidden for putts) -->
+    <div id="shot-shape-section">
+      <div class="card-title">Shot Shape <span style="font-size:11px;font-weight:400;color:var(--muted);">Intended shape</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="shape-grid">
+        <button class="sel-btn btn-sm active" onclick="selectShape('straight')" id="shape-straight">➡️ Straight</button>
+        <button class="sel-btn btn-sm" onclick="selectShape('draw')" id="shape-draw">↩️ Draw</button>
+        <button class="sel-btn btn-sm" onclick="selectShape('fade')" id="shape-fade">↪️ Fade</button>
+        <button class="sel-btn btn-sm" onclick="selectShape('punch')" id="shape-punch">⬇️ Punch</button>
+        <button class="sel-btn btn-sm" onclick="selectShape('flop')" id="shape-flop">⬆️ Flop</button>
+      </div>
+    </div>
 
     <!-- Strike Quality -->
     <div class="card-title">Strike Quality</div>
@@ -467,8 +489,18 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     SCREEN: ROUND SUMMARY
+     SCREEN: CLUB DETAIL
 ═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-club">
+  <div class="hdr">
+    <button class="back-btn" onclick="showStats()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="club-detail-title">Club</div>
+      <div class="hdr-sub" id="club-detail-sub">Distance & Dispersion</div>
+    </div>
+  </div>
+  <div class="content" id="club-detail-content"></div>
+</div>
 <div class="screen" id="s-summary">
   <div class="hdr">
     <div style="text-align:center;padding-top:0;">
@@ -640,10 +672,11 @@ function getExpected(distYds, isPutt, shotType) {
 
 function calcSG(distFrom, distTo, shotType) {
   const isPutt = shotType === 'putt';
-  const expBefore = getExpected(distFrom, isPutt, shotType);
-  // After the shot, lie is always on green (putt) or fairway (chip/approach)
-  const expAfter  = distTo === 0 ? 0 : getExpected(distTo, distTo <= 10, null);
-  // SG = expected_before - (1 + expected_after)
+  // Putts are stored in FEET in the UI; convert to yards for the baseline table
+  const fromYds = isPutt ? distFrom / 3 : distFrom;
+  const toYds   = isPutt ? distTo   / 3 : distTo;
+  const expBefore = getExpected(fromYds, isPutt, shotType);
+  const expAfter  = distTo === 0 ? 0 : getExpected(toYds, distTo <= 10 && !isPutt ? false : isPutt, null);
   return parseFloat((expBefore - 1 - expAfter).toFixed(2));
 }
 
@@ -830,7 +863,7 @@ function renderHoleDetail() {
       <div class="shot-num">${i+1}</div>
       <div class="shot-info">
         <div class="shot-type">${shotTypeLabel(s.type)} ${s.club ? '· '+s.club : ''} <span style="font-size:11px;padding:2px 6px;border-radius:10px;background:${s.strike==='bad'?'#fee2e2':'#dcfce7'};color:${s.strike==='bad'?'#991b1b':'#166534'};margin-left:4px;">${s.strike==='bad'?'❌ Bad':'✅ Good'}</span></div>
-        <div class="shot-detail">${s.distFrom}→${s.distTo} yds · ${missLabel}</div>
+        <div class="shot-detail">${s.type==='putt' ? `${s.distFrom}→${s.distTo} ft` : `${s.distFrom}→${s.distTo} yds`} · ${missLabel}</div>
       </div>
       <div class="shot-sg-val" style="color:${s.sg>=0?'var(--green2)':'var(--red)'};">${sgStr}</div>
       <button onclick="deleteShot(${i})" style="border:none;background:none;color:var(--muted);font-size:16px;padding:4px;cursor:pointer;">✕</button>
@@ -872,33 +905,156 @@ function addShotModal() {
     else defaultType = 'approach';
   }
 
-  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good' };
+  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight' };
 
   // Update UI
-  selectShotType(defaultType);
+  // Set type buttons first (without triggering mode switch)
+  ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
+    document.getElementById('st-'+x).classList.toggle('active', x === defaultType);
+  });
+  const isPutt = defaultType === 'putt';
+  setPuttMode(isPutt);
+  document.getElementById('shot-shape-section').style.display = isPutt ? 'none' : '';
+  const max = isPutt ? 90 : 600;
+  document.getElementById('dist-from-slider').max = max;
+  document.getElementById('dist-to-slider').max = max;
   setDistFrom(defaultDist);
   setDistTo(0);
   selectMiss('on-target');
   selectStrike('good');
+  selectShape('straight');
   renderClubs();
   showScreen('s-shot');
 }
 
 function selectShotType(t) {
+  const wasPutt = state.currentShot.type === 'putt';
+  const nowPutt = t === 'putt';
   state.currentShot.type = t;
   ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
     document.getElementById('st-'+x).classList.toggle('active', x === t);
   });
-  // Adjust dist slider max
-  const max = t === 'putt' ? 80 : 600;
+  // Switch units if transitioning to/from putt
+  if (wasPutt !== nowPutt) {
+    // Reset distances to sensible defaults when switching mode
+    const defaultFrom = nowPutt ? 20 : 150;
+    const defaultTo   = 0;
+    setDistFrom(defaultFrom);
+    setDistTo(defaultTo);
+    setPuttMode(nowPutt);
+  }
+  document.getElementById('shot-shape-section').style.display = nowPutt ? 'none' : '';
+  const max = nowPutt ? 90 : 600;
   document.getElementById('dist-from-slider').max = max;
   document.getElementById('dist-to-slider').max = max;
 }
 
-function updateDistFrom(v) { state.currentShot.distFrom = parseInt(v); document.getElementById('dist-from-val').textContent = v; }
-function updateDistTo(v)   { state.currentShot.distTo   = parseInt(v); document.getElementById('dist-to-val').textContent   = v; }
-function setDistFrom(v) { state.currentShot.distFrom = v; document.getElementById('dist-from-val').textContent = v; document.getElementById('dist-from-slider').value = v; }
-function setDistTo(v)   { state.currentShot.distTo   = v; document.getElementById('dist-to-val').textContent   = v === 0 ? 0 : v; document.getElementById('dist-to-slider').value = v; }
+function isPuttMode() { return state.currentShot.type === 'putt'; }
+
+function updateDistFrom(v) {
+  state.currentShot.distFrom = parseInt(v);
+  document.getElementById('dist-from-val').textContent = v;
+  document.getElementById('dist-from-manual').value = v;
+}
+function updateDistTo(v) {
+  state.currentShot.distTo = parseInt(v);
+  document.getElementById('dist-to-val').textContent = v;
+  document.getElementById('dist-to-manual').value = v;
+}
+function setDistFrom(v) {
+  state.currentShot.distFrom = v;
+  document.getElementById('dist-from-val').textContent = v;
+  document.getElementById('dist-from-slider').value = v;
+  document.getElementById('dist-from-manual').value = v;
+}
+function setDistTo(v) {
+  state.currentShot.distTo = v;
+  document.getElementById('dist-to-val').textContent = v === 0 ? 0 : v;
+  document.getElementById('dist-to-slider').value = v;
+  document.getElementById('dist-to-manual').value = v;
+}
+function manualDistFrom(v) {
+  const n = parseInt(v);
+  if (isNaN(n) || n < 0) return;
+  const max = isPuttMode() ? 90 : 600;
+  const clamped = Math.min(n, max);
+  state.currentShot.distFrom = clamped;
+  document.getElementById('dist-from-val').textContent = clamped;
+  document.getElementById('dist-from-slider').value = clamped;
+}
+function manualDistTo(v) {
+  const n = parseInt(v);
+  if (isNaN(n) || n < 0) return;
+  const max = isPuttMode() ? 90 : 600;
+  const clamped = Math.min(n, max);
+  state.currentShot.distTo = clamped;
+  document.getElementById('dist-to-val').textContent = clamped;
+  document.getElementById('dist-to-slider').value = clamped;
+}
+
+function setPuttMode(on) {
+  const unit = on ? ' ft' : ' yds';
+  const max  = on ? 90 : 600;
+  document.getElementById('dist-from-unit').textContent = unit;
+  document.getElementById('dist-to-unit').textContent   = unit;
+  document.getElementById('dist-from-slider').max = max;
+  document.getElementById('dist-to-slider').max   = max;
+  document.getElementById('dist-from-manual').max = max;
+  document.getElementById('dist-to-manual').max   = max;
+  document.getElementById('dist-from-title').textContent = on ? 'Distance to Hole (Before Putt)' : 'Distance to Pin (Before Shot)';
+  document.getElementById('dist-to-title').textContent   = on ? 'Distance to Hole (After Putt)'  : 'Distance to Pin (After Shot)';
+
+  // Swap presets
+  if (on) {
+    document.getElementById('dist-from-presets').innerHTML = `
+      <div class="dist-preset" onclick="setDistFrom(2)">2 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(3)">3 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(5)">5 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(8)">8 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(10)">10 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(15)">15 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(20)">20 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(25)">25 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(30)">30 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(40)">40 ft</div>
+      <div class="dist-preset" onclick="setDistFrom(50)">50 ft</div>`;
+    document.getElementById('dist-to-presets').innerHTML = `
+      <div class="dist-preset" onclick="setDistTo(0)">Holed</div>
+      <div class="dist-preset" onclick="setDistTo(1)">1 ft</div>
+      <div class="dist-preset" onclick="setDistTo(2)">2 ft</div>
+      <div class="dist-preset" onclick="setDistTo(3)">3 ft</div>
+      <div class="dist-preset" onclick="setDistTo(4)">4 ft</div>
+      <div class="dist-preset" onclick="setDistTo(5)">5 ft</div>
+      <div class="dist-preset" onclick="setDistTo(6)">6 ft</div>
+      <div class="dist-preset" onclick="setDistTo(8)">8 ft</div>
+      <div class="dist-preset" onclick="setDistTo(10)">10 ft</div>
+      <div class="dist-preset" onclick="setDistTo(15)">15 ft</div>`;
+  } else {
+    document.getElementById('dist-from-presets').innerHTML = `
+      <div class="dist-preset" onclick="setDistFrom(3)">3</div>
+      <div class="dist-preset" onclick="setDistFrom(6)">6</div>
+      <div class="dist-preset" onclick="setDistFrom(10)">10</div>
+      <div class="dist-preset" onclick="setDistFrom(20)">20</div>
+      <div class="dist-preset" onclick="setDistFrom(40)">40</div>
+      <div class="dist-preset" onclick="setDistFrom(75)">75</div>
+      <div class="dist-preset" onclick="setDistFrom(100)">100</div>
+      <div class="dist-preset" onclick="setDistFrom(125)">125</div>
+      <div class="dist-preset" onclick="setDistFrom(150)">150</div>
+      <div class="dist-preset" onclick="setDistFrom(175)">175</div>
+      <div class="dist-preset" onclick="setDistFrom(200)">200</div>`;
+    document.getElementById('dist-to-presets').innerHTML = `
+      <div class="dist-preset" onclick="setDistTo(0)">Holed</div>
+      <div class="dist-preset" onclick="setDistTo(2)">2</div>
+      <div class="dist-preset" onclick="setDistTo(4)">4</div>
+      <div class="dist-preset" onclick="setDistTo(8)">8</div>
+      <div class="dist-preset" onclick="setDistTo(15)">15</div>
+      <div class="dist-preset" onclick="setDistTo(30)">30</div>
+      <div class="dist-preset" onclick="setDistTo(50)">50</div>
+      <div class="dist-preset" onclick="setDistTo(80)">80</div>
+      <div class="dist-preset" onclick="setDistTo(100)">100</div>
+      <div class="dist-preset" onclick="setDistTo(150)">150</div>`;
+  }
+}
 
 function selectMiss(m) {
   state.currentShot.miss = m;
@@ -910,6 +1066,13 @@ function selectStrike(s) {
   state.currentShot.strike = s;
   document.getElementById('strike-good').classList.toggle('active', s === 'good');
   document.getElementById('strike-bad').classList.toggle('active', s === 'bad');
+}
+
+function selectShape(s) {
+  state.currentShot.shape = s;
+  ['straight','draw','fade','punch','flop'].forEach(x =>
+    document.getElementById('shape-'+x).classList.toggle('active', x === s)
+  );
 }
 
 function renderClubs() {
@@ -927,7 +1090,7 @@ function saveShot() {
   const s = state.currentShot;
   if (!s.type) { alert('Please select a shot type.'); return; }
   const sg = calcSG(s.distFrom, s.distTo, s.type);
-  const shot = { type: s.type, distFrom: s.distFrom, distTo: s.distTo, miss: s.miss, club: s.club, sg, strike: s.strike || 'good' };
+  const shot = { type: s.type, distFrom: s.distFrom, distTo: s.distTo, miss: s.miss, club: s.club, sg, strike: s.strike || 'good', shape: s.shape || 'straight' };
   state.currentHole.shots.push(shot);
   saveRoundState();
   renderHoleDetail();
@@ -1071,7 +1234,7 @@ function exportData() {
 }
 
 function exportCSV() {
-  const rows = [['Date','RoundID','Hole','Par','HoleYds','ShotNum','Type','Club','Strike','DistFrom','DistTo','Miss','SG']];
+  const rows = [['Date','RoundID','Hole','Par','HoleYds','ShotNum','Type','Club','Strike','DistFrom(yds/ft)','DistTo(yds/ft)','Miss','SG']];
   state.rounds.forEach(r => {
     r.holes.forEach(h => {
       h.shots.forEach((s, i) => {
@@ -1270,7 +1433,7 @@ function showStats() {
 
     <!-- ── Club Distances (good strikes only) ───────────────── -->
     ${clubStats.length ? `
-    <div class="card-title">Club Distances <span style="font-size:11px;font-weight:400;color:var(--muted);">Good strikes only · yds carry</span></div>
+    <div class="card-title">Club Distances <span style="font-size:11px;font-weight:400;color:var(--muted);">Good strikes only · tap for detail</span></div>
     <div class="card" style="padding:0;">
       <div style="overflow-x:auto;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -1279,23 +1442,23 @@ function showStats() {
               <th style="padding:10px 12px;text-align:left;font-weight:700;">Club</th>
               <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg</th>
               <th style="padding:10px 8px;text-align:center;font-weight:700;">Range</th>
-              <th style="padding:10px 8px;text-align:center;font-weight:700;">Avg Left</th>
+              <th style="padding:10px 8px;text-align:center;font-weight:700;">Prox</th>
               <th style="padding:10px 8px;text-align:center;font-weight:700;color:var(--muted);">n</th>
             </tr>
           </thead>
           <tbody>
             ${clubStats.map((cs, i) => `
-            <tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
-              <td style="padding:10px 12px;font-weight:700;color:var(--green);">${cs.c}</td>
+            <tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};cursor:pointer;" onclick="showClubDetail('${cs.c}')">
+              <td style="padding:10px 12px;font-weight:700;color:var(--green);">${cs.c} <span style="font-size:10px;color:var(--muted);">›</span></td>
               <td style="padding:10px 8px;text-align:center;font-weight:600;">${cs.avg}</td>
               <td style="padding:10px 8px;text-align:center;color:var(--muted);font-size:12px;">${cs.lo}–${cs.hi}</td>
-              <td style="padding:10px 8px;text-align:center;color:${cs.avgDisp !== null && cs.avgDisp <= 10 ? 'var(--green2)':'var(--muted)'};">${cs.avgDisp !== null ? cs.avgDisp+' yds' : '—'}</td>
+              <td style="padding:10px 8px;text-align:center;color:${cs.avgDisp !== null && cs.avgDisp <= 10 ? 'var(--green2)':'var(--muted)'};">${cs.avgDisp !== null ? cs.avgDisp+'y' : '—'}</td>
               <td style="padding:10px 8px;text-align:center;color:var(--muted);font-size:11px;">${cs.n}</td>
             </tr>`).join('')}
           </tbody>
         </table>
       </div>
-      <div style="padding:10px 12px;font-size:11px;color:var(--muted);">Avg Left = avg distance to hole after shot (proximity). Range = 10th–90th percentile carry.</div>
+      <div style="padding:10px 12px;font-size:11px;color:var(--muted);">Prox = avg distance to hole after shot. Range = 10th–90th percentile. Tap a club for full detail.</div>
     </div>` : ''}
 
     <!-- ── Shot Dispersion (miss direction heat map) ─────────── -->
@@ -1370,6 +1533,195 @@ function showStats() {
     <div style="height:20px;"></div>
   `;
   showScreen('s-stats');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CLUB DETAIL
+// ═══════════════════════════════════════════════════════════════════
+function showClubDetail(club) {
+  const allShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const clubShots = allShots.filter(s => s.club === club && s.type !== 'putt');
+  const goodShots = clubShots.filter(s => (s.strike||'good') === 'good');
+
+  document.getElementById('club-detail-title').textContent = club;
+  document.getElementById('club-detail-sub').textContent = `${clubShots.length} shots total · ${goodShots.length} good strikes`;
+
+  if (!clubShots.length) {
+    document.getElementById('club-detail-content').innerHTML = `<div class="empty-state"><div class="icon">🏌️</div><p>No shots logged with ${club} yet.</p></div>`;
+    showScreen('s-club');
+    return;
+  }
+
+  // ── Distance stats by shape (good strikes only) ──────────────────
+  const shapes = ['straight','draw','fade','punch','flop'];
+  const shapeEmoji = {straight:'➡️',draw:'↩️',fade:'↪️',punch:'⬇️',flop:'⬆️'};
+  const shapeData = {};
+  shapes.forEach(sh => { shapeData[sh] = []; });
+  goodShots.forEach(s => {
+    const sh = s.shape || 'straight';
+    const carry = s.distFrom - s.distTo;
+    if (carry > 0) shapeData[sh].push({ carry, distTo: s.distTo, miss: s.miss });
+  });
+
+  // Overall good-strike distance stats
+  const allCarries = goodShots.map(s => s.distFrom - s.distTo).filter(c => c > 0);
+  const avgCarry = allCarries.length ? Math.round(allCarries.reduce((a,b)=>a+b,0)/allCarries.length) : 0;
+  const sortedCarries = [...allCarries].sort((a,b)=>a-b);
+  const lo10 = sortedCarries[Math.floor(sortedCarries.length*0.1)] || sortedCarries[0] || 0;
+  const hi90 = sortedCarries[Math.floor(sortedCarries.length*0.9)] || sortedCarries[sortedCarries.length-1] || 0;
+
+  // ── Distance dispersion bar chart ───────────────────────────────
+  // Bucket carries into 10-yard bins
+  const buckets = {};
+  allCarries.forEach(c => {
+    const b = Math.floor(c/10)*10;
+    buckets[b] = (buckets[b]||0)+1;
+  });
+  const bucketKeys = Object.keys(buckets).map(Number).sort((a,b)=>a-b);
+  const maxBucket = Math.max(...Object.values(buckets), 1);
+
+  // ── Miss direction for this club ─────────────────────────────────
+  const missFreq = {};
+  clubShots.forEach(s => { missFreq[s.miss] = (missFreq[s.miss]||0)+1; });
+  const totalMiss = clubShots.length;
+
+  // ── Shape comparison table ───────────────────────────────────────
+  const shapesWithData = shapes.filter(sh => shapeData[sh].length > 0);
+
+  const el = document.getElementById('club-detail-content');
+  el.innerHTML = `
+
+    <!-- ── Key Numbers ──────────────────────────────────── -->
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="display:flex;gap:0;justify-content:center;">
+        <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
+          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--green);">${avgCarry}</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Avg Carry (yds)</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Good strikes</div>
+        </div>
+        <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
+          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--gold);">${lo10}–${hi90}</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">10–90% Range</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">yds carry</div>
+        </div>
+        <div style="flex:1;padding:8px;">
+          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--blue);">${goodShots.length}</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Good Strikes</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">of ${clubShots.length} total</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Distance Distribution ────────────────────────── -->
+    ${allCarries.length >= 2 ? `
+    <div class="card-title">Distance Distribution <span style="font-size:11px;font-weight:400;color:var(--muted);">Good strikes</span></div>
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;align-items:flex-end;gap:3px;height:80px;margin-bottom:6px;">
+        ${bucketKeys.map(b => {
+          const h = Math.round((buckets[b]/maxBucket)*76);
+          const isAvg = b <= avgCarry && avgCarry < b+10;
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <div style="width:100%;height:${h}px;background:${isAvg?'var(--green2)':'var(--green)'};opacity:${isAvg?1:0.55};border-radius:3px 3px 0 0;min-height:2px;"></div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);">
+        <span>${bucketKeys[0]}</span>
+        <span style="color:var(--green2);font-weight:700;">▲ ${avgCarry} avg</span>
+        <span>${bucketKeys[bucketKeys.length-1]+9}</span>
+      </div>
+    </div>` : ''}
+
+    <!-- ── Shape Comparison ──────────────────────────────── -->
+    ${shapesWithData.length > 0 ? `
+    <div class="card-title">Distance by Shot Shape <span style="font-size:11px;font-weight:400;color:var(--muted);">Good strikes only</span></div>
+    <div class="card" style="padding:0;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+            <th style="padding:10px 12px;text-align:left;">Shape</th>
+            <th style="padding:10px 8px;text-align:center;">Avg</th>
+            <th style="padding:10px 8px;text-align:center;">vs Straight</th>
+            <th style="padding:10px 8px;text-align:center;">Prox</th>
+            <th style="padding:10px 8px;text-align:center;color:var(--muted);">n</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(() => {
+            const straightAvg = shapeData.straight.length
+              ? Math.round(shapeData.straight.reduce((a,s)=>a+s.carry,0)/shapeData.straight.length)
+              : avgCarry;
+            return shapesWithData.map((sh, i) => {
+              const carries = shapeData[sh].map(s=>s.carry);
+              const avg = Math.round(carries.reduce((a,b)=>a+b,0)/carries.length);
+              const diff = avg - straightAvg;
+              const proxes = shapeData[sh].map(s=>s.distTo);
+              const prox = proxes.length ? Math.round(proxes.reduce((a,b)=>a+b,0)/proxes.length) : null;
+              const isBase = sh === 'straight';
+              return `<tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
+                <td style="padding:10px 12px;font-weight:600;">${shapeEmoji[sh]} ${sh.charAt(0).toUpperCase()+sh.slice(1)}</td>
+                <td style="padding:10px 8px;text-align:center;font-weight:700;">${avg}</td>
+                <td style="padding:10px 8px;text-align:center;font-size:13px;font-weight:600;color:${isBase?'var(--muted)':diff>0?'var(--green2)':'var(--red)'};">
+                  ${isBase ? '—' : (diff>0?'+':'')+diff+' yds'}
+                </td>
+                <td style="padding:10px 8px;text-align:center;color:var(--muted);">${prox !== null ? prox+'y' : '—'}</td>
+                <td style="padding:10px 8px;text-align:center;color:var(--muted);font-size:11px;">${shapeData[sh].length}</td>
+              </tr>`;
+            }).join('');
+          })()}
+        </tbody>
+      </table>
+      <div style="padding:10px 12px;font-size:11px;color:var(--muted);">vs Straight = carry difference vs. your straight shots with this club. Prox = avg distance to hole.</div>
+    </div>` : ''}
+
+    <!-- ── Shot Dispersion (this club) ──────────────────── -->
+    <div class="card-title">Shot Dispersion <span style="font-size:11px;font-weight:400;color:var(--muted);">All strikes</span></div>
+    <div class="card">
+      ${(() => {
+        const dirs = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
+        const maxVal = Math.max(...dirs.map(d => missFreq[d]||0), 1);
+        return `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:280px;margin:0 auto 10px;">
+          ${dirs.map(d => {
+            const count = missFreq[d] || 0;
+            const pct = totalMiss ? Math.round(count/totalMiss*100) : 0;
+            const isTarget = d === 'on-target';
+            const intensity = isTarget ? 1 : maxVal > 0 ? count/maxVal : 0;
+            const bg = isTarget ? 'var(--green2)' : count === 0 ? '#f3f4f6' : `rgba(192,57,43,${0.15 + intensity*0.75})`;
+            const textColor = isTarget || intensity > 0.5 ? 'white' : (count > 0 ? 'var(--red)' : 'var(--muted)');
+            return `<div style="background:${bg};color:${textColor};border-radius:8px;padding:10px 4px;text-align:center;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+              <div style="font-size:10px;font-weight:600;line-height:1.2;">${d.replace(/-/g,'<br>')}</div>
+              <div style="font-size:16px;font-weight:900;margin-top:2px;">${pct}%</div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-align:center;">% of ${totalMiss} shots with this club</div>`;
+      })()}
+    </div>
+
+    <!-- ── All Shots Log ─────────────────────────────────── -->
+    <div class="card-title">Shot Log <span style="font-size:11px;font-weight:400;color:var(--muted);">Most recent first</span></div>
+    <div class="card" style="padding:0;">
+      ${[...clubShots].reverse().slice(0,20).map((s,i) => {
+        const carry = s.distFrom - s.distTo;
+        const sh = s.shape || 'straight';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'}">
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;">${shapeEmoji[sh]} ${sh.charAt(0).toUpperCase()+sh.slice(1)} · ${carry > 0 ? carry+'y carry' : s.distFrom+'y'}</div>
+            <div style="font-size:11px;color:var(--muted);">${s.miss==='on-target'?'On target':s.miss.replace(/-/g,' ')} · left ${s.distTo}y</div>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-size:11px;padding:2px 7px;border-radius:10px;background:${(s.strike||'good')==='good'?'#dcfce7':'#fee2e2'};color:${(s.strike||'good')==='good'?'#166534':'#991b1b'};">${(s.strike||'good')==='good'?'✅ Good':'❌ Bad'}</span>
+            <div style="font-size:12px;font-weight:600;color:${s.sg>=0?'var(--green2)':'var(--red)'};margin-top:3px;">${s.sg>=0?'+':''}${s.sg} SG</div>
+          </div>
+        </div>`;
+      }).join('')}
+      ${clubShots.length > 20 ? `<div style="padding:10px 12px;font-size:11px;color:var(--muted);text-align:center;">Showing most recent 20 of ${clubShots.length} shots</div>` : ''}
+    </div>
+    <div style="height:20px;"></div>
+  `;
+
+  showScreen('s-club');
 }
 
 // ═══════════════════════════════════════════════════════════════════
