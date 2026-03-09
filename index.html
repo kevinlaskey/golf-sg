@@ -793,9 +793,47 @@ function saveRoundState() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// GOOGLE SHEETS EXPORT
+// ═══════════════════════════════════════════════════════════════════
+// Paste your Google Apps Script Web App URL here after setup:
+const SHEETS_URL = '';
+
+async function exportToSheets(r) {
+  const statusEl = document.getElementById('export-status');
+  if (!r) { statusEl.textContent = '⚠️ No round to export.'; return; }
+  if (!SHEETS_URL) {
+    statusEl.innerHTML = '⚠️ Add your Google Apps Script URL to the app first — see setup guide.';
+    return;
+  }
+  statusEl.textContent = '⏳ Exporting...';
+  const rows = [];
+  r.holes.forEach(h => {
+    h.shots.forEach((s, i) => {
+      rows.push({
+        date: r.date, roundId: r.id, hole: h.n, par: h.par, holeYds: h.yds,
+        shotNum: i+1, shotType: s.type, distFrom: s.distFrom, distTo: s.distTo,
+        miss: s.miss, club: s.club, sg: s.sg
+      });
+    });
+  });
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ rows })
+    });
+    statusEl.innerHTML = '✅ Exported to Google Sheets!';
+  } catch(e) {
+    statusEl.textContent = '❌ Export failed. Check your URL and connection.';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // ROUND SUMMARY
 // ═══════════════════════════════════════════════════════════════════
+let currentSummaryRound = null;
 function showRoundSummary(r) {
+  currentSummaryRound = r;
   document.getElementById('summary-date').textContent = r.date;
   const allShots = r.holes.flatMap(h => h.shots);
   const totalSG = getRoundTotalSG(r);
@@ -851,6 +889,9 @@ function showRoundSummary(r) {
       <button class="btn btn-primary" style="flex:1;" onclick="goHome()">← Home</button>
       <button class="btn btn-ghost" style="flex:1;" onclick="showStats()">📊 All Stats</button>
     </div>
+    <div style="height:8px;"></div>
+    <button class="btn btn-gold" style="font-size:15px;" onclick="exportToSheets(currentSummaryRound)">📤 Export to Google Sheets</button>
+    <div id="export-status" style="text-align:center;font-size:13px;color:var(--muted);margin-top:8px;min-height:20px;"></div>
     <div style="height:20px;"></div>
   `;
   showScreen('s-summary');
