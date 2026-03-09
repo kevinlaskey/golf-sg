@@ -253,7 +253,8 @@
   <div class="home-actions">
     <button class="btn btn-primary" style="font-size:17px;padding:18px;" onclick="startNewRound()">⛳ Start New Round</button>
     <div id="recent-rounds"></div>
-    <button class="btn btn-ghost btn-sm" onclick="showStats()">📊 View All Stats & Trends</button>
+    <button class="btn btn-ghost btn-sm" onclick="showStats()">📊 Strokes Gained Stats</button>
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showPuttStats()">🏳️ Putting Stats</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDataScreen()">💾 Backup & Restore Data</button>
     <button class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--red);border-color:var(--red);opacity:0.7;" onclick="resetAllData()">🗑️ Reset All Data</button>
   </div>
@@ -427,6 +428,22 @@
       </div>
     </div>
 
+    <!-- Putt Read (shown for putts only) -->
+    <div id="putt-read-section" style="display:none;">
+      <div class="card-title">Break <span style="font-size:11px;font-weight:400;color:var(--muted);">Which way does it move?</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectBreak('left')" id="break-left">↰ Left</button>
+        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectBreak('none')" id="break-none">→ No Break</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectBreak('right')" id="break-right">↱ Right</button>
+      </div>
+      <div class="card-title">Slope <span style="font-size:11px;font-weight:400;color:var(--muted);">Relative to hole</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSlope('downhill')" id="slope-downhill">⬇️ Downhill</button>
+        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectSlope('flat')" id="slope-flat">➡️ Flat</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSlope('uphill')" id="slope-uphill">⬆️ Uphill</button>
+      </div>
+    </div>
+
     <!-- Club -->
     <div class="card-title">Club Used</div>
     <div id="club-grid" style="margin-bottom:14px;"></div>
@@ -522,6 +539,21 @@
   </div>
   <div class="content" id="club-detail-content"></div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: PUTTING STATS
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-putt-stats">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">Putting Stats</div>
+      <div class="hdr-sub" id="putt-stats-sub">All Rounds · Latrobe CC</div>
+    </div>
+  </div>
+  <div class="content" id="putt-stats-content"></div>
+</div>
+
 <div class="screen" id="s-summary">
   <div class="hdr">
     <div style="text-align:center;padding-top:0;">
@@ -927,18 +959,21 @@ function addShotModal() {
     if (prev) {
       prevLandedOnGreen = !!prev.landedOnGreen;
       defaultDist = prev.distTo;
-      if (prevLandedOnGreen) {
-        // distTo from prev shot was already in feet — stay in feet, go to putt
+      if (prev.type === 'putt') {
+        // Previous was a putt — always stay in putt mode
+        defaultType = 'putt';
+      } else if (prevLandedOnGreen) {
+        // Approach/chip that landed on green — switch to putt
         defaultType = 'putt';
       } else {
-        // distTo was in yards — suggest chip/approach only, never auto-putt
+        // Still in the fairway/rough
         if (defaultDist <= 50) defaultType = 'chip';
         else defaultType = 'approach';
       }
     }
   }
 
-  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight', landedOnGreen: false };
+  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight', landedOnGreen: false, puttBreak: 'none', puttSlope: 'flat' };
 
   ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
     document.getElementById('st-'+x).classList.toggle('active', x === defaultType);
@@ -981,15 +1016,21 @@ function addShotModal() {
   document.getElementById('dist-to-slider').max = max;
   setDistFrom(Math.min(distFromDisplay, max));
   setDistTo(0);
-  // Always show label mode — edit only for penalty (handled by selectShotType)
-  setDistFromMode(false);
+  // Par 3 shot 1: editable (tee box varies). All other shots: label only.
+  // Penalty always editable (handled by selectShotType).
+  const hInfo = COURSE.holes.find(h => h.n === state.currentHole.n);
+  const editableStart = shotNum === 1 && hInfo && hInfo.par === 3;
+  setDistFromMode(editableStart);
   // Update label subtitle
   const labelSub = document.getElementById('dist-from-label-sub');
-  if (labelSub) labelSub.textContent = shotNum === 1 ? 'Hole distance (white tees)' : 'Carried over from previous shot';
+  if (labelSub) labelSub.textContent = editableStart ? 'Adjust for your tee box' : 'Carried over from previous shot';
 
   selectMiss('on-target');
   selectStrike('good');
   selectShape('straight');
+  selectBreak('none');
+  selectSlope('flat');
+  document.getElementById('putt-read-section').style.display = isPutt ? '' : 'none';
   // Auto-select putter for putts
   if (isPutt) {
     state.currentShot.club = 'Put';
@@ -1041,6 +1082,7 @@ function selectShotType(t) {
     renderClubs();
   }
   document.getElementById('shot-shape-section').style.display = nowPutt ? 'none' : '';
+  document.getElementById('putt-read-section').style.display = nowPutt ? '' : 'none';
   const max = nowPutt ? 90 : 600;
   document.getElementById('dist-from-slider').max = max;
   document.getElementById('dist-to-slider').max = max;
@@ -1228,6 +1270,20 @@ function selectShape(s) {
   );
 }
 
+function selectBreak(b) {
+  state.currentShot.puttBreak = b;
+  ['left','none','right'].forEach(x =>
+    document.getElementById('break-'+x).classList.toggle('active', x === b)
+  );
+}
+
+function selectSlope(s) {
+  state.currentShot.puttSlope = s;
+  ['downhill','flat','uphill'].forEach(x =>
+    document.getElementById('slope-'+x).classList.toggle('active', x === s)
+  );
+}
+
 function renderClubs() {
   document.getElementById('club-grid').innerHTML = `<div class="grid-4" style="margin-bottom:4px;">${CLUBS.map(c =>
     `<button class="sel-btn btn-sm ${state.currentShot.club===c?'active':''}" onclick="selectClub('${c}')">${c}</button>`
@@ -1253,7 +1309,9 @@ function saveShot() {
     type: s.type, distFrom: s.distFrom, distTo: s.distTo,
     miss: s.miss, club: s.club, sg,
     strike: s.strike || 'good', shape: s.shape || 'straight',
-    landedOnGreen
+    landedOnGreen,
+    puttBreak: s.puttBreak || 'none',
+    puttSlope: s.puttSlope || 'flat'
   };
   state.currentHole.shots.push(shot);
   saveRoundState();
@@ -1886,6 +1944,281 @@ function showClubDetail(club) {
   `;
 
   showScreen('s-club');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PUTTING STATS
+// ═══════════════════════════════════════════════════════════════════
+function showPuttStats() {
+  const el = document.getElementById('putt-stats-content');
+  const allPutts = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots.filter(s => s.type === 'putt')));
+
+  if (!allPutts.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">🏳️</div><p>No putts logged yet.<br>Play a round to start tracking your putting.</p></div>`;
+    showScreen('s-putt-stats');
+    return;
+  }
+
+  const rounds = state.rounds.length;
+  const totalHoles = state.rounds.reduce((n,r) => n + r.holes.length, 0);
+
+  // ── Distance buckets ──────────────────────────────────────────────
+  const buckets = [
+    { label: '0–3 ft',   min: 0,  max: 3  },
+    { label: '3–5 ft',   min: 3,  max: 5  },
+    { label: '5–8 ft',   min: 5,  max: 8  },
+    { label: '8–12 ft',  min: 8,  max: 12 },
+    { label: '12–20 ft', min: 12, max: 20 },
+    { label: '20–30 ft', min: 20, max: 30 },
+    { label: '30–40 ft', min: 30, max: 40 },
+    { label: '40+ ft',   min: 40, max: 999 },
+  ];
+  const bucketData = buckets.map(b => {
+    const putts = allPutts.filter(s => s.distFrom >= b.min && s.distFrom < b.max);
+    const made  = putts.filter(s => s.distTo === 0).length;
+    return { ...b, total: putts.length, made, pct: putts.length ? Math.round(made/putts.length*100) : null };
+  }).filter(b => b.total > 0);
+
+  // ── Lag putting (20 ft+) ─────────────────────────────────────────
+  const lagPutts = allPutts.filter(s => s.distFrom >= 20);
+  const lagMade  = lagPutts.filter(s => s.distTo === 0).length;
+  const lagLeft  = lagPutts.filter(s => s.distTo > 0);
+  const avgLagLeft = lagLeft.length ? Math.round(lagLeft.reduce((n,s)=>n+s.distTo,0)/lagLeft.length) : 0;
+  const lag3ft   = lagLeft.filter(s => s.distTo <= 3).length;
+  const lag6ft   = lagLeft.filter(s => s.distTo <= 6).length;
+
+  // ── Putts per hole ────────────────────────────────────────────────
+  const pph = totalHoles ? (allPutts.length / totalHoles).toFixed(2) : '—';
+  const threePutts = state.rounds.reduce((n, r) => {
+    return n + r.holes.filter(h => h.shots.filter(s=>s.type==='putt').length >= 3).length;
+  }, 0);
+  const onePutts = state.rounds.reduce((n, r) => {
+    return n + r.holes.filter(h => h.shots.filter(s=>s.type==='putt').length === 1).length;
+  }, 0);
+
+  // ── Miss direction analysis ───────────────────────────────────────
+  const missedPutts = allPutts.filter(s => s.distTo > 0);
+  const missFreq = {};
+  missedPutts.forEach(s => { missFreq[s.miss] = (missFreq[s.miss]||0)+1; });
+
+  // ── Break analysis ────────────────────────────────────────────────
+  const breaks = ['left','none','right'];
+  const breakLabels = { left:'↰ Left Break', none:'→ No Break', right:'↱ Right Break' };
+  const breakData = breaks.map(br => {
+    const putts = allPutts.filter(s => (s.puttBreak||'none') === br);
+    const made  = putts.filter(s => s.distTo === 0).length;
+    const misses = putts.filter(s => s.distTo > 0);
+    const missDir = {};
+    misses.forEach(s => { missDir[s.miss] = (missDir[s.miss]||0)+1; });
+    const topMiss = Object.entries(missDir).sort((a,b)=>b[1]-a[1])[0];
+    return { br, label: breakLabels[br], total: putts.length, made, pct: putts.length ? Math.round(made/putts.length*100) : null, topMiss: topMiss?.[0], missDir };
+  }).filter(b => b.total > 0);
+
+  // ── Slope analysis ────────────────────────────────────────────────
+  const slopes = ['uphill','flat','downhill'];
+  const slopeLabels = { uphill:'⬆️ Uphill', flat:'➡️ Flat', downhill:'⬇️ Downhill' };
+  const slopeData = slopes.map(sl => {
+    const putts = allPutts.filter(s => (s.puttSlope||'flat') === sl);
+    const made  = putts.filter(s => s.distTo === 0).length;
+    return { sl, label: slopeLabels[sl], total: putts.length, made, pct: putts.length ? Math.round(made/putts.length*100) : null };
+  }).filter(s => s.total > 0);
+
+  // ── Miss direction by distance bucket ────────────────────────────
+  const shortMissed  = allPutts.filter(s => s.distFrom <= 10 && s.distTo > 0);
+  const medMissed    = allPutts.filter(s => s.distFrom > 10 && s.distFrom <= 25 && s.distTo > 0);
+
+  function missHeatmap(putts, total) {
+    const dirs = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
+    const freq = {};
+    putts.forEach(s => { freq[s.miss] = (freq[s.miss]||0)+1; });
+    freq['on-target'] = total - putts.length;
+    const maxVal = Math.max(...dirs.map(d => freq[d]||0), 1);
+    return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;max-width:240px;margin:0 auto 6px;">
+      ${dirs.map(d => {
+        const count = freq[d]||0;
+        const pct = total ? Math.round(count/total*100) : 0;
+        const isTarget = d==='on-target';
+        const intensity = isTarget ? 1 : maxVal>0 ? count/maxVal : 0;
+        const bg = isTarget ? 'var(--green2)' : count===0 ? '#f3f4f6' : `rgba(192,57,43,${0.15+intensity*0.75})`;
+        const col = isTarget || intensity>0.5 ? 'white' : count>0 ? 'var(--red)' : 'var(--muted)';
+        return `<div style="background:${bg};color:${col};border-radius:6px;padding:7px 2px;text-align:center;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div style="font-size:9px;font-weight:600;line-height:1.2;">${d.replace(/-/g,'<br>')}</div>
+          <div style="font-size:14px;font-weight:900;margin-top:1px;">${pct}%</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  el.innerHTML = `
+
+    <!-- ── Overview cards ──────────────────────────────── -->
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;gap:0;text-align:center;">
+        <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
+          <div style="font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--green);">${pph}</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Putts/Hole</div>
+        </div>
+        <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
+          <div style="font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--gold);">${onePutts}</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">1-Putts</div>
+        </div>
+        <div style="flex:1;padding:8px;">
+          <div style="font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--red);">${threePutts}</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">3-Putts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Make % by Distance ───────────────────────────── -->
+    <div class="card-title">Make % by Distance</div>
+    <div class="card" style="padding:0;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+            <th style="padding:10px 12px;text-align:left;">Distance</th>
+            <th style="padding:10px 8px;text-align:center;">Made</th>
+            <th style="padding:10px 8px;text-align:center;">Putts</th>
+            <th style="padding:10px 8px;text-align:left;">Make %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${bucketData.map((b,i) => {
+            const barW = b.pct;
+            const barColor = b.pct >= 80 ? 'var(--green2)' : b.pct >= 50 ? 'var(--gold)' : 'var(--red)';
+            return `<tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
+              <td style="padding:10px 12px;font-weight:600;">${b.label}</td>
+              <td style="padding:10px 8px;text-align:center;">${b.made}/${b.total}</td>
+              <td style="padding:10px 8px;text-align:center;color:var(--muted);font-size:11px;">${b.total}</td>
+              <td style="padding:10px 16px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;">
+                    <div style="width:${barW}%;height:100%;background:${barColor};border-radius:4px;"></div>
+                  </div>
+                  <span style="font-size:13px;font-weight:700;color:${barColor};min-width:36px;">${b.pct}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Lag Putting ───────────────────────────────────── -->
+    ${lagPutts.length ? `
+    <div class="card-title">Lag Putting (20 ft+)</div>
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;gap:0;text-align:center;margin-bottom:14px;">
+        <div style="flex:1;border-right:1px solid #e5e7eb;padding:6px;">
+          <div style="font-size:22px;font-weight:900;color:var(--green);">${lagPutts.length}</div>
+          <div style="font-size:11px;color:var(--muted);">Lag Putts</div>
+        </div>
+        <div style="flex:1;border-right:1px solid #e5e7eb;padding:6px;">
+          <div style="font-size:22px;font-weight:900;color:var(--gold);">${avgLagLeft} ft</div>
+          <div style="font-size:11px;color:var(--muted);">Avg Left</div>
+        </div>
+        <div style="flex:1;padding:6px;">
+          <div style="font-size:22px;font-weight:900;color:var(--blue);">${lagLeft.length ? Math.round(lag3ft/lagLeft.length*100) : 0}%</div>
+          <div style="font-size:11px;color:var(--muted);">Inside 3 ft</div>
+        </div>
+      </div>
+      <div style="background:#f9fafb;border-radius:8px;padding:10px;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span>Inside 3 ft (tap-in)</span><span style="font-weight:700;color:var(--green2);">${lag3ft}/${lagLeft.length} (${lagLeft.length?Math.round(lag3ft/lagLeft.length*100):0}%)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span>Inside 6 ft (makeable)</span><span style="font-weight:700;color:var(--gold);">${lag6ft}/${lagLeft.length} (${lagLeft.length?Math.round(lag6ft/lagLeft.length*100):0}%)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span>Holed from 20 ft+</span><span style="font-weight:700;color:var(--green);">${lagMade}/${lagPutts.length} (${Math.round(lagMade/lagPutts.length*100)}%)</span>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <!-- ── Miss Heatmap (short putts ≤10 ft) ────────────── -->
+    ${shortMissed.length + allPutts.filter(s=>s.distFrom<=10).length > 0 ? `
+    <div class="card-title">Miss Direction — Short Putts (≤10 ft)</div>
+    <div class="card" style="padding:16px;">
+      ${missHeatmap(shortMissed, allPutts.filter(s=>s.distFrom<=10).length)}
+      <div style="font-size:11px;color:var(--muted);text-align:center;">${allPutts.filter(s=>s.distFrom<=10).length} putts ≤10 ft</div>
+    </div>` : ''}
+
+    <!-- ── Miss Heatmap (mid putts 11–25 ft) ────────────── -->
+    ${medMissed.length + allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length > 0 ? `
+    <div class="card-title">Miss Direction — Mid-Range (11–25 ft)</div>
+    <div class="card" style="padding:16px;">
+      ${missHeatmap(medMissed, allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length)}
+      <div style="font-size:11px;color:var(--muted);text-align:center;">${allPutts.filter(s=>s.distFrom>10&&s.distFrom<=25).length} putts 11–25 ft</div>
+    </div>` : ''}
+
+    <!-- ── Break Analysis ────────────────────────────────── -->
+    ${breakData.length ? `
+    <div class="card-title">Performance by Break</div>
+    <div class="card" style="padding:0;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+            <th style="padding:10px 12px;text-align:left;">Break</th>
+            <th style="padding:10px 8px;text-align:center;">Make %</th>
+            <th style="padding:10px 8px;text-align:center;">Putts</th>
+            <th style="padding:10px 8px;text-align:left;">Top Miss</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${breakData.map((b,i) => `
+          <tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
+            <td style="padding:10px 12px;font-weight:600;">${b.label}</td>
+            <td style="padding:10px 8px;text-align:center;font-weight:700;color:${b.pct>=60?'var(--green2)':b.pct>=40?'var(--gold)':'var(--red)'};">${b.pct !== null ? b.pct+'%' : '—'}</td>
+            <td style="padding:10px 8px;text-align:center;color:var(--muted);">${b.total}</td>
+            <td style="padding:10px 12px;font-size:12px;color:var(--muted);">${b.topMiss ? b.topMiss.replace(/-/g,' ') : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="padding:10px 12px;font-size:11px;color:var(--muted);">Top Miss = most common miss direction on putts you didn't make.</div>
+    </div>` : ''}
+
+    <!-- ── Slope Analysis ────────────────────────────────── -->
+    ${slopeData.length ? `
+    <div class="card-title">Performance by Slope</div>
+    <div class="card">
+      ${slopeData.map(s => {
+        const pct = s.pct || 0;
+        return `<div class="stat-row">
+          <div><div class="stat-label">${s.label}</div><div style="font-size:11px;color:var(--muted);">${s.total} putts</div></div>
+          <div style="text-align:right;">
+            <div style="font-size:16px;font-weight:700;color:${pct>=60?'var(--green2)':pct>=40?'var(--gold)':'var(--red)'};">${pct}%</div>
+            <div class="progress-bar" style="width:80px;"><div class="progress-fill" style="width:${pct}%;background:${pct>=60?'var(--green2)':pct>=40?'var(--gold)':'var(--red)'}"></div></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <!-- ── Low-Side Miss Analysis ─────────────────────────── -->
+    ${breakData.filter(b=>b.total>=3).length >= 2 ? (() => {
+      const leftBreak = breakData.find(b=>b.br==='left');
+      const rightBreak = breakData.find(b=>b.br==='right');
+      const insights = [];
+      if (leftBreak && leftBreak.missDir) {
+        const lowSide = leftBreak.missDir['left'] || 0;
+        const total = Object.values(leftBreak.missDir).reduce((a,b)=>a+b,0);
+        if (total > 0 && lowSide/total > 0.4) insights.push(`On left-breaking putts you miss low-side (left) ${Math.round(lowSide/total*100)}% of the time — try aiming further right.`);
+      }
+      if (rightBreak && rightBreak.missDir) {
+        const lowSide = rightBreak.missDir['right'] || 0;
+        const total = Object.values(rightBreak.missDir).reduce((a,b)=>a+b,0);
+        if (total > 0 && lowSide/total > 0.4) insights.push(`On right-breaking putts you miss low-side (right) ${Math.round(lowSide/total*100)}% of the time — try aiming further left.`);
+      }
+      return insights.length ? `
+      <div class="card-title">💡 Tendencies</div>
+      <div class="card" style="padding:14px 16px;">
+        ${insights.map(t => `<div style="font-size:13px;line-height:1.6;margin-bottom:8px;padding-left:12px;border-left:3px solid var(--gold);">${t}</div>`).join('')}
+      </div>` : '';
+    })() : ''}
+
+    <div style="height:20px;"></div>
+  `;
+
+  document.getElementById('putt-stats-sub').textContent = `${allPutts.length} putts · ${rounds} round${rounds!==1?'s':''} · Latrobe CC`;
+  showScreen('s-putt-stats');
 }
 
 // ═══════════════════════════════════════════════════════════════════
