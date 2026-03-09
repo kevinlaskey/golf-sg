@@ -341,34 +341,54 @@
       <button class="sel-btn" onclick="selectShotType('penalty')" id="st-penalty"><span class="icon">⚠️</span>Penalty</button>
     </div>
 
-    <!-- Distance FROM -->
-    <div class="card-title" id="dist-from-title">Distance to Pin (Before Shot)</div>
-    <div class="card" style="padding:12px 16px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-        <div class="dist-display" style="flex:1;margin:0;"><span id="dist-from-val">150</span><span id="dist-from-unit"> yds</span></div>
-        <input type="number" id="dist-from-manual" min="1" max="600" value="150"
-          style="width:72px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
-          oninput="manualDistFrom(this.value)" onchange="manualDistFrom(this.value)">
+    <!-- Distance FROM — label only (editable for shot 1 or penalty) -->
+    <div class="card-title" id="dist-from-title">Distance to Pin</div>
+    <div id="dist-from-label-mode" class="card" style="padding:12px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:2px;">Starting distance (from previous shot)</div>
+          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--green);line-height:1;">
+            <span id="dist-from-val">150</span><span id="dist-from-unit" style="font-size:18px;font-weight:400;"> yds</span>
+          </div>
+        </div>
+        <div style="font-size:28px;opacity:0.3;">📍</div>
       </div>
-      <input type="range" id="dist-from-slider" min="1" max="600" value="150" oninput="updateDistFrom(this.value)">
-      <div class="dist-presets" id="dist-from-presets">
-        <div class="dist-preset" onclick="setDistFrom(3)">3</div>
-        <div class="dist-preset" onclick="setDistFrom(6)">6</div>
-        <div class="dist-preset" onclick="setDistFrom(10)">10</div>
-        <div class="dist-preset" onclick="setDistFrom(20)">20</div>
-        <div class="dist-preset" onclick="setDistFrom(40)">40</div>
-        <div class="dist-preset" onclick="setDistFrom(75)">75</div>
-        <div class="dist-preset" onclick="setDistFrom(100)">100</div>
-        <div class="dist-preset" onclick="setDistFrom(125)">125</div>
-        <div class="dist-preset" onclick="setDistFrom(150)">150</div>
-        <div class="dist-preset" onclick="setDistFrom(175)">175</div>
-        <div class="dist-preset" onclick="setDistFrom(200)">200</div>
+    </div>
+    <div id="dist-from-edit-mode" style="display:none;">
+      <div class="card" style="padding:12px 16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+          <div class="dist-display" style="flex:1;margin:0;"><span id="dist-from-val-edit">150</span><span id="dist-from-unit-edit"> yds</span></div>
+          <input type="number" id="dist-from-manual" min="1" max="600" value="150"
+            style="width:72px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
+            oninput="manualDistFrom(this.value)" onchange="manualDistFrom(this.value)">
+        </div>
+        <input type="range" id="dist-from-slider" min="1" max="600" value="150" oninput="updateDistFrom(this.value)">
+        <div class="dist-presets" id="dist-from-presets">
+          <div class="dist-preset" onclick="setDistFrom(3)">3</div>
+          <div class="dist-preset" onclick="setDistFrom(6)">6</div>
+          <div class="dist-preset" onclick="setDistFrom(10)">10</div>
+          <div class="dist-preset" onclick="setDistFrom(20)">20</div>
+          <div class="dist-preset" onclick="setDistFrom(40)">40</div>
+          <div class="dist-preset" onclick="setDistFrom(75)">75</div>
+          <div class="dist-preset" onclick="setDistFrom(100)">100</div>
+          <div class="dist-preset" onclick="setDistFrom(125)">125</div>
+          <div class="dist-preset" onclick="setDistFrom(150)">150</div>
+          <div class="dist-preset" onclick="setDistFrom(175)">175</div>
+          <div class="dist-preset" onclick="setDistFrom(200)">200</div>
+        </div>
       </div>
     </div>
 
     <!-- Distance TO -->
     <div class="card-title" id="dist-to-title">Distance to Pin (After Shot)</div>
     <div class="card" style="padding:12px 16px;">
+      <!-- On Green toggle (shown for approach/chip/sand) -->
+      <div id="on-green-toggle" style="display:none;margin-bottom:10px;">
+        <div style="display:flex;gap:6px;">
+          <button id="tog-not-green" class="sel-btn btn-sm active" style="flex:1;" onclick="setOnGreen(false)">🌿 Not on Green</button>
+          <button id="tog-on-green" class="sel-btn btn-sm" style="flex:1;" onclick="setOnGreen(true)">⛳ On Green</button>
+        </div>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
         <div class="dist-display" style="flex:1;margin:0;"><span id="dist-to-val">0</span><span id="dist-to-unit"> yds</span></div>
         <input type="number" id="dist-to-manual" min="0" max="600" value="0"
@@ -670,13 +690,15 @@ function getExpected(distYds, isPutt, shotType) {
   return vLo + t * (vHi - vLo);
 }
 
-function calcSG(distFrom, distTo, shotType) {
+function calcSG(distFrom, distToYds, shotType, landedOnGreen) {
   const isPutt = shotType === 'putt';
-  // Putts are stored in FEET in the UI; convert to yards for the baseline table
+  // Putts: distFrom stored in feet, convert to yards for baseline table
   const fromYds = isPutt ? distFrom / 3 : distFrom;
-  const toYds   = isPutt ? distTo   / 3 : distTo;
   const expBefore = getExpected(fromYds, isPutt, shotType);
-  const expAfter  = distTo === 0 ? 0 : getExpected(toYds, distTo <= 10 && !isPutt ? false : isPutt, null);
+  // distToYds is always in yards at this point (caller converts if needed)
+  // After landing on green: treat as a putt position
+  const afterIsPutt = isPutt || landedOnGreen;
+  const expAfter = distToYds === 0 ? 0 : getExpected(distToYds, afterIsPutt, null);
   return parseFloat((expBefore - 1 - expAfter).toFixed(2));
 }
 
@@ -863,7 +885,7 @@ function renderHoleDetail() {
       <div class="shot-num">${i+1}</div>
       <div class="shot-info">
         <div class="shot-type">${shotTypeLabel(s.type)} ${s.club ? '· '+s.club : ''} <span style="font-size:11px;padding:2px 6px;border-radius:10px;background:${s.strike==='bad'?'#fee2e2':'#dcfce7'};color:${s.strike==='bad'?'#991b1b':'#166534'};margin-left:4px;">${s.strike==='bad'?'❌ Bad':'✅ Good'}</span></div>
-        <div class="shot-detail">${s.type==='putt' ? `${s.distFrom}→${s.distTo} ft` : `${s.distFrom}→${s.distTo} yds`} · ${missLabel}</div>
+        <div class="shot-detail">${s.type==='putt' ? `${s.distFrom}→${s.distTo} ft` : s.landedOnGreen ? `${s.distFrom} yds → ${s.distTo} ft (on green)` : `${s.distFrom}→${s.distTo} yds`} · ${missLabel}</div>
       </div>
       <div class="shot-sg-val" style="color:${s.sg>=0?'var(--green2)':'var(--red)'};">${sgStr}</div>
       <button onclick="deleteShot(${i})" style="border:none;background:none;color:var(--muted);font-size:16px;padding:4px;cursor:pointer;">✕</button>
@@ -894,35 +916,82 @@ function addShotModal() {
   // Smart defaults
   let defaultType = 'approach';
   let defaultDist = 150;
+  let prevLandedOnGreen = false;
+
   if (shotNum === 1) {
     defaultType = state.currentHole.par === 3 ? 'approach' : 'tee';
     defaultDist = state.currentHole.yds;
-  } else if (shotNum > 1) {
+  } else {
     const prev = state.currentHole.shots[shotNum-2];
-    defaultDist = prev ? prev.distTo : 150;
-    if (defaultDist <= 20) defaultType = 'putt';
-    else if (defaultDist <= 50) defaultType = 'chip';
-    else defaultType = 'approach';
+    if (prev) {
+      prevLandedOnGreen = !!prev.landedOnGreen;
+      defaultDist = prev.distTo;
+      if (prevLandedOnGreen) {
+        // distTo from prev shot was already in feet — stay in feet, go to putt
+        defaultType = 'putt';
+      } else {
+        // distTo was in yards
+        if (defaultDist <= 20) defaultType = 'putt';
+        else if (defaultDist <= 50) defaultType = 'chip';
+        else defaultType = 'approach';
+      }
+    }
   }
 
-  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight' };
+  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight', landedOnGreen: false };
 
-  // Update UI
-  // Set type buttons first (without triggering mode switch)
   ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
     document.getElementById('st-'+x).classList.toggle('active', x === defaultType);
   });
+
   const isPutt = defaultType === 'putt';
+
+  // If we're auto-going to putt because yards threshold (not green flag), convert yards→feet
+  let distFromDisplay = defaultDist;
+  if (isPutt && !prevLandedOnGreen && shotNum > 1) {
+    distFromDisplay = Math.round(defaultDist * 3);
+  }
+
   setPuttMode(isPutt);
   document.getElementById('shot-shape-section').style.display = isPutt ? 'none' : '';
+  // Reset on-green toggle to "not on green" and restore yards for distTo
+  document.getElementById('on-green-toggle').style.display = ['approach','chip','sand','tee'].includes(defaultType) ? '' : 'none';
+  document.getElementById('tog-not-green').classList.add('active');
+  document.getElementById('tog-on-green').classList.remove('active');
+  if (!isPutt) {
+    document.getElementById('dist-to-unit').textContent = ' yds';
+    document.getElementById('dist-to-title').textContent = 'Distance to Pin (After Shot)';
+    document.getElementById('dist-to-slider').max = 600;
+    document.getElementById('dist-to-manual').max = 600;
+    document.getElementById('dist-to-presets').innerHTML = `
+      <div class="dist-preset" onclick="setDistTo(0)">Holed</div>
+      <div class="dist-preset" onclick="setDistTo(2)">2</div>
+      <div class="dist-preset" onclick="setDistTo(4)">4</div>
+      <div class="dist-preset" onclick="setDistTo(8)">8</div>
+      <div class="dist-preset" onclick="setDistTo(15)">15</div>
+      <div class="dist-preset" onclick="setDistTo(30)">30</div>
+      <div class="dist-preset" onclick="setDistTo(50)">50</div>
+      <div class="dist-preset" onclick="setDistTo(80)">80</div>
+      <div class="dist-preset" onclick="setDistTo(100)">100</div>
+      <div class="dist-preset" onclick="setDistTo(150)">150</div>`;
+  }
+
   const max = isPutt ? 90 : 600;
   document.getElementById('dist-from-slider').max = max;
   document.getElementById('dist-to-slider').max = max;
-  setDistFrom(defaultDist);
+  setDistFrom(Math.min(distFromDisplay, max));
   setDistTo(0);
+  // Shot 1 or penalty: show the editable distFrom; otherwise show label only
+  const isFirstShot = shotNum === 1;
+  setDistFromMode(isFirstShot); // editable for first shot; label for subsequent
+
   selectMiss('on-target');
   selectStrike('good');
   selectShape('straight');
+  // Auto-select putter for putts
+  if (isPutt) {
+    state.currentShot.club = 'Put';
+  }
   renderClubs();
   showScreen('s-shot');
 }
@@ -934,14 +1003,42 @@ function selectShotType(t) {
   ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
     document.getElementById('st-'+x).classList.toggle('active', x === t);
   });
+
+  // Show/hide on-green toggle for shots that can land on green
+  const canLandOnGreen = ['approach','chip','sand','tee'].includes(t);
+  document.getElementById('on-green-toggle').style.display = canLandOnGreen ? '' : 'none';
+  if (!canLandOnGreen) setOnGreen(false);
+
   // Switch units if transitioning to/from putt
   if (wasPutt !== nowPutt) {
-    // Reset distances to sensible defaults when switching mode
-    const defaultFrom = nowPutt ? 20 : 150;
-    const defaultTo   = 0;
-    setDistFrom(defaultFrom);
-    setDistTo(defaultTo);
-    setPuttMode(nowPutt);
+    if (nowPutt) {
+      // Convert current yards distFrom → feet
+      const yds = state.currentShot.distFrom || 0;
+      const ft = Math.round(yds * 3);
+      setPuttMode(true);
+      setDistFrom(Math.min(ft, 90));
+    } else {
+      // Convert feet → yards
+      const ft = state.currentShot.distFrom || 0;
+      const yds = Math.round(ft / 3);
+      setPuttMode(false);
+      setDistFrom(Math.max(yds, 1));
+    }
+    setDistTo(0);
+  }
+
+  // Penalty = editable distFrom (drop scenario); first shot always editable (handled at open)
+  const isPenalty = t === 'penalty';
+  const isFirstShot = state.currentHole.shots.length === 0; // no shots saved yet = shot 1
+  setDistFromMode(isPenalty || isFirstShot);
+
+  // Auto-select putter when switching to putt
+  if (nowPutt && !wasPutt) {
+    state.currentShot.club = 'Put';
+    renderClubs();
+  } else if (wasPutt && !nowPutt) {
+    state.currentShot.club = '';
+    renderClubs();
   }
   document.getElementById('shot-shape-section').style.display = nowPutt ? 'none' : '';
   const max = nowPutt ? 90 : 600;
@@ -951,10 +1048,56 @@ function selectShotType(t) {
 
 function isPuttMode() { return state.currentShot.type === 'putt'; }
 
+function setOnGreen(onGreen) {
+  state.currentShot.landedOnGreen = onGreen;
+  document.getElementById('tog-not-green').classList.toggle('active', !onGreen);
+  document.getElementById('tog-on-green').classList.toggle('active', onGreen);
+
+  if (onGreen) {
+    // Switch distTo to feet mode
+    document.getElementById('dist-to-unit').textContent = ' ft';
+    document.getElementById('dist-to-slider').max = 90;
+    document.getElementById('dist-to-manual').max = 90;
+    document.getElementById('dist-to-title').textContent = 'Distance to Hole (After – on green, in feet)';
+    document.getElementById('dist-to-presets').innerHTML = `
+      <div class="dist-preset" onclick="setDistTo(0)">Holed</div>
+      <div class="dist-preset" onclick="setDistTo(2)">2 ft</div>
+      <div class="dist-preset" onclick="setDistTo(3)">3 ft</div>
+      <div class="dist-preset" onclick="setDistTo(5)">5 ft</div>
+      <div class="dist-preset" onclick="setDistTo(8)">8 ft</div>
+      <div class="dist-preset" onclick="setDistTo(10)">10 ft</div>
+      <div class="dist-preset" onclick="setDistTo(15)">15 ft</div>
+      <div class="dist-preset" onclick="setDistTo(20)">20 ft</div>
+      <div class="dist-preset" onclick="setDistTo(25)">25 ft</div>
+      <div class="dist-preset" onclick="setDistTo(30)">30 ft</div>
+      <div class="dist-preset" onclick="setDistTo(40)">40 ft</div>`;
+    setDistTo(15); // sensible default putt length
+  } else {
+    // Restore yards mode for distTo
+    document.getElementById('dist-to-unit').textContent = ' yds';
+    document.getElementById('dist-to-slider').max = 600;
+    document.getElementById('dist-to-manual').max = 600;
+    document.getElementById('dist-to-title').textContent = 'Distance to Pin (After Shot)';
+    document.getElementById('dist-to-presets').innerHTML = `
+      <div class="dist-preset" onclick="setDistTo(0)">Holed</div>
+      <div class="dist-preset" onclick="setDistTo(2)">2</div>
+      <div class="dist-preset" onclick="setDistTo(4)">4</div>
+      <div class="dist-preset" onclick="setDistTo(8)">8</div>
+      <div class="dist-preset" onclick="setDistTo(15)">15</div>
+      <div class="dist-preset" onclick="setDistTo(30)">30</div>
+      <div class="dist-preset" onclick="setDistTo(50)">50</div>
+      <div class="dist-preset" onclick="setDistTo(80)">80</div>
+      <div class="dist-preset" onclick="setDistTo(100)">100</div>
+      <div class="dist-preset" onclick="setDistTo(150)">150</div>`;
+    setDistTo(0);
+  }
+}
+
 function updateDistFrom(v) {
   state.currentShot.distFrom = parseInt(v);
   document.getElementById('dist-from-val').textContent = v;
-  document.getElementById('dist-from-manual').value = v;
+  document.getElementById('dist-from-val-edit').textContent = v;
+  if (document.getElementById('dist-from-manual')) document.getElementById('dist-from-manual').value = v;
 }
 function updateDistTo(v) {
   state.currentShot.distTo = parseInt(v);
@@ -964,8 +1107,10 @@ function updateDistTo(v) {
 function setDistFrom(v) {
   state.currentShot.distFrom = v;
   document.getElementById('dist-from-val').textContent = v;
-  document.getElementById('dist-from-slider').value = v;
-  document.getElementById('dist-from-manual').value = v;
+  document.getElementById('dist-from-val-edit').textContent = v;
+  const slider = document.getElementById('dist-from-slider');
+  if (slider) slider.value = v;
+  if (document.getElementById('dist-from-manual')) document.getElementById('dist-from-manual').value = v;
 }
 function setDistTo(v) {
   state.currentShot.distTo = v;
@@ -980,6 +1125,7 @@ function manualDistFrom(v) {
   const clamped = Math.min(n, max);
   state.currentShot.distFrom = clamped;
   document.getElementById('dist-from-val').textContent = clamped;
+  document.getElementById('dist-from-val-edit').textContent = clamped;
   document.getElementById('dist-from-slider').value = clamped;
 }
 function manualDistTo(v) {
@@ -992,16 +1138,23 @@ function manualDistTo(v) {
   document.getElementById('dist-to-slider').value = clamped;
 }
 
+function setDistFromMode(editable) {
+  document.getElementById('dist-from-label-mode').style.display = editable ? 'none' : '';
+  document.getElementById('dist-from-edit-mode').style.display  = editable ? '' : 'none';
+}
+
 function setPuttMode(on) {
   const unit = on ? ' ft' : ' yds';
   const max  = on ? 90 : 600;
-  document.getElementById('dist-from-unit').textContent = unit;
-  document.getElementById('dist-to-unit').textContent   = unit;
+  // Sync unit labels in both label-mode and edit-mode
+  document.getElementById('dist-from-unit').textContent      = unit;
+  document.getElementById('dist-from-unit-edit').textContent = unit;
+  document.getElementById('dist-to-unit').textContent        = unit;
   document.getElementById('dist-from-slider').max = max;
   document.getElementById('dist-to-slider').max   = max;
   document.getElementById('dist-from-manual').max = max;
   document.getElementById('dist-to-manual').max   = max;
-  document.getElementById('dist-from-title').textContent = on ? 'Distance to Hole (Before Putt)' : 'Distance to Pin (Before Shot)';
+  document.getElementById('dist-from-title').textContent = on ? 'Distance to Hole' : 'Distance to Pin';
   document.getElementById('dist-to-title').textContent   = on ? 'Distance to Hole (After Putt)'  : 'Distance to Pin (After Shot)';
 
   // Swap presets
@@ -1089,8 +1242,19 @@ function selectClub(c) {
 function saveShot() {
   const s = state.currentShot;
   if (!s.type) { alert('Please select a shot type.'); return; }
-  const sg = calcSG(s.distFrom, s.distTo, s.type);
-  const shot = { type: s.type, distFrom: s.distFrom, distTo: s.distTo, miss: s.miss, club: s.club, sg, strike: s.strike || 'good', shape: s.shape || 'straight' };
+  // For approach/chip landing on green: distTo is in feet — convert to yards for SG calc
+  const landedOnGreen = !!s.landedOnGreen;
+  let distToForSG = s.distTo;
+  if (landedOnGreen && s.distTo > 0) {
+    distToForSG = s.distTo / 3; // feet → yards for SG table lookup
+  }
+  const sg = calcSG(s.distFrom, distToForSG, s.type, landedOnGreen);
+  const shot = {
+    type: s.type, distFrom: s.distFrom, distTo: s.distTo,
+    miss: s.miss, club: s.club, sg,
+    strike: s.strike || 'good', shape: s.shape || 'straight',
+    landedOnGreen
+  };
   state.currentHole.shots.push(shot);
   saveRoundState();
   renderHoleDetail();
