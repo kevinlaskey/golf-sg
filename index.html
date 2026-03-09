@@ -561,7 +561,7 @@ const COURSE = {
   ]
 };
 
-const CLUBS = ['Dr','3W','5W','Hy','4i','5i','6i','7i','8i','9i','PW','GW','SW','LW','Put'];
+const CLUBS = ['Dr','3W','3i','4i','5i','6i','7i','8i','9i','PW','52','56','60','Put'];
 
 // ═══════════════════════════════════════════════════════════════════
 // STROKES GAINED BASELINE TABLE
@@ -931,9 +931,8 @@ function addShotModal() {
         // distTo from prev shot was already in feet — stay in feet, go to putt
         defaultType = 'putt';
       } else {
-        // distTo was in yards
-        if (defaultDist <= 20) defaultType = 'putt';
-        else if (defaultDist <= 50) defaultType = 'chip';
+        // distTo was in yards — suggest chip/approach only, never auto-putt
+        if (defaultDist <= 50) defaultType = 'chip';
         else defaultType = 'approach';
       }
     }
