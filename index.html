@@ -251,17 +251,52 @@
     <div class="home-course">Latrobe Country Club · White Tees</div>
   </div>
   <div class="home-actions">
-    <button class="btn btn-primary" style="font-size:17px;padding:18px;" onclick="startNewRound()">⛳ Start New Round</button>
-    <div id="recent-rounds"></div>
-    <button class="btn btn-ghost btn-sm" onclick="showStats()">📊 Strokes Gained Stats</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showPuttStats()">🏳️ Putting Stats</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDistances()">📏 My Distances</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showHoleStats()">⛳ Hole Performance</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showTrends()">📈 Trends</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showYardageCard()">📋 Yardage Card</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showRangeScreen()">🎯 Practice Range</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="showDataScreen()">💾 Backup & Restore Data</button>
-    <button class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--red);border-color:var(--red);opacity:0.7;" onclick="resetAllData()">🗑️ Reset All Data</button>
+
+    <!-- Primary CTA -->
+    <button class="btn btn-primary" style="font-size:17px;padding:18px;text-align:left;" onclick="startNewRound()">⛳ Start New Round</button>
+
+    <!-- Recent Rounds submenu -->
+    <div style="margin-top:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-recent')" style="text-align:left;display:flex;align-items:center;justify-content:space-between;">
+        <span>🕐 Recent Rounds</span><span id="icon-sub-recent" style="font-size:12px;">▶</span>
+      </button>
+      <div id="sub-recent" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
+        <div id="recent-rounds"></div>
+      </div>
+    </div>
+
+    <!-- Stats submenu -->
+    <div style="margin-top:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-stats')" style="text-align:left;display:flex;align-items:center;justify-content:space-between;">
+        <span>📊 Stats</span><span id="icon-sub-stats" style="font-size:12px;">▶</span>
+      </button>
+      <div id="sub-stats" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showStats()">📈 Strokes Gained</button>
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showPuttStats()">🏳️ Putting Stats</button>
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showHoleStats()">⛳ Hole Performance</button>
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showTrends()">📊 Trends</button>
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;text-align:left;padding-left:24px;" onclick="showClubPerformance()">🏌️ Club Performance</button>
+      </div>
+    </div>
+
+    <!-- Practice Range -->
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;text-align:left;" onclick="showRangeScreen()">🎯 Practice Range</button>
+
+    <!-- Yardage Card -->
+    <button class="btn btn-ghost btn-sm" style="margin-top:6px;text-align:left;" onclick="showYardageCard()">📋 Yardage Card</button>
+
+    <!-- Admin submenu -->
+    <div style="margin-top:6px;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-admin')" style="text-align:left;display:flex;align-items:center;justify-content:space-between;">
+        <span>⚙️ Admin</span><span id="icon-sub-admin" style="font-size:12px;">▶</span>
+      </button>
+      <div id="sub-admin" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showDataScreen()">💾 Backup & Restore</button>
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;text-align:left;padding-left:24px;color:var(--red);" onclick="resetAllData()">🗑️ Reset All Data</button>
+      </div>
+    </div>
+
+    <div style="height:24px;"></div>
   </div>
 </div>
 
@@ -302,7 +337,8 @@
       <div class="hdr-title" id="hole-hdr-title">Hole 1</div>
       <div class="hdr-sub" id="hole-hdr-sub">Par 4 · 396 yds</div>
     </div>
-    <div style="position:absolute;top:52px;right:16px;">
+    <div style="position:absolute;top:52px;right:16px;display:flex;gap:6px;">
+      <button class="btn btn-sm" style="width:auto;padding:8px 10px;background:rgba(255,255,255,0.15);color:white;border:none;" onclick="showDistancesFromHole()">📏</button>
       <button class="btn btn-sm btn-gold" style="width:auto;padding:8px 14px;" onclick="addShotModal()">+ Shot</button>
     </div>
   </div>
@@ -567,7 +603,7 @@
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="s-club">
   <div class="hdr">
-    <button class="back-btn" onclick="showStats()">←</button>
+    <button class="back-btn" onclick="clubDetailBack()">←</button>
     <div style="text-align:center">
       <div class="hdr-title" id="club-detail-title">Club</div>
       <div class="hdr-sub" id="club-detail-sub">Distance & Dispersion</div>
@@ -679,7 +715,7 @@
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="s-distances">
   <div class="hdr">
-    <button class="back-btn" onclick="goHome()">←</button>
+    <button class="back-btn" onclick="distancesBack()">←</button>
     <div style="text-align:center">
       <div class="hdr-title">My Distances</div>
       <div class="hdr-sub">Good strikes · punch excluded</div>
@@ -728,6 +764,20 @@
     </div>
   </div>
   <div class="content" id="yardage-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: CLUB PERFORMANCE
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-club-perf">
+  <div class="hdr">
+    <button class="back-btn" id="club-perf-back-btn" onclick="clubPerfBack()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="club-perf-title">Club Performance</div>
+      <div class="hdr-sub" id="club-perf-sub">Distance · Dispersion · Trends</div>
+    </div>
+  </div>
+  <div class="content" id="club-perf-content"></div>
 </div>
 
 <script>
@@ -947,24 +997,237 @@ function goHome() {
   showScreen('s-home');
 }
 
+// Submenu toggle
+function toggleSubmenu(id) {
+  const el = document.getElementById(id);
+  const icon = document.getElementById('icon-' + id);
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : '';
+  icon.textContent = open ? '▶' : '▼';
+}
+
+// Recent rounds now uses toggleSubmenu('sub-recent')
+
+// Distances: track where we came from so back works correctly
+let _distancesFrom = 'home'; // 'home' | 'hole' | 'shot'
+let _savedShotState = null;  // snapshot of currentShot when leaving mid-entry
+
+function showDistancesFromHole() {
+  _distancesFrom = 'hole';
+  _savedShotState = null;
+  showDistances();
+}
+
+function showDistancesFromShot() {
+  // Save full shot state so we can restore on return
+  _distancesFrom = 'shot';
+  _savedShotState = JSON.parse(JSON.stringify(state.currentShot));
+  showDistances();
+}
+
+function distancesBack() {
+  if (_distancesFrom === 'shot') {
+    // Restore shot form exactly where user left off
+    const saved = _savedShotState;
+    _savedShotState = null;
+    addShotModal();          // re-renders the form fresh
+    // Then re-apply all saved selections
+    if (saved) {
+      selectShotType(saved.type || 'approach');
+      if (saved.distFrom) { state.currentShot.distFrom = saved.distFrom; updateDistFrom(saved.distFrom); }
+      if (saved.distTo)   { state.currentShot.distTo   = saved.distTo;   updateDistTo(saved.distTo); }
+      if (saved.miss)     selectMiss(saved.miss);
+      if (saved.strike)   selectStrike(saved.strike);
+      if (saved.shape)    selectShape(saved.shape);
+      if (saved.lie)      selectLie(saved.lie);
+      if (saved.club)     selectClub(saved.club);
+      if (saved.swingType) selectSwing(saved.swingType);
+      if (saved.puttBreak) selectBreak(saved.puttBreak);
+      if (saved.puttSlope) selectSlope(saved.puttSlope);
+      if (saved.landedOnGreen) setOnGreen(true);
+    }
+  } else if (_distancesFrom === 'hole') {
+    showScreen('s-hole');
+  } else {
+    goHome();
+  }
+}
+
+// Club performance: track back context
+let _clubPerfFrom = 'home'; // 'home' | 'distances'
+function clubPerfBack() {
+  if (_clubPerfFrom === 'distances') {
+    showScreen('s-distances');
+  } else {
+    goHome();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CLUB PERFORMANCE SCREEN
+// ═══════════════════════════════════════════════════════════════════
+function showClubPerformance(fromDistances) {
+  _clubPerfFrom = fromDistances ? 'distances' : 'home';
+  const allShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const el = document.getElementById('club-perf-content');
+
+  // Build per-club stats
+  const clubStats = CLUBS.filter(c => c !== 'Put').map(club => {
+    const shots = allShots.filter(s => s.club === club && s.strike !== 'bad' && s.shape !== 'punch');
+    const carries = shots.map(s => s.distFrom - s.distTo).filter(c => c > 0);
+    const avg = carries.length ? Math.round(carries.reduce((a,b)=>a+b,0)/carries.length) : null;
+    const sgVals = shots.map(s => s.sg);
+    const avgSG = sgVals.length ? (sgVals.reduce((a,b)=>a+b,0)/sgVals.length) : null;
+    return { club, shots: shots.length, avg, avgSG };
+  });
+
+  el.innerHTML = `
+    <div class="card-title">Tap a club for full detail & dispersion</div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      ${clubStats.map((cs, i) => {
+        const hasData = cs.avg !== null;
+        return `<div onclick="showClubDetail('${cs.club}')"
+          style="display:flex;align-items:center;padding:12px 16px;border-bottom:${i<clubStats.length-1?'1px solid #f3f4f6':''};cursor:pointer;background:white;active:background:#f9fafb;">
+          <div style="width:40px;font-weight:700;font-size:15px;">${cs.club}</div>
+          <div style="flex:1;">
+            ${hasData
+              ? `<div style="font-size:13px;color:var(--muted);">${cs.shots} shots · avg ${cs.avg}y</div>`
+              : `<div style="font-size:13px;color:var(--muted);">No data yet</div>`}
+          </div>
+          ${hasData && cs.avgSG !== null ? `<div style="font-weight:600;font-size:14px;color:${cs.avgSG>=0?'var(--green2)':'var(--red)'};">${cs.avgSG>=0?'+':''}${cs.avgSG.toFixed(2)} SG</div>` : ''}
+          <div style="color:var(--muted);margin-left:10px;">›</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="height:20px;"></div>
+  `;
+
+  document.getElementById('club-perf-title').textContent = 'Club Performance';
+  document.getElementById('club-perf-sub').textContent = `${state.rounds.length} rounds · good strikes`;
+  showScreen('s-club-perf');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OVAL DISPERSION SVG  (approach / chip shots)
+// ═══════════════════════════════════════════════════════════════════
+function buildOvalDispersionSVG(shots, title) {
+  // shots: approach/chip shots with distFrom, distTo, miss
+  // We map miss direction to (x,y) offset scaled by distance
+  const W = 320, H = 280;
+  const cx = W/2, cy = H*0.55; // pin slightly below center
+  const SCALE = 0.45; // yards → pixels (approximate)
+
+  if (!shots.length) return `<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">No approach data yet</div>`;
+
+  // Compute miss offsets in yards
+  const points = shots.map(s => {
+    const dist = s.distFrom || 100;
+    const miss = s.miss || 'on-target';
+    // distTo is proximity in yards (or feet if on green, but we want yards)
+    const prox = s.landedOnGreen ? s.distTo / 3 : (s.distTo || 0);
+    // Decompose miss direction into (lateral, depth) yards
+    // depth: negative = short (behind pin), positive = long (past pin)
+    // lateral: negative = left, positive = right
+    let lat = 0, dep = 0;
+    if (miss === 'on-target') { lat = 0; dep = 0; }
+    else if (miss === 'left')  { lat = -prox * 0.8; dep = prox * 0.2; }
+    else if (miss === 'right') { lat =  prox * 0.8; dep = prox * 0.2; }
+    else if (miss === 'short') { lat = 0;            dep = -prox; }
+    else if (miss === 'long')  { lat = 0;            dep =  prox; }
+    else if (miss === 'short-left')  { lat = -prox * 0.6; dep = -prox * 0.6; }
+    else if (miss === 'short-right') { lat =  prox * 0.6; dep = -prox * 0.6; }
+    else if (miss === 'long-left')   { lat = -prox * 0.6; dep =  prox * 0.6; }
+    else if (miss === 'long-right')  { lat =  prox * 0.6; dep =  prox * 0.6; }
+    return { lat, dep, miss, prox, strike: s.strike };
+  });
+
+  // Compute extents for scaling
+  const lats = points.map(p => Math.abs(p.lat));
+  const deps = points.map(p => Math.abs(p.dep));
+  const maxLat = Math.max(...lats, 5);
+  const maxDep = Math.max(...deps, 5);
+  const scaleX = (W * 0.38) / maxLat;
+  const scaleY = (H * 0.38) / maxDep;
+
+  // Draw dots
+  const dots = points.map(p => {
+    const px = cx + p.lat * scaleX;
+    const py = cy - p.dep * scaleY;
+    const color = p.strike === 'bad' ? '#ef4444' : p.miss === 'on-target' ? '#22c55e' : '#f59e0b';
+    return `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5" fill="${color}" opacity="0.7"/>`;
+  });
+
+  // Build directional stats for labels
+  const dirStats = {};
+  const dirs = ['left','right','short','long','short-left','short-right','long-left','long-right','on-target'];
+  for (const d of dirs) {
+    const ps = points.filter(p => p.miss === d);
+    if (ps.length) {
+      const avgProx = ps.reduce((s,p)=>s+p.prox,0)/ps.length;
+      dirStats[d] = { count: ps.length, avgProx: Math.round(avgProx) };
+    }
+  }
+
+  // Stat summary labels at edges
+  const labelSize = 10;
+  const labelColor = '#6b7280';
+  function statLabel(dir, x, y, anchor='middle') {
+    if (!dirStats[dir]) return '';
+    return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="${labelSize}" fill="${labelColor}" font-family="sans-serif">${dir.replace('-',' ')}: ${dirStats[dir].avgProx}y avg (${dirStats[dir].count})</text>`;
+  }
+
+  // Total on-target %
+  const onPct = Math.round((dirStats['on-target']?.count||0)/points.length*100);
+
+  // Oval boundary (1 SD ellipse from spread)
+  const sdLat = Math.sqrt(points.reduce((s,p)=>s+p.lat*p.lat,0)/points.length) || 5;
+  const sdDep = Math.sqrt(points.reduce((s,p)=>s+p.dep*p.dep,0)/points.length) || 5;
+  const ellW = Math.min(sdLat * scaleX * 2.5, W*0.44);
+  const ellH = Math.min(sdDep * scaleY * 2.5, H*0.44);
+
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="overflow:visible;display:block;margin:0 auto;">
+    <!-- Green circle (green) -->
+    <ellipse cx="${cx}" cy="${cy}" rx="28" ry="18" fill="#4ade80" opacity="0.3"/>
+    <ellipse cx="${cx}" cy="${cy}" rx="28" ry="18" fill="none" stroke="#22c55e" stroke-width="1.5"/>
+    <!-- typical dispersion oval -->
+    <ellipse cx="${cx}" cy="${cy}" rx="${ellW.toFixed(1)}" ry="${ellH.toFixed(1)}"
+      fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <!-- Pin marker -->
+    <line x1="${cx}" y1="${cy-26}" x2="${cx}" y2="${cy+2}" stroke="#dc2626" stroke-width="2"/>
+    <polygon points="${cx},${cy-26} ${cx+8},${cy-18} ${cx},${cy-18}" fill="#dc2626"/>
+    <!-- Shot dots -->
+    ${dots.join('\n    ')}
+    <!-- Compass labels -->
+    ${statLabel('long',   cx,    18)}
+    ${statLabel('short',  cx,    H-8)}
+    ${statLabel('left',   14,    cy+4, 'start')}
+    ${statLabel('right',  W-14,  cy+4, 'end')}
+    <!-- On-target % -->
+    <text x="${cx}" y="${H-22}" text-anchor="middle" font-size="11" fill="#166534" font-weight="600" font-family="sans-serif">✓ On target: ${onPct}% (${dirStats['on-target']?.count||0}/${points.length})</text>
+    <!-- Title -->
+    <text x="${cx}" y="${H}" text-anchor="middle" font-size="11" fill="${labelColor}" font-family="sans-serif">${title||''}</text>
+  </svg>`;
+}
+
+
 // ═══════════════════════════════════════════════════════════════════
 // HOME
 // ═══════════════════════════════════════════════════════════════════
 function renderHome() {
   const el = document.getElementById('recent-rounds');
   if (!state.rounds.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">⛳</div><p>No rounds yet.<br>Start your first round to begin tracking strokes gained.</p></div>`;
+    el.innerHTML = `<div style="padding:12px 16px;font-size:13px;color:var(--muted);text-align:center;">No rounds yet — start your first round!</div>`;
     return;
   }
   const recent = [...state.rounds].reverse().slice(0,5);
-  el.innerHTML = '<div class="section-label">Recent Rounds</div>' + recent.map(r => {
+  el.innerHTML = recent.map(r => {
     const totalSG = getRoundTotalSG(r);
     const score = getRoundScore(r);
     const par = getRoundPar(r);
     const diff = score - par;
     const diffStr = diff === 0 ? 'E' : (diff > 0 ? '+'+diff : diff);
     const sgStr = totalSG >= 0 ? '+'+totalSG.toFixed(1) : totalSG.toFixed(1);
-    return `<div class="round-card" onclick="viewRound('${r.id}')">
+    return `<div class="round-card" onclick="viewRound('${r.id}')" style="margin:0;border-radius:0;border-bottom:1px solid #e5e7eb;box-shadow:none;">
       <div class="round-icon">🏌️</div>
       <div class="round-info">
         <div class="round-date">${r.date}</div>
@@ -1574,6 +1837,7 @@ function renderClubSuggestions() {
         `).join('')}
       </div>
       <div style="font-size:9px;color:var(--muted);margin-top:7px;text-align:center;">Tap a club to select it · based on your avg carry</div>
+      <button onclick="showDistancesFromShot()" style="margin-top:8px;width:100%;padding:9px;border-radius:8px;border:1.5px solid var(--green);background:white;color:var(--green);font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📏 View All Club Distances</button>
     </div>`;
 }
 
@@ -2288,12 +2552,19 @@ function showStats() {
 // ═══════════════════════════════════════════════════════════════════
 let _clubDetailName = '';
 let _clubDetailLie = 'all';
+let _clubDetailFrom = 'perf'; // 'perf' | 'distances'
 
-function showClubDetail(club) {
+function showClubDetail(club, fromDistances) {
   _clubDetailName = club;
   _clubDetailLie = 'fairway';
+  _clubDetailFrom = fromDistances ? 'distances' : 'perf';
   renderClubDetail();
   showScreen('s-club');
+}
+
+function clubDetailBack() {
+  if (_clubDetailFrom === 'distances') showScreen('s-distances');
+  else showClubPerformance();
 }
 
 function setClubLie(lie) {
@@ -2505,10 +2776,10 @@ function renderClubDetail() {
 
     <!-- ── Approach Dispersion (this club) ───────────────── -->
     ${(() => {
-      const apprWithClub = clubShots.filter(s => s.type === 'approach');
+      const apprWithClub = clubShots.filter(s => s.type === 'approach' || s.type === 'chip');
       if (!apprWithClub.length) return '';
-      return `<div class="card-title">🎯 Approach Dispersion <span style="font-size:11px;font-weight:400;color:var(--muted);">${apprWithClub.length} shots</span></div>
-      <div class="card">${buildGreenSVG(apprWithClub)}</div>`;
+      return `<div class="card-title">🎯 Shot Dispersion <span style="font-size:11px;font-weight:400;color:var(--muted);">${apprWithClub.length} shots · green = on target · amber = miss · red = bad strike</span></div>
+      <div class="card" style="padding:12px 4px;overflow:visible;">${buildOvalDispersionSVG(apprWithClub, '')}</div>`;
     })()}
 
     <!-- ── All Shots Log ─────────────────────────────────── -->
@@ -3102,7 +3373,7 @@ function renderDistances() {
         <div style="padding:${isFirst?'10px':'6px'} 14px ${isLast?'10px':'6px'};border-bottom:1px solid #f0f0f0;background:white;${topBorder}">
           <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
             ${isFirst
-              ? `<span style="font-weight:800;font-size:16px;color:var(--green);min-width:34px;">${r.club}</span>`
+              ? `<span style="font-weight:800;font-size:16px;color:var(--green);min-width:34px;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" onclick="showClubDetail('${r.club}', true)">${r.club} ›</span>`
               : `<span style="min-width:34px;"></span>`
             }
             ${r.swing
