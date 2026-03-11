@@ -1195,11 +1195,16 @@ function buildOvalDispersionSVG(shots, title) {
 
   // ── Shot dots ─────────────────────────────────────────────────────
   const dots = pts.map(p => {
-    const fill = p.strike === 'bad' ? 'rgba(239,68,68,0.9)'
-               : p.miss === 'on-target' ? 'rgba(255,255,255,1)'
-               : 'rgba(255,255,255,0.75)';
-    return `<circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="4.5"
-      fill="${fill}" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>`;
+    const fill = p.strike === 'bad'
+      ? '#ef4444'                          // red  — bad strike
+      : p.miss === 'on-target'
+        ? '#4ade80'                        // bright green — on target
+        : '#facc15';                       // yellow — miss
+    const strokeCol = p.strike === 'bad' ? '#dc2626'
+                    : p.miss === 'on-target' ? '#16a34a'
+                    : '#eab308';
+    return `<circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="5"
+      fill="${fill}" stroke="${strokeCol}" stroke-width="1.5"/>`;
   });
 
   // ── Pin ───────────────────────────────────────────────────────────
@@ -2621,13 +2626,17 @@ function showStats() {
 // CLUB DETAIL
 // ═══════════════════════════════════════════════════════════════════
 let _clubDetailName = '';
-let _clubDetailLie = 'all';
-let _clubDetailFrom = 'perf'; // 'perf' | 'distances'
+let _clubDetailLie  = 'all';
+let _clubDetailFrom = 'perf';
+let _clubDetailShape = 'all';
+let _clubDetailSwing = 'all';
 
 function showClubDetail(club, fromDistances) {
-  _clubDetailName = club;
-  _clubDetailLie = 'fairway';
-  _clubDetailFrom = fromDistances ? 'distances' : 'perf';
+  _clubDetailName  = club;
+  _clubDetailLie   = 'fairway';
+  _clubDetailShape = 'all';
+  _clubDetailSwing = 'all';
+  _clubDetailFrom  = fromDistances ? 'distances' : 'perf';
   renderClubDetail();
   showScreen('s-club');
 }
@@ -2639,6 +2648,16 @@ function clubDetailBack() {
 
 function setClubLie(lie) {
   _clubDetailLie = lie;
+  renderClubDetail();
+}
+
+function setClubShape(shape) {
+  _clubDetailShape = shape;
+  renderClubDetail();
+}
+
+function setClubSwing(swing) {
+  _clubDetailSwing = swing;
   renderClubDetail();
 }
 
@@ -2846,10 +2865,61 @@ function renderClubDetail() {
 
     <!-- ── Approach Dispersion (this club) ───────────────── -->
     ${(() => {
-      const apprWithClub = clubShots.filter(s => s.type === 'approach' || s.type === 'chip');
-      if (!apprWithClub.length) return '';
-      return `<div class="card-title">🎯 Shot Dispersion <span style="font-size:11px;font-weight:400;color:var(--muted);">${apprWithClub.length} shots · green = on target · amber = miss · red = bad strike</span></div>
-      <div class="card" style="padding:12px 4px;overflow:visible;">${buildOvalDispersionSVG(apprWithClub, '')}</div>`;
+      const WEDGE_CLUBS = ['PW','52','56','60'];
+      const isWedge = WEDGE_CLUBS.includes(club);
+      const apprBase = clubShots.filter(s => s.type === 'approach' || s.type === 'chip' || s.type === 'sand');
+      if (!apprBase.length) return '';
+
+      // Shape filter
+      const shapeOpts = [
+        { val:'all',      label:'All' },
+        { val:'straight', label:'➡️ Straight' },
+        { val:'fade',     label:'↪️ Fade' },
+        { val:'draw',     label:'↩️ Draw' },
+      ];
+      // Swing filter — wedges only
+      const swingOpts = [
+        { val:'all',   label:'All' },
+        { val:'7:30',  label:'7:30' },
+        { val:'9:00',  label:'9:00' },
+        { val:'11:30', label:'11:30' },
+        { val:'Full',  label:'Full' },
+      ];
+
+      // Apply shape filter
+      let filtered = _clubDetailShape === 'all'
+        ? apprBase
+        : apprBase.filter(s => (s.shape||'straight') === _clubDetailShape);
+
+      // Apply swing filter (wedges only)
+      if (isWedge && _clubDetailSwing !== 'all') {
+        filtered = filtered.filter(s => s.swingType === _clubDetailSwing);
+      }
+
+      const shapeTabs = `<div style="display:flex;gap:4px;margin-bottom:8px;">
+        ${shapeOpts.map(o => `<button class="sel-btn btn-sm${_clubDetailShape===o.val?' active':''}" style="flex:1;font-size:10px;" onclick="setClubShape('${o.val}')">${o.label}</button>`).join('')}
+      </div>`;
+
+      const swingTabs = isWedge ? `<div style="display:flex;gap:4px;margin-bottom:10px;">
+        ${swingOpts.map(o => `<button class="sel-btn btn-sm${_clubDetailSwing===o.val?' active':''}" style="flex:1;font-size:10px;" onclick="setClubSwing('${o.val}')">${o.label}</button>`).join('')}
+      </div>` : '';
+
+      const filterLabel = [
+        _clubDetailShape !== 'all' ? _clubDetailShape : '',
+        isWedge && _clubDetailSwing !== 'all' ? _clubDetailSwing : ''
+      ].filter(Boolean).join(' · ') || 'all shots';
+
+      return `<div class="card-title">🎯 Shot Dispersion
+        <span style="font-size:11px;font-weight:400;color:var(--muted);">${filtered.length} shots · ${filterLabel}</span>
+      </div>
+      <div class="card" style="padding:12px 8px 8px;overflow:visible;">
+        ${shapeTabs}
+        ${swingTabs}
+        <div style="font-size:10px;color:var(--muted);text-align:center;margin-bottom:6px;">
+          🟢 On target &nbsp;·&nbsp; 🟡 Miss &nbsp;·&nbsp; 🔴 Bad strike
+        </div>
+        ${filtered.length ? buildOvalDispersionSVG(filtered, '') : '<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">No shots match this filter</div>'}
+      </div>`;
     })()}
 
     <!-- ── All Shots Log ─────────────────────────────────── -->
