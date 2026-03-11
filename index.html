@@ -1111,156 +1111,171 @@ function showClubPerformance(fromDistances) {
 // OVAL DISPERSION SVG  (approach / chip shots)
 // ═══════════════════════════════════════════════════════════════════
 function buildOvalDispersionSVG(shots, title) {
-  const W = 340, H = 320;
+  const W = 340, H = 340;
   const cx = W / 2;
-  // Pin sits at ~60% down — gives room for "long" shots above
-  const pinY = H * 0.60;
+  const pinY = H * 0.55; // pin in the middle-ish, leaving room for spread labels
 
   if (!shots.length) return `<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">No approach data yet</div>`;
 
-  // ── Compute carry distances used in this set ──────────────────────
   const avgDist = shots.reduce((s, sh) => s + (sh.distFrom || 100), 0) / shots.length;
 
-  // ── Map each shot to (lateral yards, carry delta yards) ──────────
-  // dep > 0 = long (up on screen), dep < 0 = short (down on screen)
+  // ── Map each shot to (lateral yds, depth yds) from pin ───────────
+  // lat < 0 = left,  lat > 0 = right
+  // dep > 0 = long,  dep < 0 = short
   const points = shots.map(s => {
-    const miss  = s.miss || 'on-target';
-    const prox  = s.landedOnGreen ? (s.distTo || 0) / 3 : (s.distTo || 0);
+    const miss = s.miss || 'on-target';
+    const prox = s.landedOnGreen ? (s.distTo || 0) / 3 : (s.distTo || 0);
     let lat = 0, dep = 0;
-    if      (miss === 'on-target')   { lat = 0;            dep = 0; }
-    else if (miss === 'left')        { lat = -prox * 0.85; dep = 0; }
-    else if (miss === 'right')       { lat =  prox * 0.85; dep = 0; }
-    else if (miss === 'short')       { lat = 0;            dep = -prox; }
-    else if (miss === 'long')        { lat = 0;            dep =  prox; }
-    else if (miss === 'short-left')  { lat = -prox * 0.65; dep = -prox * 0.65; }
-    else if (miss === 'short-right') { lat =  prox * 0.65; dep = -prox * 0.65; }
-    else if (miss === 'long-left')   { lat = -prox * 0.65; dep =  prox * 0.65; }
-    else if (miss === 'long-right')  { lat =  prox * 0.65; dep =  prox * 0.65; }
+    if      (miss === 'on-target')   { lat = 0;             dep = 0; }
+    else if (miss === 'left')        { lat = -prox * 0.85;  dep = 0; }
+    else if (miss === 'right')       { lat =  prox * 0.85;  dep = 0; }
+    else if (miss === 'short')       { lat = 0;             dep = -prox; }
+    else if (miss === 'long')        { lat = 0;             dep =  prox; }
+    else if (miss === 'short-left')  { lat = -prox * 0.65;  dep = -prox * 0.65; }
+    else if (miss === 'short-right') { lat =  prox * 0.65;  dep = -prox * 0.65; }
+    else if (miss === 'long-left')   { lat = -prox * 0.65;  dep =  prox * 0.65; }
+    else if (miss === 'long-right')  { lat =  prox * 0.65;  dep =  prox * 0.65; }
     return { lat, dep, miss, prox, strike: s.strike };
   });
 
-  // ── Scale so spread fills ~75% of canvas ─────────────────────────
-  const maxAbsLat = Math.max(...points.map(p => Math.abs(p.lat)), 4);
-  const maxAbsDep = Math.max(...points.map(p => Math.abs(p.dep)), 4);
-  const scaleX = (W * 0.40) / maxAbsLat;
+  // ── Asymmetric spread measurements ────────────────────────────────
+  // For each direction, average miss distance in that direction only
+  const leftPts  = points.filter(p => p.lat < 0);
+  const rightPts = points.filter(p => p.lat > 0);
+  const shortPts = points.filter(p => p.dep < 0);
+  const longPts  = points.filter(p => p.dep > 0);
+
+  const avgLeft  = leftPts.length  ? leftPts.reduce((s,p)=>s+Math.abs(p.lat),0)/leftPts.length   : 0;
+  const avgRight = rightPts.length ? rightPts.reduce((s,p)=>s+p.lat,0)/rightPts.length            : 0;
+  const avgShort = shortPts.length ? shortPts.reduce((s,p)=>s+Math.abs(p.dep),0)/shortPts.length  : 0;
+  const avgLong  = longPts.length  ? longPts.reduce((s,p)=>s+p.dep,0)/longPts.length              : 0;
+
+  // ── Mean miss (where the oval centre sits) ────────────────────────
+  const meanLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
+  const meanDep = points.reduce((s, p) => s + p.dep, 0) / points.length;
+
+  // ── Scale — fit the full spread (mean + max arm) into the canvas ──
+  const maxAbsLat = Math.max(Math.abs(meanLat) + avgLeft, Math.abs(meanLat) + avgRight, 3);
+  const maxAbsDep = Math.max(Math.abs(meanDep) + avgShort, Math.abs(meanDep) + avgLong, 3);
+  const MARGIN = 42; // px reserved on each side for spread labels
+  const scaleX = (W / 2 - MARGIN) / maxAbsLat;
   const scaleY = (H * 0.38) / maxAbsDep;
 
-  // pixel coords — dep is inverted (positive dep = up)
+  // pixel coords for each shot dot
   const pts = points.map(p => ({
     ...p,
     px: cx + p.lat * scaleX,
     py: pinY - p.dep * scaleY
   }));
 
-  // ── 1-SD dispersion ellipse (axis-aligned in yards, then displayed) ─
-  const sdLat = Math.sqrt(points.reduce((s, p) => s + p.lat * p.lat, 0) / points.length) || 4;
-  const sdDep = Math.sqrt(points.reduce((s, p) => s + p.dep * p.dep, 0) / points.length) || 4;
-  const ellRx = Math.min(sdLat * scaleX * 2.2, W * 0.46);
-  const ellRy = Math.min(sdDep * scaleY * 2.2, H * 0.42);
-
-  // mean offset for ellipse centre
-  const meanLat = points.reduce((s, p) => s + p.lat, 0) / points.length;
-  const meanDep = points.reduce((s, p) => s + p.dep, 0) / points.length;
+  // ── Ellipse: centre = mean miss, radii = avg arm each side ───────
+  // Use the larger arm as the single radius so the oval covers both sides
+  const ellRx = Math.max(avgLeft, avgRight, 2) * scaleX;
+  const ellRy = Math.max(avgShort, avgLong, 2) * scaleY;
   const ellCx = cx + meanLat * scaleX;
   const ellCy = pinY - meanDep * scaleY;
 
   // ── Curved distance arcs ──────────────────────────────────────────
-  // Draw arcs at avgDist-10, avgDist, avgDist+10 yards
-  // In pixel space: 10 yards = 10 * scaleY pixels
-  const yardStep = 10 * scaleY;
   function arcPath(yOffset) {
-    // Subtle arc — bows slightly upward in the centre (like real TrackMan)
-    const y   = pinY - yOffset;
-    const bow = 8; // px bow
-    const x0  = 12, x1 = W - 12;
-    return `M ${x0} ${(y + bow).toFixed(1)} Q ${cx} ${(y - bow).toFixed(1)} ${x1} ${(y + bow).toFixed(1)}`;
+    const y = pinY - yOffset, bow = 8, x0 = 10, x1 = W - 10;
+    return `M ${x0} ${(y+bow).toFixed(1)} Q ${cx} ${(y-bow).toFixed(1)} ${x1} ${(y+bow).toFixed(1)}`;
   }
-  const arcLabels = [-10, 0, 10];
-  const arcs = arcLabels.map(delta => {
+  const arcs = [-10, 0, 10].map(delta => {
     const yardVal = Math.round(avgDist + delta);
     const yOff = delta * scaleY;
     return `
-    <path d="${arcPath(yOff)}" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="1"/>
-    <text x="${W - 10}" y="${(pinY - yOff + 5).toFixed(1)}" text-anchor="end" font-size="11"
-      fill="rgba(255,255,255,0.80)" font-family="sans-serif" font-weight="500">${yardVal}</text>`;
+    <path d="${arcPath(yOff)}" fill="none" stroke="rgba(255,255,255,0.40)" stroke-width="1"/>
+    <text x="${W-8}" y="${(pinY-yOff+4).toFixed(1)}" text-anchor="end" font-size="10"
+      fill="rgba(255,255,255,0.65)" font-family="sans-serif">${yardVal}</text>`;
   });
 
-  // ── Centre line (target line) ─────────────────────────────────────
-  const centreLine = `<line x1="${cx}" y1="8" x2="${cx}" y2="${H - 20}"
-    stroke="rgba(255,255,255,0.30)" stroke-width="1" stroke-dasharray="4,4"/>`;
+  // ── Centre / target line ──────────────────────────────────────────
+  const centreLine = `<line x1="${cx}" y1="30" x2="${cx}" y2="${H-40}"
+    stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="4,4"/>`;
 
-  // ── Shot dots ──────────────────────────────────────────────────────
+  // ── Shot dots ─────────────────────────────────────────────────────
   const dots = pts.map(p => {
-    const fill = p.strike === 'bad' ? 'rgba(239,68,68,0.85)'
-               : p.miss === 'on-target' ? 'rgba(255,255,255,0.95)'
+    const fill = p.strike === 'bad' ? 'rgba(239,68,68,0.9)'
+               : p.miss === 'on-target' ? 'rgba(255,255,255,1)'
                : 'rgba(255,255,255,0.75)';
-    const stroke = p.strike === 'bad' ? '#ef4444' : 'rgba(255,255,255,0.4)';
     return `<circle cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="4.5"
-      fill="${fill}" stroke="${stroke}" stroke-width="1"/>`;
+      fill="${fill}" stroke="rgba(0,0,0,0.25)" stroke-width="1"/>`;
   });
 
   // ── Pin ───────────────────────────────────────────────────────────
   const pin = `
-    <line x1="${cx}" y1="${pinY - 22}" x2="${cx}" y2="${pinY + 4}"
+    <line x1="${cx}" y1="${pinY-22}" x2="${cx}" y2="${pinY+5}"
       stroke="rgba(255,255,255,0.9)" stroke-width="2"/>
-    <polygon points="${cx},${pinY - 22} ${cx + 8},${pinY - 14} ${cx},${pinY - 14}"
-      fill="rgba(220,38,38,0.9)"/>`;
+    <polygon points="${cx},${pinY-22} ${cx+8},${pinY-14} ${cx},${pinY-14}"
+      fill="rgba(220,38,38,0.95)"/>`;
 
-  // ── Stats ─────────────────────────────────────────────────────────
-  const onPct  = Math.round((points.filter(p => p.miss === 'on-target').length) / points.length * 100);
-  const gir    = Math.round((shots.filter(s => s.landedOnGreen).length) / shots.length * 100);
-  const avgProx = shots.filter(s => s.landedOnGreen && s.distTo > 0)
-                       .reduce((s, sh, _i, a) => s + sh.distTo / a.length, 0);
+  // ── Spread stat labels around the edges ──────────────────────────
+  // Left label (on the left edge)
+  const leftLabel  = avgLeft  > 0 ? `◀ ${Math.round(avgLeft)}yd` : '';
+  const rightLabel = avgRight > 0 ? `${Math.round(avgRight)}yd ▶` : '';
+  const shortLabel = avgShort > 0 ? `▼ ${Math.round(avgShort)}yd` : '';
+  const longLabel  = avgLong  > 0 ? `▲ ${Math.round(avgLong)}yd` : '';
 
-  // ── Grass gradient defs ───────────────────────────────────────────
+  // Y position for lateral labels: at the ellipse centre height
+  const latLabelY = (ellCy + 4).toFixed(1);
+  // X positions for long/short labels
+  const longLabelY  = (ellCy - ellRy - 8).toFixed(1);
+  const shortLabelY = (ellCy + ellRy + 14).toFixed(1);
+
+  const spreadLabels = `
+    ${leftLabel  ? `<text x="6"    y="${latLabelY}"   text-anchor="start"  font-size="11" font-weight="600" fill="rgba(255,220,100,0.95)" font-family="sans-serif">${leftLabel}</text>` : ''}
+    ${rightLabel ? `<text x="${W-6}" y="${latLabelY}" text-anchor="end"    font-size="11" font-weight="600" fill="rgba(255,220,100,0.95)" font-family="sans-serif">${rightLabel}</text>` : ''}
+    ${longLabel  ? `<text x="${cx}" y="${longLabelY}"  text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,220,100,0.95)" font-family="sans-serif">${longLabel}</text>` : ''}
+    ${shortLabel ? `<text x="${cx}" y="${shortLabelY}" text-anchor="middle" font-size="11" font-weight="600" fill="rgba(255,220,100,0.95)" font-family="sans-serif">${shortLabel}</text>` : ''}`;
+
+  // ── Summary stats bar ─────────────────────────────────────────────
+  const gir     = Math.round((shots.filter(s => s.landedOnGreen).length) / shots.length * 100);
+  const onPct   = Math.round((points.filter(p => p.miss === 'on-target').length) / points.length * 100);
+  const girShots = shots.filter(s => s.landedOnGreen && s.distTo > 0);
+  const avgProx  = girShots.length ? girShots.reduce((s,sh)=>s+sh.distTo,0)/girShots.length : 0;
+
+  const statBar = `
+    <rect x="0" y="${H-28}" width="${W}" height="28" fill="rgba(0,0,0,0.45)" rx="0"/>
+    <text x="12" y="${H-10}" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">GIR ${gir}%</text>
+    <text x="${cx}" y="${H-10}" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">${avgProx>0 ? Math.round(avgProx)+"' avg proximity" : 'On-target '+onPct+'%'}</text>
+    <text x="${W-12}" y="${H-10}" text-anchor="end" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">${points.length} shots</text>`;
+
+  // ── Defs ──────────────────────────────────────────────────────────
+  const uid = Math.random().toString(36).slice(2,7);
   const defs = `<defs>
-    <linearGradient id="grass${W}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#3a7a30"/>
-      <stop offset="50%"  stop-color="#4a8c40"/>
+    <linearGradient id="gr${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#3a7a30"/>
+      <stop offset="50%" stop-color="#4d9243"/>
       <stop offset="100%" stop-color="#3a7a30"/>
     </linearGradient>
-    <pattern id="stripes${W}" patternUnits="userSpaceOnUse" width="24" height="24" patternTransform="rotate(0)">
-      <rect width="12" height="24" fill="rgba(0,0,0,0.06)"/>
+    <pattern id="st${uid}" patternUnits="userSpaceOnUse" width="22" height="22">
+      <rect width="11" height="22" fill="rgba(0,0,0,0.05)"/>
     </pattern>
+    <clipPath id="cl${uid}"><rect width="${W}" height="${H}" rx="12"/></clipPath>
   </defs>`;
-
-  // ── Stats bar at bottom ───────────────────────────────────────────
-  const statBar = `
-    <rect x="0" y="${H - 28}" width="${W}" height="28" fill="rgba(0,0,0,0.40)" rx="0"/>
-    <text x="14" y="${H - 10}" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">
-      GIR ${gir}%
-    </text>
-    <text x="${cx}" y="${H - 10}" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">
-      ${avgProx > 0 ? Math.round(avgProx) + '\'' + ' avg' : ''}
-    </text>
-    <text x="${W - 14}" y="${H - 10}" text-anchor="end" font-size="11" fill="rgba(255,255,255,0.9)" font-family="sans-serif">
-      ${points.length} shots
-    </text>`;
 
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
     style="overflow:visible;display:block;margin:0 auto;border-radius:12px;">
     ${defs}
-    <!-- Grass background -->
-    <rect width="${W}" height="${H}" fill="url(#grass${W})" rx="12"/>
-    <rect width="${W}" height="${H}" fill="url(#stripes${W})" rx="12" opacity="0.4"/>
-    <!-- Distance arcs -->
-    ${arcs.join('')}
-    <!-- Centre / target line -->
-    ${centreLine}
-    <!-- Dispersion ellipse -->
-    <ellipse cx="${ellCx.toFixed(1)}" cy="${ellCy.toFixed(1)}"
-      rx="${ellRx.toFixed(1)}" ry="${ellRy.toFixed(1)}"
-      fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.70)"
-      stroke-width="1.5"/>
-    <!-- Pin -->
-    ${pin}
-    <!-- Shot dots -->
-    ${dots.join('\n    ')}
-    <!-- "Total yds" label top-right (like TrackMan) -->
-    <text x="${W - 10}" y="${H - 32}" text-anchor="end" font-size="10"
-      fill="rgba(255,255,255,0.55)" font-family="sans-serif">Total yds</text>
-    <!-- Stats bar -->
-    ${statBar}
+    <g clip-path="url(#cl${uid})">
+      <rect width="${W}" height="${H}" fill="url(#gr${uid})"/>
+      <rect width="${W}" height="${H}" fill="url(#st${uid})" opacity="0.5"/>
+      ${arcs.join('')}
+      ${centreLine}
+      <!-- Dispersion oval — centred on mean miss, sized by actual spread -->
+      <ellipse cx="${ellCx.toFixed(1)}" cy="${ellCy.toFixed(1)}"
+        rx="${Math.max(ellRx,4).toFixed(1)}" ry="${Math.max(ellRy,4).toFixed(1)}"
+        fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.75)" stroke-width="1.5"/>
+      <!-- Mean miss crosshair -->
+      <circle cx="${ellCx.toFixed(1)}" cy="${ellCy.toFixed(1)}" r="3"
+        fill="rgba(255,220,100,0.7)" stroke="none"/>
+      ${pin}
+      ${dots.join('\n      ')}
+      ${spreadLabels}
+      <text x="${W-8}" y="20" text-anchor="end" font-size="10"
+        fill="rgba(255,255,255,0.45)" font-family="sans-serif">Total yds</text>
+      ${statBar}
+    </g>
   </svg>`;
 }
 
