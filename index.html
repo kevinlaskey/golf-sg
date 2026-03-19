@@ -4065,185 +4065,183 @@ function showYardageCard() {
 // lat/lng accurate to ~3–5 metres
 // ═══════════════════════════════════════════════════════════════════
 // LATROBE CC — Full Course GPS Data
-// Centre of course: 40.2893, -79.4552  (346 Arnold Palmer Dr)
-// All coordinates are ESTIMATED from satellite imagery — calibrate
-// on-course using Admin → Calibrate GPS Points
+// Centre of course: 40.276571, -79.373232  (346 Arnold Palmer Dr)
+// All coordinates are ESTIMATED — calibrate on-course or via map
 // ═══════════════════════════════════════════════════════════════════
-// Hazard types: 'water' 💧  'bunker' 🏖️  'ob' ⛔  'layup' 📍  'carry' 🎯
 const LCC_COURSE = [
   {
     n:1, par:4, yds:396,
-    tee:   { lat:40.29180, lng:-79.45380 },
-    green: { front:{lat:40.29310,lng:-79.45290}, mid:{lat:40.29325,lng:-79.45285}, back:{lat:40.29340,lng:-79.45280} },
+    tee:   { lat:40.27450, lng:-79.37200 },
+    green: { front:{lat:40.27610,lng:-79.37280}, mid:{lat:40.27625,lng:-79.37290}, back:{lat:40.27640,lng:-79.37300} },
     hazards:[
-      { label:'Bunker R (150)',   type:'bunker', lat:40.29290, lng:-79.45340 },
-      { label:'Bunker L (GS)',    type:'bunker', lat:40.29305, lng:-79.45305 },
+      { label:'Bunker R (150)',   type:'bunker', lat:40.27580, lng:-79.37240 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.27618, lng:-79.37310 },
     ]
   },
   {
     n:2, par:3, yds:114,
-    tee:   { lat:40.29350, lng:-79.45270 },
-    green: { front:{lat:40.29390,lng:-79.45240}, mid:{lat:40.29398,lng:-79.45235}, back:{lat:40.29406,lng:-79.45230} },
+    tee:   { lat:40.27655, lng:-79.37310 },
+    green: { front:{lat:40.27710,lng:-79.37260}, mid:{lat:40.27720,lng:-79.37255}, back:{lat:40.27730,lng:-79.37250} },
     hazards:[
-      { label:'Bunker front',     type:'bunker', lat:40.29383, lng:-79.45252 },
+      { label:'Bunker front',     type:'bunker', lat:40.27702, lng:-79.37270 },
     ]
   },
   {
     n:3, par:5, yds:485,
-    tee:   { lat:40.29415, lng:-79.45220 },
-    green: { front:{lat:40.29240,lng:-79.45140}, mid:{lat:40.29228,lng:-79.45138}, back:{lat:40.29216,lng:-79.45135} },
+    tee:   { lat:40.27740, lng:-79.37240 },
+    green: { front:{lat:40.27560,lng:-79.37150}, mid:{lat:40.27548,lng:-79.37145}, back:{lat:40.27536,lng:-79.37140} },
     hazards:[
-      { label:'OB trees R',       type:'ob',     lat:40.29370, lng:-79.45175 },
-      { label:'Bunker L (GS)',    type:'bunker', lat:40.29250, lng:-79.45160 },
-      { label:'Layup (220)',      type:'layup',  lat:40.29320, lng:-79.45165 },
+      { label:'OB trees R',       type:'ob',     lat:40.27680, lng:-79.37188 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.27570, lng:-79.37168 },
+      { label:'Layup (220)',      type:'layup',  lat:40.27640, lng:-79.37175 },
     ]
   },
   {
     n:4, par:3, yds:185,
-    tee:   { lat:40.29205, lng:-79.45120 },
-    green: { front:{lat:40.29120,lng:-79.45080}, mid:{lat:40.29110,lng:-79.45075}, back:{lat:40.29100,lng:-79.45070} },
+    tee:   { lat:40.27520, lng:-79.37128 },
+    green: { front:{lat:40.27430,lng:-79.37085}, mid:{lat:40.27420,lng:-79.37080}, back:{lat:40.27410,lng:-79.37075} },
     hazards:[
-      { label:'Bunker front L',   type:'bunker', lat:40.29128, lng:-79.45090 },
-      { label:'Bunker R',         type:'bunker', lat:40.29115, lng:-79.45060 },
+      { label:'Bunker front L',   type:'bunker', lat:40.27438, lng:-79.37095 },
+      { label:'Bunker R',         type:'bunker', lat:40.27424, lng:-79.37065 },
     ]
   },
   {
     n:5, par:4, yds:283,
-    tee:   { lat:40.29085, lng:-79.45060 },
-    green: { front:{lat:40.29010,lng:-79.45180}, mid:{lat:40.29000,lng:-79.45188}, back:{lat:40.28990,lng:-79.45196} },
+    tee:   { lat:40.27395, lng:-79.37065 },
+    green: { front:{lat:40.27310,lng:-79.37190}, mid:{lat:40.27300,lng:-79.37198}, back:{lat:40.27290,lng:-79.37206} },
     hazards:[
-      { label:'Bunker R (tee)',   type:'bunker', lat:40.29060, lng:-79.45090 },
-      { label:'Bunker GS L',      type:'bunker', lat:40.29015, lng:-79.45200 },
+      { label:'Bunker R (tee)',   type:'bunker', lat:40.27370, lng:-79.37095 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.27315, lng:-79.37210 },
     ]
   },
   {
     n:6, par:5, yds:469,
-    tee:   { lat:40.28975, lng:-79.45210 },
-    green: { front:{lat:40.28820,lng:-79.45490}, mid:{lat:40.28810,lng:-79.45500}, back:{lat:40.28800,lng:-79.45510} },
+    tee:   { lat:40.27275, lng:-79.37220 },
+    green: { front:{lat:40.27120,lng:-79.37500}, mid:{lat:40.27110,lng:-79.37510}, back:{lat:40.27100,lng:-79.37520} },
     hazards:[
-      { label:'Creek carry (L2)', type:'water',  lat:40.28890, lng:-79.45390 },
-      { label:'Bunker L (240)',   type:'bunker', lat:40.28940, lng:-79.45320 },
-      { label:'Bunker R (GS)',    type:'bunker', lat:40.28825, lng:-79.45480 },
-      { label:'Layup safe (220)', type:'layup',  lat:40.28950, lng:-79.45350 },
+      { label:'Creek carry (L2)', type:'water',  lat:40.27190, lng:-79.37400 },
+      { label:'Bunker L (240)',   type:'bunker', lat:40.27240, lng:-79.37330 },
+      { label:'Bunker R (GS)',    type:'bunker', lat:40.27125, lng:-79.37490 },
+      { label:'Layup safe (220)', type:'layup',  lat:40.27250, lng:-79.37360 },
     ]
   },
   {
     n:7, par:4, yds:381,
-    tee:   { lat:40.28790, lng:-79.45530 },
-    green: { front:{lat:40.28640,lng:-79.45620}, mid:{lat:40.28628,lng:-79.45625}, back:{lat:40.28616,lng:-79.45630} },
+    tee:   { lat:40.27090, lng:-79.37540 },
+    green: { front:{lat:40.26940,lng:-79.37630}, mid:{lat:40.26928,lng:-79.37635}, back:{lat:40.26916,lng:-79.37640} },
     hazards:[
-      { label:'Bunker L (150)',   type:'bunker', lat:40.28680, lng:-79.45590 },
-      { label:'OB R trees',       type:'ob',     lat:40.28760, lng:-79.45555 },
-      { label:'Bunker GS R',      type:'bunker', lat:40.28632, lng:-79.45608 },
+      { label:'Bunker L (150)',   type:'bunker', lat:40.26980, lng:-79.37600 },
+      { label:'OB R trees',       type:'ob',     lat:40.27060, lng:-79.37555 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.26932, lng:-79.37618 },
     ]
   },
   {
     n:8, par:4, yds:437,
-    tee:   { lat:40.28600, lng:-79.45640 },
-    green: { front:{lat:40.28430,lng:-79.45710}, mid:{lat:40.28418,lng:-79.45715}, back:{lat:40.28406,lng:-79.45720} },
+    tee:   { lat:40.26900, lng:-79.37650 },
+    green: { front:{lat:40.26730,lng:-79.37720}, mid:{lat:40.26718,lng:-79.37725}, back:{lat:40.26706,lng:-79.37730} },
     hazards:[
-      { label:'Bunker R (200)',   type:'bunker', lat:40.28530, lng:-79.45670 },
-      { label:'Bunker L (GS)',    type:'bunker', lat:40.28438, lng:-79.45730 },
-      { label:'Bunker R (GS)',    type:'bunker', lat:40.28422, lng:-79.45698 },
+      { label:'Bunker R (200)',   type:'bunker', lat:40.26830, lng:-79.37680 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.26738, lng:-79.37740 },
+      { label:'Bunker R (GS)',    type:'bunker', lat:40.26722, lng:-79.37708 },
     ]
   },
   {
     n:9, par:4, yds:303,
-    tee:   { lat:40.28390, lng:-79.45730 },
-    green: { front:{lat:40.28520,lng:-79.45870}, mid:{lat:40.28530,lng:-79.45882}, back:{lat:40.28540,lng:-79.45894} },
+    tee:   { lat:40.26690, lng:-79.37740 },
+    green: { front:{lat:40.26820,lng:-79.37880}, mid:{lat:40.26830,lng:-79.37892}, back:{lat:40.26840,lng:-79.37904} },
     hazards:[
-      { label:'Bunker R (tee)',   type:'bunker', lat:40.28415, lng:-79.45760 },
-      { label:'Bunker GS L',      type:'bunker', lat:40.28525, lng:-79.45890 },
+      { label:'Bunker R (tee)',   type:'bunker', lat:40.26715, lng:-79.37770 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.26825, lng:-79.37900 },
     ]
   },
   {
     n:10, par:3, yds:218,
-    tee:   { lat:40.28555, lng:-79.45910 },
-    green: { front:{lat:40.28680,lng:-79.46020}, mid:{lat:40.28692,lng:-79.46030}, back:{lat:40.28704,lng:-79.46040} },
+    tee:   { lat:40.26855, lng:-79.37920 },
+    green: { front:{lat:40.26980,lng:-79.38030}, mid:{lat:40.26992,lng:-79.38040}, back:{lat:40.27004,lng:-79.38050} },
     hazards:[
-      { label:'Bunker front R',   type:'bunker', lat:40.28672, lng:-79.46005 },
-      { label:'Bunker front L',   type:'bunker', lat:40.28675, lng:-79.46040 },
+      { label:'Bunker front R',   type:'bunker', lat:40.26972, lng:-79.38015 },
+      { label:'Bunker front L',   type:'bunker', lat:40.26975, lng:-79.38050 },
     ]
   },
   {
     n:11, par:4, yds:363,
-    tee:   { lat:40.28715, lng:-79.46055 },
-    green: { front:{lat:40.28870,lng:-79.46180}, mid:{lat:40.28882,lng:-79.46188}, back:{lat:40.28894,lng:-79.46196} },
+    tee:   { lat:40.27015, lng:-79.38065 },
+    green: { front:{lat:40.27170,lng:-79.38190}, mid:{lat:40.27182,lng:-79.38198}, back:{lat:40.27194,lng:-79.38206} },
     hazards:[
-      { label:'Creek R (drive)',  type:'water',  lat:40.28780, lng:-79.46110 },
-      { label:'Bunker GS L',      type:'bunker', lat:40.28878, lng:-79.46200 },
-      { label:'OB L',             type:'ob',     lat:40.28840, lng:-79.46200 },
+      { label:'Creek R (drive)',  type:'water',  lat:40.27080, lng:-79.38120 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.27178, lng:-79.38210 },
+      { label:'OB L',             type:'ob',     lat:40.27140, lng:-79.38210 },
     ]
   },
   {
     n:12, par:4, yds:318,
-    tee:   { lat:40.28905, lng:-79.46210 },
-    green: { front:{lat:40.29050,lng:-79.46100}, mid:{lat:40.29062,lng:-79.46092}, back:{lat:40.29074,lng:-79.46084} },
+    tee:   { lat:40.27205, lng:-79.38220 },
+    green: { front:{lat:40.27350,lng:-79.38110}, mid:{lat:40.27362,lng:-79.38102}, back:{lat:40.27374,lng:-79.38094} },
     hazards:[
-      { label:'Creek carry',      type:'water',  lat:40.28960, lng:-79.46165 },
-      { label:'Bunker GS R',      type:'bunker', lat:40.29058, lng:-79.46078 },
+      { label:'Creek carry',      type:'water',  lat:40.27260, lng:-79.38175 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.27358, lng:-79.38088 },
     ]
   },
   {
     n:13, par:3, yds:153,
-    tee:   { lat:40.29085, lng:-79.46070 },
-    green: { front:{lat:40.29180,lng:-79.46000}, mid:{lat:40.29190,lng:-79.45993}, back:{lat:40.29200,lng:-79.45986} },
+    tee:   { lat:40.27385, lng:-79.38080 },
+    green: { front:{lat:40.27480,lng:-79.38010}, mid:{lat:40.27490,lng:-79.38003}, back:{lat:40.27500,lng:-79.37996} },
     hazards:[
-      { label:'Bunker front L',   type:'bunker', lat:40.29174, lng:-79.46010 },
-      { label:'Bunker R',         type:'bunker', lat:40.29185, lng:-79.45978 },
+      { label:'Bunker front L',   type:'bunker', lat:40.27474, lng:-79.38020 },
+      { label:'Bunker R',         type:'bunker', lat:40.27485, lng:-79.37988 },
     ]
   },
   {
     n:14, par:5, yds:452,
-    tee:   { lat:40.29210, lng:-79.45970 },
-    green: { front:{lat:40.29380,lng:-79.45820}, mid:{lat:40.29392,lng:-79.45812}, back:{lat:40.29404,lng:-79.45804} },
+    tee:   { lat:40.27510, lng:-79.37980 },
+    green: { front:{lat:40.27680,lng:-79.37830}, mid:{lat:40.27692,lng:-79.37822}, back:{lat:40.27704,lng:-79.37814} },
     hazards:[
-      { label:'Creek carry (L2)', type:'water',  lat:40.29300, lng:-79.45900 },
-      { label:'Bunker L (220)',   type:'bunker', lat:40.29280, lng:-79.45870 },
-      { label:'Bunker GS R',      type:'bunker', lat:40.29385, lng:-79.45800 },
-      { label:'Layup (210)',      type:'layup',  lat:40.29270, lng:-79.45880 },
+      { label:'Creek carry (L2)', type:'water',  lat:40.27600, lng:-79.37910 },
+      { label:'Bunker L (220)',   type:'bunker', lat:40.27580, lng:-79.37880 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.27685, lng:-79.37810 },
+      { label:'Layup (210)',      type:'layup',  lat:40.27570, lng:-79.37890 },
     ]
   },
   {
     n:15, par:5, yds:484,
-    tee:   { lat:40.29415, lng:-79.45790 },
-    green: { front:{lat:40.29600,lng:-79.45650}, mid:{lat:40.29612,lng:-79.45642}, back:{lat:40.29624,lng:-79.45634} },
+    tee:   { lat:40.27715, lng:-79.37800 },
+    green: { front:{lat:40.27900,lng:-79.37660}, mid:{lat:40.27912,lng:-79.37652}, back:{lat:40.27924,lng:-79.37644} },
     hazards:[
-      { label:'OB L fence',       type:'ob',     lat:40.29500, lng:-79.45730 },
-      { label:'Bunker R (210)',   type:'bunker', lat:40.29510, lng:-79.45695 },
-      { label:'Creek R (GS)',     type:'water',  lat:40.29595, lng:-79.45660 },
-      { label:'Layup (230)',      type:'layup',  lat:40.29530, lng:-79.45710 },
+      { label:'OB L fence',       type:'ob',     lat:40.27800, lng:-79.37740 },
+      { label:'Bunker R (210)',   type:'bunker', lat:40.27810, lng:-79.37705 },
+      { label:'Creek R (GS)',     type:'water',  lat:40.27895, lng:-79.37670 },
+      { label:'Layup (230)',      type:'layup',  lat:40.27830, lng:-79.37720 },
     ]
   },
   {
     n:16, par:4, yds:390,
-    tee:   { lat:40.29635, lng:-79.45620 },
-    green: { front:{lat:40.29790,lng:-79.45480}, mid:{lat:40.29802,lng:-79.45472}, back:{lat:40.29814,lng:-79.45464} },
+    tee:   { lat:40.27935, lng:-79.37630 },
+    green: { front:{lat:40.28090,lng:-79.37490}, mid:{lat:40.28102,lng:-79.37482}, back:{lat:40.28114,lng:-79.37474} },
     hazards:[
-      { label:'Bunker L (160)',   type:'bunker', lat:40.29730, lng:-79.45545 },
-      { label:'Creek front',      type:'water',  lat:40.29785, lng:-79.45495 },
-      { label:'Bunker GS R',      type:'bunker', lat:40.29798, lng:-79.45460 },
+      { label:'Bunker L (160)',   type:'bunker', lat:40.28030, lng:-79.37555 },
+      { label:'Creek front',      type:'water',  lat:40.28085, lng:-79.37505 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.28098, lng:-79.37470 },
     ]
   },
   {
     n:17, par:4, yds:334,
-    tee:   { lat:40.29825, lng:-79.45450 },
-    green: { front:{lat:40.29960,lng:-79.45360}, mid:{lat:40.29972,lng:-79.45352}, back:{lat:40.29984,lng:-79.45344} },
+    tee:   { lat:40.28125, lng:-79.37460 },
+    green: { front:{lat:40.28260,lng:-79.37370}, mid:{lat:40.28272,lng:-79.37362}, back:{lat:40.28284,lng:-79.37354} },
     hazards:[
-      { label:'OB R fence',       type:'ob',     lat:40.29890, lng:-79.45408 },
-      { label:'Bunker L (GS)',    type:'bunker', lat:40.29965, lng:-79.45375 },
-      { label:'Creek L',          type:'water',  lat:40.29945, lng:-79.45370 },
+      { label:'OB R fence',       type:'ob',     lat:40.28190, lng:-79.37418 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.28265, lng:-79.37385 },
+      { label:'Creek L',          type:'water',  lat:40.28245, lng:-79.37380 },
     ]
   },
   {
     n:18, par:4, yds:345,
-    tee:   { lat:40.29995, lng:-79.45330 },
-    green: { front:{lat:40.29840,lng:-79.45250}, mid:{lat:40.29828,lng:-79.45245}, back:{lat:40.29816,lng:-79.45240} },
+    tee:   { lat:40.28295, lng:-79.37340 },
+    green: { front:{lat:40.28140,lng:-79.37260}, mid:{lat:40.28128,lng:-79.37255}, back:{lat:40.28116,lng:-79.37250} },
     hazards:[
-      { label:'OB L (drive)',     type:'ob',     lat:40.29950, lng:-79.45305 },
-      { label:'Bunker R (160)',   type:'bunker', lat:40.29870, lng:-79.45272 },
-      { label:'Bunker GS L',      type:'bunker', lat:40.29843, lng:-79.45265 },
-      { label:'Bunker GS R',      type:'bunker', lat:40.29835, lng:-79.45232 },
+      { label:'OB L (drive)',     type:'ob',     lat:40.28250, lng:-79.37315 },
+      { label:'Bunker R (160)',   type:'bunker', lat:40.28170, lng:-79.37282 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.28143, lng:-79.37275 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.28135, lng:-79.37242 },
     ]
   },
 ];
@@ -4529,6 +4527,11 @@ showScreen = function(id) {
 // ═══════════════════════════════════════════════════════════════════
 // MAP PICKER — Leaflet-based point placement for calibration
 // ═══════════════════════════════════════════════════════════════════
+
+// True centre of Latrobe CC — map always opens here by default
+// until a point has been calibrated or the estimates are corrected
+const LCC_CENTRE = { lat: 40.276571, lng: -79.373232 };
+
 let _mapInstance    = null;   // Leaflet map object
 let _mapMarker      = null;   // Draggable pin
 let _mapPickerHole  = null;   // hole number
@@ -4542,28 +4545,27 @@ function openMapPicker(holeN, key, label) {
   _mapPickerKey   = key;
   _mapPickerLabel = label;
 
-  // Resolve current position for this point (calibrated or estimate)
   const hole = LCC_COURSE.find(h => h.n === holeN);
   const cal  = getCalData();
   const calKey = `h${holeN}_${key}`;
 
-  // Find the default lat/lng for this key
+  // Priority: (1) already-calibrated point, (2) nearby calibrated point
+  // on same hole to anchor from, (3) course centre
   let defaultPt = null;
+
   if (cal[calKey]) {
+    // Already calibrated — show exact saved point
     defaultPt = cal[calKey];
-  } else if (key === 'tee') {
-    defaultPt = hole.tee;
-  } else if (key === 'green_front') {
-    defaultPt = hole.green.front;
-  } else if (key === 'green_mid') {
-    defaultPt = hole.green.mid;
-  } else if (key === 'green_back') {
-    defaultPt = hole.green.back;
   } else {
-    // hazard — find matching hazard by key
-    const hzKey = key.replace(/^hz_/, '').replace(/_/g, ' ');
-    const hz = hole.hazards.find(h => h.label.replace(/\s+/g,'_') === key.replace(/^hz_/,''));
-    defaultPt = hz || hole.green.mid; // fallback to green mid
+    // Look for any calibrated point on this hole to use as anchor
+    const holePrefix = `h${holeN}_`;
+    const nearbyKey  = Object.keys(cal).find(k => k.startsWith(holePrefix));
+    if (nearbyKey) {
+      defaultPt = cal[nearbyKey]; // nearby on same hole
+    } else {
+      // No calibrated points yet — drop pin at course centre
+      defaultPt = LCC_CENTRE;
+    }
   }
 
   _mapPickedLat = defaultPt.lat;
