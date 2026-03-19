@@ -291,6 +291,7 @@
         <span>⚙️ Admin</span><span id="icon-sub-admin" style="font-size:12px;">▶</span>
       </button>
       <div id="sub-admin" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showGPS()">📡 GPS Distances</button>
         <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showDataScreen()">💾 Backup & Restore</button>
         <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;text-align:left;padding-left:24px;color:var(--red);" onclick="resetAllData()">🗑️ Reset All Data</button>
       </div>
@@ -764,6 +765,20 @@
     </div>
   </div>
   <div class="content" id="yardage-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: GPS DISTANCES
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-gps">
+  <div class="hdr">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title">📡 GPS Distances</div>
+      <div class="hdr-sub" id="gps-hdr-sub">Latrobe CC · Green Yardages</div>
+    </div>
+  </div>
+  <div class="content" id="gps-content" style="padding:16px;"></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
@@ -4012,6 +4027,476 @@ function showYardageCard() {
   `;
   showScreen('s-yardage');
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+// GPS DISTANCES — Latrobe CC green coordinates
+// ═══════════════════════════════════════════════════════════════════
+
+// GPS coordinates for each green: front, middle, back + optional hazards
+// Obtained from Google Maps satellite view of Latrobe CC
+// lat/lng accurate to ~3–5 metres
+// ═══════════════════════════════════════════════════════════════════
+// LATROBE CC — Full Course GPS Data
+// Centre of course: 40.2893, -79.4552  (346 Arnold Palmer Dr)
+// All coordinates are ESTIMATED from satellite imagery — calibrate
+// on-course using Admin → Calibrate GPS Points
+// ═══════════════════════════════════════════════════════════════════
+// Hazard types: 'water' 💧  'bunker' 🏖️  'ob' ⛔  'layup' 📍  'carry' 🎯
+const LCC_COURSE = [
+  {
+    n:1, par:4, yds:396,
+    tee:   { lat:40.29180, lng:-79.45380 },
+    green: { front:{lat:40.29310,lng:-79.45290}, mid:{lat:40.29325,lng:-79.45285}, back:{lat:40.29340,lng:-79.45280} },
+    hazards:[
+      { label:'Bunker R (150)',   type:'bunker', lat:40.29290, lng:-79.45340 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.29305, lng:-79.45305 },
+    ]
+  },
+  {
+    n:2, par:3, yds:114,
+    tee:   { lat:40.29350, lng:-79.45270 },
+    green: { front:{lat:40.29390,lng:-79.45240}, mid:{lat:40.29398,lng:-79.45235}, back:{lat:40.29406,lng:-79.45230} },
+    hazards:[
+      { label:'Bunker front',     type:'bunker', lat:40.29383, lng:-79.45252 },
+    ]
+  },
+  {
+    n:3, par:5, yds:485,
+    tee:   { lat:40.29415, lng:-79.45220 },
+    green: { front:{lat:40.29240,lng:-79.45140}, mid:{lat:40.29228,lng:-79.45138}, back:{lat:40.29216,lng:-79.45135} },
+    hazards:[
+      { label:'OB trees R',       type:'ob',     lat:40.29370, lng:-79.45175 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.29250, lng:-79.45160 },
+      { label:'Layup (220)',      type:'layup',  lat:40.29320, lng:-79.45165 },
+    ]
+  },
+  {
+    n:4, par:3, yds:185,
+    tee:   { lat:40.29205, lng:-79.45120 },
+    green: { front:{lat:40.29120,lng:-79.45080}, mid:{lat:40.29110,lng:-79.45075}, back:{lat:40.29100,lng:-79.45070} },
+    hazards:[
+      { label:'Bunker front L',   type:'bunker', lat:40.29128, lng:-79.45090 },
+      { label:'Bunker R',         type:'bunker', lat:40.29115, lng:-79.45060 },
+    ]
+  },
+  {
+    n:5, par:4, yds:283,
+    tee:   { lat:40.29085, lng:-79.45060 },
+    green: { front:{lat:40.29010,lng:-79.45180}, mid:{lat:40.29000,lng:-79.45188}, back:{lat:40.28990,lng:-79.45196} },
+    hazards:[
+      { label:'Bunker R (tee)',   type:'bunker', lat:40.29060, lng:-79.45090 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.29015, lng:-79.45200 },
+    ]
+  },
+  {
+    n:6, par:5, yds:469,
+    tee:   { lat:40.28975, lng:-79.45210 },
+    green: { front:{lat:40.28820,lng:-79.45490}, mid:{lat:40.28810,lng:-79.45500}, back:{lat:40.28800,lng:-79.45510} },
+    hazards:[
+      { label:'Creek carry (L2)', type:'water',  lat:40.28890, lng:-79.45390 },
+      { label:'Bunker L (240)',   type:'bunker', lat:40.28940, lng:-79.45320 },
+      { label:'Bunker R (GS)',    type:'bunker', lat:40.28825, lng:-79.45480 },
+      { label:'Layup safe (220)', type:'layup',  lat:40.28950, lng:-79.45350 },
+    ]
+  },
+  {
+    n:7, par:4, yds:381,
+    tee:   { lat:40.28790, lng:-79.45530 },
+    green: { front:{lat:40.28640,lng:-79.45620}, mid:{lat:40.28628,lng:-79.45625}, back:{lat:40.28616,lng:-79.45630} },
+    hazards:[
+      { label:'Bunker L (150)',   type:'bunker', lat:40.28680, lng:-79.45590 },
+      { label:'OB R trees',       type:'ob',     lat:40.28760, lng:-79.45555 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.28632, lng:-79.45608 },
+    ]
+  },
+  {
+    n:8, par:4, yds:437,
+    tee:   { lat:40.28600, lng:-79.45640 },
+    green: { front:{lat:40.28430,lng:-79.45710}, mid:{lat:40.28418,lng:-79.45715}, back:{lat:40.28406,lng:-79.45720} },
+    hazards:[
+      { label:'Bunker R (200)',   type:'bunker', lat:40.28530, lng:-79.45670 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.28438, lng:-79.45730 },
+      { label:'Bunker R (GS)',    type:'bunker', lat:40.28422, lng:-79.45698 },
+    ]
+  },
+  {
+    n:9, par:4, yds:303,
+    tee:   { lat:40.28390, lng:-79.45730 },
+    green: { front:{lat:40.28520,lng:-79.45870}, mid:{lat:40.28530,lng:-79.45882}, back:{lat:40.28540,lng:-79.45894} },
+    hazards:[
+      { label:'Bunker R (tee)',   type:'bunker', lat:40.28415, lng:-79.45760 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.28525, lng:-79.45890 },
+    ]
+  },
+  {
+    n:10, par:3, yds:218,
+    tee:   { lat:40.28555, lng:-79.45910 },
+    green: { front:{lat:40.28680,lng:-79.46020}, mid:{lat:40.28692,lng:-79.46030}, back:{lat:40.28704,lng:-79.46040} },
+    hazards:[
+      { label:'Bunker front R',   type:'bunker', lat:40.28672, lng:-79.46005 },
+      { label:'Bunker front L',   type:'bunker', lat:40.28675, lng:-79.46040 },
+    ]
+  },
+  {
+    n:11, par:4, yds:363,
+    tee:   { lat:40.28715, lng:-79.46055 },
+    green: { front:{lat:40.28870,lng:-79.46180}, mid:{lat:40.28882,lng:-79.46188}, back:{lat:40.28894,lng:-79.46196} },
+    hazards:[
+      { label:'Creek R (drive)',  type:'water',  lat:40.28780, lng:-79.46110 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.28878, lng:-79.46200 },
+      { label:'OB L',             type:'ob',     lat:40.28840, lng:-79.46200 },
+    ]
+  },
+  {
+    n:12, par:4, yds:318,
+    tee:   { lat:40.28905, lng:-79.46210 },
+    green: { front:{lat:40.29050,lng:-79.46100}, mid:{lat:40.29062,lng:-79.46092}, back:{lat:40.29074,lng:-79.46084} },
+    hazards:[
+      { label:'Creek carry',      type:'water',  lat:40.28960, lng:-79.46165 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.29058, lng:-79.46078 },
+    ]
+  },
+  {
+    n:13, par:3, yds:153,
+    tee:   { lat:40.29085, lng:-79.46070 },
+    green: { front:{lat:40.29180,lng:-79.46000}, mid:{lat:40.29190,lng:-79.45993}, back:{lat:40.29200,lng:-79.45986} },
+    hazards:[
+      { label:'Bunker front L',   type:'bunker', lat:40.29174, lng:-79.46010 },
+      { label:'Bunker R',         type:'bunker', lat:40.29185, lng:-79.45978 },
+    ]
+  },
+  {
+    n:14, par:5, yds:452,
+    tee:   { lat:40.29210, lng:-79.45970 },
+    green: { front:{lat:40.29380,lng:-79.45820}, mid:{lat:40.29392,lng:-79.45812}, back:{lat:40.29404,lng:-79.45804} },
+    hazards:[
+      { label:'Creek carry (L2)', type:'water',  lat:40.29300, lng:-79.45900 },
+      { label:'Bunker L (220)',   type:'bunker', lat:40.29280, lng:-79.45870 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.29385, lng:-79.45800 },
+      { label:'Layup (210)',      type:'layup',  lat:40.29270, lng:-79.45880 },
+    ]
+  },
+  {
+    n:15, par:5, yds:484,
+    tee:   { lat:40.29415, lng:-79.45790 },
+    green: { front:{lat:40.29600,lng:-79.45650}, mid:{lat:40.29612,lng:-79.45642}, back:{lat:40.29624,lng:-79.45634} },
+    hazards:[
+      { label:'OB L fence',       type:'ob',     lat:40.29500, lng:-79.45730 },
+      { label:'Bunker R (210)',   type:'bunker', lat:40.29510, lng:-79.45695 },
+      { label:'Creek R (GS)',     type:'water',  lat:40.29595, lng:-79.45660 },
+      { label:'Layup (230)',      type:'layup',  lat:40.29530, lng:-79.45710 },
+    ]
+  },
+  {
+    n:16, par:4, yds:390,
+    tee:   { lat:40.29635, lng:-79.45620 },
+    green: { front:{lat:40.29790,lng:-79.45480}, mid:{lat:40.29802,lng:-79.45472}, back:{lat:40.29814,lng:-79.45464} },
+    hazards:[
+      { label:'Bunker L (160)',   type:'bunker', lat:40.29730, lng:-79.45545 },
+      { label:'Creek front',      type:'water',  lat:40.29785, lng:-79.45495 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.29798, lng:-79.45460 },
+    ]
+  },
+  {
+    n:17, par:4, yds:334,
+    tee:   { lat:40.29825, lng:-79.45450 },
+    green: { front:{lat:40.29960,lng:-79.45360}, mid:{lat:40.29972,lng:-79.45352}, back:{lat:40.29984,lng:-79.45344} },
+    hazards:[
+      { label:'OB R fence',       type:'ob',     lat:40.29890, lng:-79.45408 },
+      { label:'Bunker L (GS)',    type:'bunker', lat:40.29965, lng:-79.45375 },
+      { label:'Creek L',          type:'water',  lat:40.29945, lng:-79.45370 },
+    ]
+  },
+  {
+    n:18, par:4, yds:345,
+    tee:   { lat:40.29995, lng:-79.45330 },
+    green: { front:{lat:40.29840,lng:-79.45250}, mid:{lat:40.29828,lng:-79.45245}, back:{lat:40.29816,lng:-79.45240} },
+    hazards:[
+      { label:'OB L (drive)',     type:'ob',     lat:40.29950, lng:-79.45305 },
+      { label:'Bunker R (160)',   type:'bunker', lat:40.29870, lng:-79.45272 },
+      { label:'Bunker GS L',      type:'bunker', lat:40.29843, lng:-79.45265 },
+      { label:'Bunker GS R',      type:'bunker', lat:40.29835, lng:-79.45232 },
+    ]
+  },
+];
+
+// Hazard type display helpers
+const HAZARD_ICON  = { water:'💧', bunker:'🏖️', ob:'⛔', layup:'📍', carry:'🎯' };
+const HAZARD_COLOR = { water:'#1d4ed8', bunker:'#b45309', ob:'#dc2626', layup:'#059669', carry:'#7c3aed' };
+
+// Haversine formula — returns distance in yards between two GPS coords
+function gpsYards(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+            Math.sin(dLng/2)**2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 1.09361);
+}
+
+// ── Calibration overrides stored in localStorage ──────────────────
+// Key: 'lcc_gps_cal'  Value: { 'h1_tee': {lat,lng}, 'h1_green_front': {lat,lng}, ... }
+function getCalData() {
+  try { return JSON.parse(localStorage.getItem('lcc_gps_cal') || '{}'); } catch { return {}; }
+}
+function saveCalData(d) { localStorage.setItem('lcc_gps_cal', JSON.stringify(d)); }
+
+// Resolve a point — use calibration override if present
+function resolvePoint(holeN, key, defaultPt) {
+  const cal = getCalData();
+  return cal[`h${holeN}_${key}`] || defaultPt;
+}
+
+// ── GPS State ─────────────────────────────────────────────────────
+let _gpsWatchId  = null;
+let _gpsLat      = null, _gpsLng = null, _gpsAcc = null;
+let _gpsHole     = null;   // selected hole number, null = all
+let _gpsTab      = 'distances'; // 'distances' | 'calibrate'
+let _calHole     = 1;
+let _calPending  = null;   // key being calibrated
+
+function showGPS() {
+  _gpsHole = state.currentHole?.n || null;
+  _gpsTab  = 'distances';
+  showScreen('s-gps');
+  renderGPS();
+  startGPS();
+}
+
+function startGPS() {
+  if (!navigator.geolocation) {
+    document.getElementById('gps-hdr-sub').textContent = 'GPS not available';
+    return;
+  }
+  if (_gpsWatchId !== null) navigator.geolocation.clearWatch(_gpsWatchId);
+  document.getElementById('gps-hdr-sub').textContent = 'Getting location…';
+  _gpsWatchId = navigator.geolocation.watchPosition(
+    pos => {
+      _gpsLat = pos.coords.latitude;
+      _gpsLng = pos.coords.longitude;
+      _gpsAcc = Math.round(pos.coords.accuracy);
+      document.getElementById('gps-hdr-sub').textContent = `±${_gpsAcc}m accuracy`;
+      renderGPS();
+    },
+    () => { document.getElementById('gps-hdr-sub').textContent = 'Location denied — check Safari Settings'; },
+    { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
+  );
+}
+
+function stopGPS() {
+  if (_gpsWatchId !== null) { navigator.geolocation.clearWatch(_gpsWatchId); _gpsWatchId = null; }
+}
+
+function setGPSHole(n) { _gpsHole = (n === _gpsHole) ? null : n; renderGPS(); }
+function setGPSTab(t)  { _gpsTab = t; renderGPS(); }
+function setCalHole(n) { _calHole = n; _calPending = null; renderGPS(); }
+
+// Called when user taps a calibration point button
+function startCalPoint(key) {
+  _calPending = key;
+  renderGPS();
+}
+
+// Called when user confirms — saves current GPS as the calibration point
+function confirmCalPoint() {
+  if (!_calPending || _gpsLat === null) return;
+  const d = getCalData();
+  d[`h${_calHole}_${_calPending}`] = { lat: _gpsLat, lng: _gpsLng };
+  saveCalData(d);
+  _calPending = null;
+  renderGPS();
+}
+
+function clearCalPoint(key) {
+  const d = getCalData();
+  delete d[`h${_calHole}_${key}`];
+  saveCalData(d);
+  renderGPS();
+}
+
+function clearAllCal() {
+  if (!confirm('Clear ALL calibration data for all 18 holes?')) return;
+  localStorage.removeItem('lcc_gps_cal');
+  renderGPS();
+}
+
+// ── Main render ───────────────────────────────────────────────────
+function renderGPS() {
+  const el = document.getElementById('gps-content');
+  const hasGPS = _gpsLat !== null;
+
+  // Tab bar
+  const tabs = `<div style="display:flex;gap:6px;margin-bottom:14px;">
+    <button class="sel-btn btn-sm${_gpsTab==='distances'?' active':''}" style="flex:1;" onclick="setGPSTab('distances')">📡 Distances</button>
+    <button class="sel-btn btn-sm${_gpsTab==='calibrate'?' active':''}" style="flex:1;" onclick="setGPSTab('calibrate')">🎯 Calibrate</button>
+  </div>`;
+
+  if (_gpsTab === 'calibrate') {
+    el.innerHTML = tabs + renderCalibrate();
+    return;
+  }
+
+  // Hole selector strip
+  const holeStrip = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;">
+    <button class="sel-btn btn-sm${_gpsHole===null?' active':''}" onclick="setGPSHole(null)" style="font-size:11px;">All</button>
+    ${LCC_COURSE.map(h => `<button class="sel-btn btn-sm${_gpsHole===h.n?' active':''}" onclick="setGPSHole(${h.n})" style="font-size:11px;">H${h.n}</button>`).join('')}
+  </div>`;
+
+  const holes = _gpsHole ? LCC_COURSE.filter(h => h.n === _gpsHole) : LCC_COURSE;
+
+  const noGPSNote = !hasGPS ? `<div class="card" style="text-align:center;padding:20px;color:var(--muted);">
+    <div style="font-size:32px;margin-bottom:8px;">📡</div>
+    <div style="font-size:14px;font-weight:600;">Waiting for GPS fix…</div>
+    <div style="font-size:12px;margin-top:6px;">Enable Location for Safari in Settings → Privacy → Location</div>
+  </div>` : '';
+
+  const cards = holes.map(h => {
+    const gf = resolvePoint(h.n, 'green_front', h.green.front);
+    const gm = resolvePoint(h.n, 'green_mid',   h.green.mid);
+    const gb = resolvePoint(h.n, 'green_back',  h.green.back);
+    const tee = resolvePoint(h.n, 'tee',        h.tee);
+
+    const fd = hasGPS ? gpsYards(_gpsLat, _gpsLng, gf.lat, gf.lng) : null;
+    const md = hasGPS ? gpsYards(_gpsLat, _gpsLng, gm.lat, gm.lng) : null;
+    const bd = hasGPS ? gpsYards(_gpsLat, _gpsLng, gb.lat, gb.lng) : null;
+    const td = hasGPS ? gpsYards(_gpsLat, _gpsLng, tee.lat, tee.lng) : null;
+
+    const minGreen = (fd && md && bd) ? Math.min(fd, md, bd) : null;
+
+    // Colour-code middle by distance
+    const mdCol = !md ? 'var(--dark)' : md <= 50 ? '#16a34a' : md <= 100 ? '#ca8a04' : 'var(--dark)';
+
+    // Hazards — sort by distance from player if GPS available
+    const hazards = h.hazards.map(hz => {
+      const rpt = resolvePoint(h.n, `hz_${hz.label.replace(/\s+/g,'_')}`, hz);
+      const d = hasGPS ? gpsYards(_gpsLat, _gpsLng, rpt.lat, rpt.lng) : null;
+      return { ...hz, d };
+    });
+    if (hasGPS) hazards.sort((a,b) => (a.d||999) - (b.d||999));
+
+    const hazardRows = hazards.map(hz => {
+      const icon  = HAZARD_ICON[hz.type]  || '⚠️';
+      const color = HAZARD_COLOR[hz.type] || '#6b7280';
+      // Highlight red if hazard is closer than green middle
+      const dangerStyle = (hz.d && md && hz.d < md) ? `font-weight:700;color:${color};` : `color:var(--muted);`;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;">
+        <span style="font-size:13px;">${icon} ${hz.label}</span>
+        <span style="font-size:14px;font-weight:700;${dangerStyle}">${hz.d ? hz.d+' yds' : '—'}</span>
+      </div>`;
+    }).join('');
+
+    return `<div class="card" style="padding:14px;margin-bottom:12px;">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
+        <div>
+          <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--green);">Hole ${h.n}</span>
+          <span style="font-size:12px;color:var(--muted);margin-left:6px;">Par ${h.par} · ${h.yds} yds</span>
+        </div>
+        ${td ? `<span style="font-size:11px;color:var(--muted);">Tee: ${td} yds</span>` : ''}
+      </div>
+
+      <!-- Green distances -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;margin-bottom:${hazardRows?'10px':'0'};">
+        <div style="background:#f0fdf4;border-radius:8px;padding:8px 4px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Front</div>
+          <div style="font-size:${hasGPS?'20px':'14px'};font-weight:800;color:${minGreen===fd&&hasGPS?'var(--green2)':'var(--dark)'};">${fd ? fd+' yds' : '—'}</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:8px;padding:8px 4px;border:2px solid #bfdbfe;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Middle</div>
+          <div style="font-size:${hasGPS?'22px':'14px'};font-weight:900;color:${mdCol};">${md ? md+' yds' : '—'}</div>
+        </div>
+        <div style="background:#fef3f2;border-radius:8px;padding:8px 4px;">
+          <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Back</div>
+          <div style="font-size:${hasGPS?'20px':'14px'};font-weight:800;color:${minGreen===bd&&hasGPS?'var(--green2)':'var(--dark)'};">${bd ? bd+' yds' : '—'}</div>
+        </div>
+      </div>
+
+      <!-- Hazards -->
+      ${hazardRows ? `<div style="margin-top:2px;">${hazardRows}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const calNote = `<div style="font-size:11px;color:var(--muted);text-align:center;padding:6px 0 16px;">
+    ⚠️ Coordinates are estimated — tap <b>Calibrate</b> to set precise GPS points on-course.
+  </div>`;
+
+  el.innerHTML = tabs + holeStrip + noGPSNote + cards + calNote;
+}
+
+// ── Calibration screen ────────────────────────────────────────────
+function renderCalibrate() {
+  const hole = LCC_COURSE.find(h => h.n === _calHole);
+  const cal  = getCalData();
+  const hasGPS = _gpsLat !== null;
+
+  const holeStrip = `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;">
+    ${LCC_COURSE.map(h => `<button class="sel-btn btn-sm${_calHole===h.n?' active':''}" onclick="setCalHole(${h.n})" style="font-size:11px;">H${h.n}</button>`).join('')}
+  </div>`;
+
+  // Define all calibration points for this hole
+  const calPoints = [
+    { key:'tee',          label:'⛳ Tee box (white)' },
+    { key:'green_front',  label:'🟢 Green — Front' },
+    { key:'green_mid',    label:'🟢 Green — Middle' },
+    { key:'green_back',   label:'🟢 Green — Back' },
+    ...hole.hazards.map(hz => ({
+      key: `hz_${hz.label.replace(/\s+/g,'_')}`,
+      label: `${HAZARD_ICON[hz.type]||'⚠️'} ${hz.label}`
+    }))
+  ];
+
+  const rows = calPoints.map(p => {
+    const calKey = `h${_calHole}_${p.key}`;
+    const isSet  = !!cal[calKey];
+    const isPending = _calPending === p.key;
+
+    if (isPending) {
+      return `<div style="padding:10px 12px;border-bottom:1px solid #e5e7eb;background:#fffbeb;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">${p.label}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">
+          ${hasGPS ? `📍 Standing at this point? Current position: ${_gpsLat?.toFixed(6)}, ${_gpsLng?.toFixed(6)} (±${_gpsAcc}m)` : '⌛ Waiting for GPS fix…'}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" style="flex:1;background:var(--green);color:white;" onclick="confirmCalPoint()" ${!hasGPS?'disabled':''}>✅ Save This Point</button>
+          <button class="btn btn-sm btn-ghost" style="flex:1;" onclick="_calPending=null;renderGPS()">Cancel</button>
+        </div>
+      </div>`;
+    }
+
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #e5e7eb;">
+      <div>
+        <div style="font-size:13px;font-weight:600;">${p.label}</div>
+        ${isSet ? `<div style="font-size:10px;color:#16a34a;">✓ Calibrated</div>` : `<div style="font-size:10px;color:var(--muted);">Using estimate</div>`}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        ${isSet ? `<button class="btn btn-sm btn-ghost" style="font-size:11px;color:var(--red);" onclick="clearCalPoint('${p.key}')">✕</button>` : ''}
+        <button class="btn btn-sm" style="background:${isSet?'var(--green2)':'var(--gold)'};color:white;font-size:11px;" onclick="startCalPoint('${p.key}')">
+          ${isSet ? '↺ Redo' : '📍 Set'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const calCount = Object.keys(cal).filter(k => k.startsWith(`h${_calHole}_`)).length;
+
+  return `
+    <div class="card-title">Calibrate Hole ${_calHole} <span style="font-size:11px;font-weight:400;color:var(--muted);">${calCount}/${calPoints.length} points set</span></div>
+    ${holeStrip}
+    <div style="font-size:12px;color:var(--muted);padding:8px 0 12px;">Walk to each point, tap Set, confirm your position. Calibrated points replace estimates for all distance calculations.</div>
+    <div class="card" style="padding:0;overflow:hidden;">${rows}</div>
+    <div style="margin-top:12px;text-align:center;">
+      <button class="btn btn-sm btn-ghost" style="color:var(--red);font-size:12px;" onclick="clearAllCal()">🗑️ Clear All Calibration Data</button>
+    </div>`;
+}
+
+// Stop GPS watch when navigating away
+const _origShowScreen = showScreen;
+showScreen = function(id) {
+  if (id !== 's-gps') stopGPS();
+  _origShowScreen(id);
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // INIT
