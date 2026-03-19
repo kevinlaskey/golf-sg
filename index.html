@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="LCC Strokes">
 <title>LCC · Strokes Gained</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -29,6 +30,7 @@
 
   /* ── screens ── */
   .screen { display: none; min-height: 100vh; flex-direction: column; }
+  #s-gps-map { height: 100vh; min-height: unset; overflow: hidden; }
   .screen.active { display: flex; }
 
   /* ── header ── */
@@ -782,6 +784,30 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
+     SCREEN: GPS MAP CALIBRATION
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-gps-map">
+  <div class="hdr" style="padding-bottom:14px;">
+    <button class="back-btn" onclick="closeMapPicker()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="map-hdr-title">Set Location</div>
+      <div class="hdr-sub" id="map-hdr-sub">Drag pin or tap map to place</div>
+    </div>
+  </div>
+  <!-- Map fills the rest of the screen -->
+  <div id="gps-map" style="flex:1;width:100%;min-height:0;"></div>
+  <!-- Bottom action bar -->
+  <div style="padding:12px 16px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:10px;align-items:center;">
+    <div style="flex:1;">
+      <div style="font-size:11px;color:var(--muted);">Selected position</div>
+      <div id="map-coords" style="font-size:12px;font-weight:600;color:var(--dark);font-family:monospace;">—</div>
+    </div>
+    <button class="btn btn-sm btn-ghost" onclick="closeMapPicker()">Cancel</button>
+    <button class="btn btn-sm" id="map-save-btn" style="background:var(--green);color:white;padding:10px 20px;" onclick="saveMapPoint()">✅ Save</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
      SCREEN: CLUB PERFORMANCE
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="s-club-perf">
@@ -795,6 +821,7 @@
   <div class="content" id="club-perf-content"></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════════
 // COURSE DATA
@@ -4472,8 +4499,9 @@ function renderCalibrate() {
       </div>
       <div style="display:flex;gap:6px;align-items:center;">
         ${isSet ? `<button class="btn btn-sm btn-ghost" style="font-size:11px;color:var(--red);" onclick="clearCalPoint('${p.key}')">✕</button>` : ''}
+        <button class="btn btn-sm btn-ghost" style="font-size:11px;" onclick="openMapPicker(${_calHole},'${p.key}','${p.label.replace(/'/g,"\\'")}')">🗺️</button>
         <button class="btn btn-sm" style="background:${isSet?'var(--green2)':'var(--gold)'};color:white;font-size:11px;" onclick="startCalPoint('${p.key}')">
-          ${isSet ? '↺ Redo' : '📍 Set'}
+          ${isSet ? '↺ GPS' : '📍 GPS'}
         </button>
       </div>
     </div>`;
@@ -4499,8 +4527,144 @@ showScreen = function(id) {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// INIT
+// MAP PICKER — Leaflet-based point placement for calibration
 // ═══════════════════════════════════════════════════════════════════
+let _mapInstance    = null;   // Leaflet map object
+let _mapMarker      = null;   // Draggable pin
+let _mapPickerHole  = null;   // hole number
+let _mapPickerKey   = null;   // calibration key e.g. 'green_front'
+let _mapPickerLabel = null;   // human label
+let _mapPickedLat   = null;
+let _mapPickedLng   = null;
+
+function openMapPicker(holeN, key, label) {
+  _mapPickerHole  = holeN;
+  _mapPickerKey   = key;
+  _mapPickerLabel = label;
+
+  // Resolve current position for this point (calibrated or estimate)
+  const hole = LCC_COURSE.find(h => h.n === holeN);
+  const cal  = getCalData();
+  const calKey = `h${holeN}_${key}`;
+
+  // Find the default lat/lng for this key
+  let defaultPt = null;
+  if (cal[calKey]) {
+    defaultPt = cal[calKey];
+  } else if (key === 'tee') {
+    defaultPt = hole.tee;
+  } else if (key === 'green_front') {
+    defaultPt = hole.green.front;
+  } else if (key === 'green_mid') {
+    defaultPt = hole.green.mid;
+  } else if (key === 'green_back') {
+    defaultPt = hole.green.back;
+  } else {
+    // hazard — find matching hazard by key
+    const hzKey = key.replace(/^hz_/, '').replace(/_/g, ' ');
+    const hz = hole.hazards.find(h => h.label.replace(/\s+/g,'_') === key.replace(/^hz_/,''));
+    defaultPt = hz || hole.green.mid; // fallback to green mid
+  }
+
+  _mapPickedLat = defaultPt.lat;
+  _mapPickedLng = defaultPt.lng;
+
+  // Update header
+  document.getElementById('map-hdr-title').textContent = `H${holeN} — ${label}`;
+  document.getElementById('map-hdr-sub').textContent   = 'Tap map or drag pin to place';
+  document.getElementById('map-coords').textContent    = `${_mapPickedLat.toFixed(6)}, ${_mapPickedLng.toFixed(6)}`;
+
+  showScreen('s-gps-map');
+
+  // Init or reuse Leaflet map — must happen after screen is visible
+  requestAnimationFrame(() => {
+    if (_mapInstance) {
+      // Reuse existing map — just update view and marker
+      _mapInstance.invalidateSize();
+      _mapInstance.setView([_mapPickedLat, _mapPickedLng], 19);
+      _mapMarker.setLatLng([_mapPickedLat, _mapPickedLng]);
+    } else {
+      _mapInstance = L.map('gps-map', {
+        center: [_mapPickedLat, _mapPickedLng],
+        zoom: 19,
+        zoomControl: true,
+        attributionControl: true
+      });
+
+      // Satellite tiles via Esri (no API key required)
+      L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { attribution: 'Imagery © Esri', maxZoom: 21 }
+      ).addTo(_mapInstance);
+
+      // Labels overlay so you can read course features
+      L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        { attribution: '', maxZoom: 21, opacity: 0.7 }
+      ).addTo(_mapInstance);
+
+      // Draggable marker
+      _mapMarker = L.marker([_mapPickedLat, _mapPickedLng], {
+        draggable: true,
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="width:28px;height:28px;background:var(--green);border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+          iconSize:   [28, 28],
+          iconAnchor: [14, 28]
+        })
+      }).addTo(_mapInstance);
+
+      _mapMarker.on('dragend', e => {
+        const ll = e.target.getLatLng();
+        _mapPickedLat = ll.lat;
+        _mapPickedLng = ll.lng;
+        document.getElementById('map-coords').textContent = `${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
+      });
+
+      // Tap map to reposition pin
+      _mapInstance.on('click', e => {
+        _mapPickedLat = e.latlng.lat;
+        _mapPickedLng = e.latlng.lng;
+        _mapMarker.setLatLng(e.latlng);
+        document.getElementById('map-coords').textContent = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+      });
+    }
+
+    // Plot ALL calibration points for this hole as grey ghost markers
+    // so you can see where other points are already set
+    if (_mapInstance._ghostMarkers) {
+      _mapInstance._ghostMarkers.forEach(m => m.remove());
+    }
+    _mapInstance._ghostMarkers = [];
+    const allCal = getCalData();
+    const holePrefix = `h${holeN}_`;
+    Object.entries(allCal).forEach(([k, v]) => {
+      if (!k.startsWith(holePrefix) || k === `h${holeN}_${key}`) return;
+      const ghost = L.circleMarker([v.lat, v.lng], {
+        radius: 5, color: 'white', fillColor: '#94a3b8', fillOpacity: 0.9, weight: 2
+      }).addTo(_mapInstance);
+      _mapInstance._ghostMarkers.push(ghost);
+    });
+
+    _mapInstance.invalidateSize();
+  });
+}
+
+function closeMapPicker() {
+  _mapPickerHole = null;
+  _mapPickerKey  = null;
+  _gpsTab = 'calibrate';
+  showScreen('s-gps');
+  renderGPS();
+}
+
+function saveMapPoint() {
+  if (!_mapPickerHole || !_mapPickerKey) return;
+  const d = getCalData();
+  d[`h${_mapPickerHole}_${_mapPickerKey}`] = { lat: _mapPickedLat, lng: _mapPickedLng };
+  saveCalData(d);
+  closeMapPicker();
+}
 loadState();
 renderHome();
 </script>
