@@ -354,11 +354,7 @@
       <div class="hdr-title" id="hole-hdr-title">Hole 1</div>
       <div class="hdr-sub" id="hole-hdr-sub">Par 4 · 396 yds</div>
     </div>
-    <div style="position:absolute;top:52px;right:16px;display:flex;gap:6px;">
-      <button class="btn btn-sm" style="width:auto;padding:8px 10px;background:rgba(255,255,255,0.15);color:white;border:none;" onclick="showDistancesFromHole()">📏</button>
-      <button class="btn btn-sm" id="hole-map-btn" style="width:auto;padding:8px 10px;background:rgba(255,255,255,0.15);color:white;border:none;display:none;" onclick="openHoleMapInRound()">🗺️</button>
-      <button class="btn btn-sm btn-gold" style="width:auto;padding:8px 14px;" onclick="addShotModal()">+ Shot</button>
-    </div>
+    <div style="width:40px;"></div>
   </div>
   <div class="content">
     <div class="card">
@@ -367,6 +363,12 @@
         <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;" id="hole-vs-par-disp">—</div><div style="font-size:11px;color:var(--muted);">vs Par</div></div>
         <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:var(--green);" id="hole-sg-disp">—</div><div style="font-size:11px;color:var(--muted);">SG Total</div></div>
       </div>
+    </div>
+    <!-- Action buttons row -->
+    <div style="display:flex;gap:8px;margin-bottom:4px;">
+      <button class="btn btn-primary" style="flex:3;font-size:15px;padding:13px;" onclick="addShotModal()">+ Log Shot</button>
+      <button class="btn btn-ghost" style="flex:1;padding:13px;font-size:18px;" onclick="showDistancesFromHole()" title="Distances">📏</button>
+      <button id="hole-map-btn" class="btn btn-ghost" style="flex:1;padding:13px;font-size:18px;display:none;" onclick="openHoleMapInRound()" title="Hole Map">🗺️</button>
     </div>
     <div class="card-title" style="padding:0 4px;margin-top:4px;">Shots</div>
     <div id="shot-list-container"></div>
@@ -392,25 +394,25 @@
   <div class="content" style="padding:12px 14px;">
 
     <!-- ① GPS / Distance from pin -->
-    <div id="shot-gps-card" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;padding:14px 16px;margin-bottom:12px;color:white;position:relative;">
+    <div id="shot-gps-card" style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:14px;padding:14px 16px;margin-bottom:12px;position:relative;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Distance to Pin</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Distance to Pin</div>
           <div style="display:flex;align-items:baseline;gap:6px;">
-            <span id="shot-dist-big" style="font-family:'Playfair Display',serif;font-size:48px;font-weight:900;line-height:1;color:#34d399;">—</span>
-            <span id="shot-dist-unit" style="font-size:18px;color:#94a3b8;">yds</span>
+            <span id="shot-dist-big" style="font-family:'Playfair Display',serif;font-size:48px;font-weight:900;line-height:1;color:var(--green);">—</span>
+            <span id="shot-dist-unit" style="font-size:18px;color:var(--muted);">yds</span>
           </div>
-          <div id="shot-gps-status" style="font-size:10px;color:#64748b;margin-top:3px;">📡 Starting GPS…</div>
+          <div id="shot-gps-status" style="font-size:10px;color:var(--muted);margin-top:3px;">📡 Starting GPS…</div>
         </div>
         <div style="text-align:right;">
-          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px;">Adjust</div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Override</div>
           <input type="number" id="shot-dist-override" min="1" max="700" placeholder="—"
-            style="width:64px;padding:6px 8px;border-radius:8px;border:1.5px solid #334155;background:#1e293b;color:white;font-size:16px;font-weight:700;text-align:center;"
+            style="width:64px;padding:6px 8px;border-radius:8px;border:1.5px solid #d1d5db;background:white;color:var(--dark);font-size:16px;font-weight:700;text-align:center;"
             oninput="shotDistOverride(this.value)">
         </div>
       </div>
       <!-- Distance to mapped points mini-panel -->
-      <div id="shot-map-distances" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #1e3a5f;">
+      <div id="shot-map-distances" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #bbf7d0;">
         <div id="shot-map-dist-list" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
       </div>
     </div>
@@ -510,31 +512,37 @@
     </button>
     <div id="advanced-section" style="display:none;">
 
-      <!-- Miss compass -->
-      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Miss Direction</div>
-      <div class="card" style="margin-bottom:10px;">
-        <div class="compass" id="miss-compass">
-          <button class="compass-btn" onclick="selectMiss('long-left')"   id="miss-long-left">Long<br>Left</button>
-          <button class="compass-btn" onclick="selectMiss('long')"        id="miss-long">Long</button>
-          <button class="compass-btn" onclick="selectMiss('long-right')"  id="miss-long-right">Long<br>Right</button>
-          <button class="compass-btn" onclick="selectMiss('left')"        id="miss-left">Left</button>
-          <button class="compass-btn center active" onclick="selectMiss('on-target')" id="miss-on-target">✓<br>On Target</button>
-          <button class="compass-btn" onclick="selectMiss('right')"       id="miss-right">Right</button>
-          <button class="compass-btn" onclick="selectMiss('short-left')"  id="miss-short-left">Short<br>Left</button>
-          <button class="compass-btn" onclick="selectMiss('short')"       id="miss-short">Short</button>
-          <button class="compass-btn" onclick="selectMiss('short-right')" id="miss-short-right">Short<br>Right</button>
-        </div>
-      </div>
+      <!-- Miss + Shape side by side in one card -->
+      <div class="card" style="padding:12px;margin-bottom:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
 
-      <!-- Shape, Lie, Strike in a compact grid -->
-      <div id="shot-shape-section">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Shot Shape</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="shape-grid">
-          <button class="sel-btn btn-sm active" onclick="selectShape('straight')" id="shape-straight">➡️ Straight</button>
-          <button class="sel-btn btn-sm" onclick="selectShape('draw')"    id="shape-draw">↩️ Draw</button>
-          <button class="sel-btn btn-sm" onclick="selectShape('fade')"    id="shape-fade">↪️ Fade</button>
-          <button class="sel-btn btn-sm" onclick="selectShape('punch')"   id="shape-punch">⬇️ Punch</button>
-          <button class="sel-btn btn-sm" onclick="selectShape('flop')"    id="shape-flop">⬆️ Flop</button>
+          <!-- Left: Miss compass -->
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Miss</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;" id="miss-compass">
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('long-left')"   id="miss-long-left">Long<br>Left</button>
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('long')"        id="miss-long">Long</button>
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('long-right')"  id="miss-long-right">Long<br>Right</button>
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('left')"        id="miss-left">Left</button>
+              <button class="compass-btn center active" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('on-target')" id="miss-on-target">✓<br>On</button>
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('right')"       id="miss-right">Right</button>
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('short-left')"  id="miss-short-left">Sht<br>Left</button>
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('short')"       id="miss-short">Short</button>
+              <button class="compass-btn" style="padding:6px 2px;font-size:9px;" onclick="selectMiss('short-right')" id="miss-short-right">Sht<br>Rgt</button>
+            </div>
+          </div>
+
+          <!-- Right: Shape + Strike -->
+          <div id="shot-shape-section">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Shape</div>
+            <div style="display:flex;flex-direction:column;gap:4px;" id="shape-grid">
+              <button class="sel-btn btn-sm active" onclick="selectShape('straight')" id="shape-straight" style="padding:7px 4px;">➡️ Straight</button>
+              <button class="sel-btn btn-sm" onclick="selectShape('draw')"    id="shape-draw"    style="padding:7px 4px;">↩️ Draw</button>
+              <button class="sel-btn btn-sm" onclick="selectShape('fade')"    id="shape-fade"    style="padding:7px 4px;">↪️ Fade</button>
+              <button class="sel-btn btn-sm" onclick="selectShape('punch')"   id="shape-punch"   style="padding:7px 4px;">⬇️ Punch</button>
+              <button class="sel-btn btn-sm" onclick="selectShape('flop')"    id="shape-flop"    style="padding:7px 4px;">⬆️ Flop</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2365,16 +2373,11 @@ function renderClubs() {
 function saveShot() {
   const s = state.currentShot;
   if (!s.type) { alert('Please select a shot type.'); return; }
-  // For approach/chip landing on green: distTo is in feet — convert to yards for SG calc
   const landedOnGreen = !!s.landedOnGreen;
   let distToForSG = s.distTo;
-  if (landedOnGreen && s.distTo > 0) {
-    distToForSG = s.distTo / 3; // feet → yards for SG table lookup
-  }
-  // Use the recorded lie for the correct Broadie baseline column
+  if (landedOnGreen && s.distTo > 0) distToForSG = s.distTo / 3;
   const lie = s.lie || 'fairway';
   const sg = calcSG(s.distFrom, distToForSG, s.type, landedOnGreen, lie);
-  // Detect OB re-tee: tee shot where ball went back to (near) same distance
   const isOB = s.type === 'tee' && s.distTo > 0 && s.distTo >= s.distFrom * 0.85;
   const shot = {
     type: s.type, distFrom: s.distFrom, distTo: s.distTo,
@@ -2387,6 +2390,18 @@ function saveShot() {
     swingType: s.swingType || null,
     ob: isOB || undefined
   };
+  // Stamp GPS position if available — this is where the ball was BEFORE the shot
+  if (_gpsLat !== null && !_shotDistManualOverride) {
+    shot.gpsLat = _gpsLat;
+    shot.gpsLng = _gpsLng;
+    shot.gpsAcc = _gpsAcc;
+  }
+  // Stop shot GPS watch
+  if (_shotGpsWatch !== null) {
+    navigator.geolocation.clearWatch(_shotGpsWatch);
+    _shotGpsWatch = null;
+    _shotDistManualOverride = false;
+  }
   state.currentHole.shots.push(shot);
   saveRoundState();
   renderHoleDetail();
@@ -5188,29 +5203,22 @@ function renderHoleSetup() {
 
 // Stage 1: Image upload
 function renderHmsStage1(hd) {
-  if (hd.image) {
-    const isUrl = !hd.image.startsWith('data:');
-    const sizeLabel = isUrl ? `From repo: <code>${hd.image}</code>` : `~${Math.round(hd.image.length*0.75/1024)} KB uploaded`;
-    return `<div style="padding:16px;">
-      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Current Image</div>
+  const imgSrc = holeImageSrc(_hmsHole);
+  const isUploaded = !!(hd && hd.image);
+  const sizeLabel = isUploaded
+    ? `~${Math.round(hd.image.length*0.75/1024)} KB · Custom upload`
+    : `Course map from repo · tap Replace to use your own`;
+  return `<div style="padding:16px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">${isUploaded ? 'Custom Image' : 'Course Map'}</div>
       <img src="${imgSrc}" style="width:100%;border-radius:10px;border:2px solid #e5e7eb;"/>
       <div style="font-size:11px;color:var(--muted);margin-top:6px;">${sizeLabel}</div>
       <div style="margin-top:14px;display:flex;gap:10px;">
-        <label style="flex:1;"><input type="file" id="hms-file-input" style="display:none;"/>
+        <label style="flex:1;"><input type="file" id="hms-file-input" accept="image/*" style="display:none;"/>
         <div class="btn btn-ghost btn-sm" style="text-align:center;cursor:pointer;">🔄 Replace Image</div></label>
         <button class="btn btn-sm" style="flex:1;background:var(--green);color:white;" onclick="_hmsStage=2;renderHoleSetup()">Next: Calibrate →</button>
       </div>
-      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;color:var(--red);" onclick="deleteHmsImage()">🗑️ Delete Image</button>
+      ${isUploaded ? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;color:var(--red);" onclick="deleteHmsImage()">🗑️ Remove Custom Image (revert to course map)</button>` : ''}
     </div>`;
-  }
-  return `<div style="padding:24px 16px;text-align:center;">
-    <div style="font-size:48px;margin-bottom:12px;">📷</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Upload Hole ${_hmsHole} Scan</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;">Photograph or scan the PuttView page for Hole ${_hmsHole}.<br>Any clear top-down image works.</div>
-    <label style="display:block;"><input type="file" id="hms-file-input" style="display:none;"/>
-    <div class="btn btn-primary" style="cursor:pointer;">📁 Choose Image File</div></label>
-    <div style="margin-top:16px;font-size:11px;color:var(--muted);">JPEG, PNG · Phone camera fine</div>
-  </div>`;
 }
 
 function handleHmsImageUpload(e) {
@@ -5229,9 +5237,11 @@ function handleHmsImageUpload(e) {
 }
 
 function deleteHmsImage() {
-  if (!confirm('Delete image for Hole '+_hmsHole+'? All calibration and points will also be removed.')) return;
-  const d=getHoleMapData(); delete d[_hmsHole]; saveHoleMapData(d);
-  _hmsStage=1; renderHoleSetup();
+  if (!confirm('Remove your custom image for Hole '+_hmsHole+'?\n\nThe course map from the repo will be used instead. Calibration and points are kept.')) return;
+  const hd = getHoleMap(_hmsHole) || {};
+  delete hd.image; delete hd.imageW; delete hd.imageH;
+  saveHoleMap(_hmsHole, hd);
+  renderHoleSetup();
 }
 
 // Stage 2: Calibration
@@ -5736,6 +5746,77 @@ function renderHmrCanvas() {
     ctx.fillStyle = '#1e293b';
     ctx.fillText(lbl, p.px, p.py + 31);
   });
+
+  // ── Draw shot track for current round on this hole ────────────
+  if (hasCal && state.currentRound) {
+    const holeData = state.currentRound.holes.find(h => h.n === _hmrHole);
+    const shots = holeData?.shots || [];
+    const gpsShots = shots.filter(s => s.gpsLat !== undefined && s.gpsLng !== undefined);
+
+    if (gpsShots.length > 0) {
+      // Draw connecting line first (under the dots)
+      if (gpsShots.length > 1) {
+        ctx.beginPath();
+        gpsShots.forEach((s, i) => {
+          const pos = gpsToPixel(s.gpsLat, s.gpsLng, hd.transform);
+          if (!pos) return;
+          if (i === 0) ctx.moveTo(pos.px, pos.py);
+          else ctx.lineTo(pos.px, pos.py);
+        });
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Draw each shot dot
+      gpsShots.forEach((s, i) => {
+        const pos = gpsToPixel(s.gpsLat, s.gpsLng, hd.transform);
+        if (!pos) return;
+
+        // Colour by shot type
+        const typeCol = {
+          tee: '#f59e0b', approach: '#3b82f6', chip: '#8b5cf6',
+          putt: '#10b981', sand: '#f97316', penalty: '#ef4444'
+        }[s.type] || '#6b7280';
+
+        // Outer ring
+        ctx.beginPath();
+        ctx.arc(pos.px, pos.py, 16, 0, Math.PI * 2);
+        ctx.fillStyle = typeCol + '33';
+        ctx.fill();
+
+        // Filled dot
+        ctx.beginPath();
+        ctx.arc(pos.px, pos.py, 11, 0, Math.PI * 2);
+        ctx.fillStyle = typeCol;
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Shot number
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(i + 1), pos.px, pos.py + 4);
+
+        // Club label above
+        if (s.club) {
+          const lw = ctx.measureText(s.club).width + 8;
+          ctx.fillStyle = 'rgba(0,0,0,0.65)';
+          ctx.beginPath();
+          ctx.roundRect ? ctx.roundRect(pos.px - lw/2, pos.py - 26, lw, 14, 3)
+                        : ctx.rect(pos.px - lw/2, pos.py - 26, lw, 14);
+          ctx.fill();
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.fillText(s.club, pos.px, pos.py - 16);
+        }
+      });
+    }
+  }
 
   // ── Draw "You are here" dot ────────────────────────────────────
   if (hasGPS && hasCal) {
