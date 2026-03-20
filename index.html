@@ -5056,6 +5056,13 @@ function saveHoleMapData(d) { localStorage.setItem('lcc_hole_map', JSON.stringif
 function getHoleMap(n)       { const d = getHoleMapData(); return d[n] || null; }
 function saveHoleMap(n, data) { const d = getHoleMapData(); d[n] = data; saveHoleMapData(d); }
 
+// Image src: uploaded base64 takes priority, otherwise repo file
+function holeImageSrc(n) {
+  const hd = getHoleMap(n);
+  if (hd && hd.image) return hd.image;
+  return 'holes/hole_' + String(n).padStart(2,'0') + '.jpg';
+}
+
 // ── Geo transform ─────────────────────────────────────────────────
 function computeTransform(refs) {
   if (!refs || refs.length < 2) return null;
@@ -5128,7 +5135,7 @@ function renderHoleSetupHome() {
   const holesCalibrated = Object.values(allData).filter(h=>h.transform?.scale).length;
   const rows = info.map(h => {
     const hd = allData[h.n] || {};
-    const hasImg = !!hd.image, hasCal = !!(hd.transform?.scale), ptCount = hd.points?.length||0;
+    const hasImg = true, hasCal = !!(hd.transform?.scale), ptCount = hd.points?.length||0;
     const status = !hasImg ? `<span style="color:var(--muted);font-size:11px;">No image</span>`
                  : !hasCal ? `<span style="color:#b45309;font-size:11px;">⚠️ Needs calibration</span>`
                  : `<span style="color:#16a34a;font-size:11px;">✓ ${ptCount} pt${ptCount!==1?'s':''}</span>`;
@@ -5156,7 +5163,7 @@ function closeHoleSetup() { showScreen('s-home'); renderHome(); }
 function openHoleSetup(n) {
   _hmsHole = n;
   const hd = getHoleMap(n) || {};
-  _hmsStage = hd.image ? (hd.transform?.scale ? 3 : 2) : 1;
+  _hmsStage = hd && hd.transform && hd.transform.scale ? 3 : 2;
   showScreen('s-hole-setup');
   renderHoleSetup();
 }
@@ -5182,13 +5189,14 @@ function renderHoleSetup() {
 // Stage 1: Image upload
 function renderHmsStage1(hd) {
   if (hd.image) {
-    const kb = Math.round(hd.image.length*0.75/1024);
+    const isUrl = !hd.image.startsWith('data:');
+    const sizeLabel = isUrl ? `From repo: <code>${hd.image}</code>` : `~${Math.round(hd.image.length*0.75/1024)} KB uploaded`;
     return `<div style="padding:16px;">
       <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Current Image</div>
-      <img src="${hd.image}" style="width:100%;border-radius:10px;border:2px solid #e5e7eb;"/>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px;">~${kb} KB</div>
+      <img src="${imgSrc}" style="width:100%;border-radius:10px;border:2px solid #e5e7eb;"/>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">${sizeLabel}</div>
       <div style="margin-top:14px;display:flex;gap:10px;">
-        <label style="flex:1;"><input type="file" id="hms-file-input" accept="image/*" style="display:none;"/>
+        <label style="flex:1;"><input type="file" id="hms-file-input" style="display:none;"/>
         <div class="btn btn-ghost btn-sm" style="text-align:center;cursor:pointer;">🔄 Replace Image</div></label>
         <button class="btn btn-sm" style="flex:1;background:var(--green);color:white;" onclick="_hmsStage=2;renderHoleSetup()">Next: Calibrate →</button>
       </div>
@@ -5199,8 +5207,8 @@ function renderHmsStage1(hd) {
     <div style="font-size:48px;margin-bottom:12px;">📷</div>
     <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Upload Hole ${_hmsHole} Scan</div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;">Photograph or scan the PuttView page for Hole ${_hmsHole}.<br>Any clear top-down image works.</div>
-    <label style="display:block;"><input type="file" id="hms-file-input" accept="image/*" style="display:none;"/>
-    <div class="btn btn-primary" style="cursor:pointer;">📷 Choose Image / Take Photo</div></label>
+    <label style="display:block;"><input type="file" id="hms-file-input" style="display:none;"/>
+    <div class="btn btn-primary" style="cursor:pointer;">📁 Choose Image File</div></label>
     <div style="margin-top:16px;font-size:11px;color:var(--muted);">JPEG, PNG · Phone camera fine</div>
   </div>`;
 }
@@ -5228,7 +5236,7 @@ function deleteHmsImage() {
 
 // Stage 2: Calibration
 function renderHmsStage2(hd) {
-  if (!hd.image) return `<div style="padding:24px;text-align:center;color:var(--muted);">Upload image first.<br><button class="btn btn-sm" style="margin-top:8px;" onclick="_hmsStage=1;renderHoleSetup()">← Stage 1</button></div>`;
+  // Repo image always available — no upload-first guard needed
   const refs = hd.transform?.refs || [];
   const transform = refs.length>=2 ? computeTransform(refs) : null;
   const calOk = !!transform;
@@ -5240,8 +5248,8 @@ function renderHmsStage2(hd) {
   return `<div style="padding:16px;">
     <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">Tap a <b>printed yardage marker</b> on the image. Add at least 2 reference points, each linked to a real GPS position.</div>
     <div style="position:relative;border-radius:10px;overflow:hidden;border:2px solid ${calOk?'#16a34a':'#e5e7eb'};cursor:crosshair;" id="cal-img-wrap">
-      <img src="${hd.image}" style="width:100%;display:block;" id="cal-img" onclick="handleCalImageTap(event)"/>
-      ${refs.map((r,i)=>{const px=(r.px/hd.imageW*100).toFixed(1),py=(r.py/hd.imageH*100).toFixed(1);return `<div style="position:absolute;left:${px}%;top:${py}%;transform:translate(-50%,-50%);width:22px;height:22px;background:#3b82f6;border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;pointer-events:none;">${i+1}</div>`;}).join('')}
+      <img src="${holeImageSrc(_hmsHole)}" style="width:100%;display:block;" id="cal-img" onclick="handleCalImageTap(event)"/>
+      ${refs.map((r,i)=>{const _iw=hd&&hd.imageW||document.getElementById('cal-img')?.naturalWidth||800,_ih=hd&&hd.imageH||document.getElementById('cal-img')?.naturalHeight||1200,px=(r.px/_iw*100).toFixed(1),py=(r.py/_ih*100).toFixed(1);return `<div style="position:absolute;left:${px}%;top:${py}%;transform:translate(-50%,-50%);width:22px;height:22px;background:#3b82f6;border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;pointer-events:none;">${i+1}</div>`;}).join('')}
     </div>
     <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">↑ Tap a yardage marker on the image</div>
     ${refs.length ? `<div style="margin-top:12px;">${refRows}</div>` : ''}
@@ -5330,7 +5338,7 @@ function clearAllCalRefs() {
 
 // Stage 3: Points list
 function renderHmsStage3(hd) {
-  if (!hd.image) return `<div style="padding:24px;text-align:center;color:var(--muted);">Upload image first.<button class="btn btn-sm" style="margin-top:8px;display:block;" onclick="_hmsStage=1;renderHoleSetup()">← Stage 1</button></div>`;
+  // Repo image always available
   const points = hd.points||[];
   const hasCal = !!(hd.transform?.scale);
   const grouped = {};
@@ -5376,10 +5384,9 @@ function openHoleMapEditor(n) {
   document.getElementById('hme-sub').textContent='Tap image to add · Tap dot to edit';
   document.getElementById('hme-point-count').textContent='';
   const hd=getHoleMap(n);
-  if (!hd?.image) { document.getElementById('hme-canvas-wrap').innerHTML='<div style="color:white;padding:32px;text-align:center;">No image uploaded.</div>'; return; }
   _hmeImg=new Image();
-  _hmeImg.onload=()=>drawHmeCanvas();
-  _hmeImg.src=hd.image;
+  _hmeImg.onload=()=>{ if(hd&&!hd.imageW){hd.imageW=_hmeImg.naturalWidth;hd.imageH=_hmeImg.naturalHeight;saveHoleMap(n,hd);} drawHmeCanvas(); };
+  _hmeImg.src=holeImageSrc(n);
 }
 
 function drawHmeCanvas() {
@@ -5581,7 +5588,7 @@ function updateHoleMapBtn(holeN) {
   if (!btn) return;
   const hd = getHoleMap(holeN);
   // Show button if there's an image (calibration not required — we'll still show image)
-  btn.style.display = hd?.image ? 'block' : 'none';
+  btn.style.display = 'block'; // repo images always present
 }
 
 // ── In-round hole map ─────────────────────────────────────────────────
@@ -5596,10 +5603,7 @@ function openHoleMapInRound() {
   _hmrHole = holeN;
 
   const hd = getHoleMap(holeN);
-  if (!hd?.image) {
-    alert(`No map uploaded for Hole ${holeN} yet.\n\nGo to Admin → 🗺️ Hole Maps to add one.`);
-    return;
-  }
+  // Repo image always available
 
   showScreen('s-hole-map-round');
   document.getElementById('hmr-title').textContent = `Hole ${holeN} Map`;
@@ -5614,7 +5618,7 @@ function openHoleMapInRound() {
     renderHmrDistPanel();
     startHmrGPS();
   };
-  _hmrImg.src = hd.image;
+  _hmrImg.src = holeImageSrc(holeN);
 }
 
 function closeHoleMapRound() {
@@ -5838,7 +5842,7 @@ renderHome();
 
 function showYouAreHere(holeN) {
   const hd=getHoleMap(holeN);
-  if (!hd?.image||!hd?.transform?.scale||_gpsLat===null) return false;
+  if (!hd?.transform?.scale||_gpsLat===null) return false;
   const pos=gpsToPixel(_gpsLat,_gpsLng,hd.transform);
   if (!pos) return false;
   _hmeHole=holeN;
@@ -5878,7 +5882,7 @@ function showYouAreHere(holeN) {
         </div></div>`;
     }
   };
-  _hmeImg.src=hd.image;
+  _hmeImg.src=holeImageSrc(holeN);
   return true;
 }
 </script>
@@ -5903,5 +5907,44 @@ function showYouAreHere(holeN) {
   } catch(e) { console.error('Seed error:', e); }
 })();
 </script>
+
+<script id='hole-image-seed'>
+// Pre-populate lcc_hole_map with image paths from the holes/ folder.
+// Runs once on first load — skips any hole that already has an image stored.
+(function() {
+  try {
+    var existing = {};
+    try { existing = JSON.parse(localStorage.getItem('lcc_hole_map') || '{}'); } catch(e) {}
+
+    // Hole dimensions (width × height of the uploaded JPGs)
+    var holeSizes = {
+      1:[752,1360], 2:[768,1344], 3:[784,1312], 4:[784,1328], 5:[784,1328],
+      6:[544,1904], 7:[768,1344], 8:[784,1328], 9:[768,1344], 10:[768,1344],
+      11:[768,1360], 12:[752,1360], 13:[768,1328], 14:[544,1904], 15:[544,1872],
+      16:[768,1344], 17:[752,1376], 18:[768,1344]
+    };
+
+    var updated = false;
+    for (var n = 1; n <= 18; n++) {
+      if (!existing[n]) existing[n] = {};
+      // Only set if no image already stored
+      if (!existing[n].image) {
+        existing[n].image  = 'holes/hole' + n + '.jpg';
+        existing[n].imageW = holeSizes[n][0];
+        existing[n].imageH = holeSizes[n][1];
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      localStorage.setItem('lcc_hole_map', JSON.stringify(existing));
+      console.log('✅ Hole map image paths seeded (holes/hole1.jpg … hole18.jpg)');
+    } else {
+      console.log('Hole map images already configured, skipping seed');
+    }
+  } catch(e) { console.error('Hole image seed error:', e); }
+})();
+</script>
+
 </body>
 </html>
