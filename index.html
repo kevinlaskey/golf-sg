@@ -368,13 +368,11 @@
     <div style="display:flex;gap:8px;margin-bottom:4px;">
       <button class="btn btn-primary" style="flex:3;font-size:15px;padding:13px;" onclick="addShotModal()">+ Log Shot</button>
       <button class="btn btn-ghost" style="flex:1;padding:13px;font-size:18px;" onclick="showDistancesFromHole()" title="Distances">📏</button>
-      <button id="hole-map-btn" class="btn btn-ghost" style="flex:1;padding:13px;font-size:18px;display:none;" onclick="openHoleMapInRound()" title="Hole Map">🗺️</button>
+      <button id="hole-map-btn" class="btn btn-ghost" style="flex:1;padding:13px;font-size:18px;display:none;" onclick="openHoleMapInRound('s-hole')" title="Hole Map">🗺️</button>
     </div>
     <div class="card-title" style="padding:0 4px;margin-top:4px;">Shots</div>
     <div id="shot-list-container"></div>
     <div style="height:16px;"></div>
-    <button class="btn btn-primary" onclick="addShotModal()">+ Add Shot</button>
-    <div style="height:8px;"></div>
     <button class="btn btn-ghost" onclick="showScreen('s-holes')">← Back to Holes</button>
   </div>
 </div>
@@ -389,12 +387,12 @@
       <div class="hdr-title" id="shot-hdr-title">Log Shot</div>
       <div class="hdr-sub" id="shot-hdr-sub">Shot #1</div>
     </div>
-    <button id="shot-map-btn" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:6px 10px;font-size:16px;cursor:pointer;display:none;" onclick="openHoleMapInRound()">🗺️</button>
+    <div style="width:40px;"></div>
   </div>
   <div class="content" style="padding:12px 14px;">
 
     <!-- ① GPS / Distance from pin -->
-    <div id="shot-gps-card" style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:14px;padding:14px 16px;margin-bottom:12px;position:relative;">
+    <div id="shot-gps-card" style="background:white;border:2px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:8px;position:relative;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Distance to Pin</div>
@@ -412,9 +410,15 @@
         </div>
       </div>
       <!-- Distance to mapped points mini-panel -->
-      <div id="shot-map-distances" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #bbf7d0;">
+      <div id="shot-map-distances" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb;">
         <div id="shot-map-dist-list" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
       </div>
+    </div>
+
+    <!-- Quick action buttons (mirror hole screen) -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn btn-ghost" style="flex:1;padding:11px;font-size:18px;" onclick="showDistancesFromShot()" title="Club Distances">📏</button>
+      <button id="shot-map-btn" class="btn btn-ghost" style="flex:1;padding:11px;font-size:18px;display:none;" onclick="openHoleMapInRound('s-shot')" title="Hole Map">🗺️</button>
     </div>
 
     <!-- ② Shot type — compact pill row -->
@@ -1605,7 +1609,7 @@ function renderHoleDetail() {
 
   const container = document.getElementById('shot-list-container');
   if (!h.shots.length) {
-    container.innerHTML = `<div class="card"><div style="text-align:center;padding:20px;color:var(--muted);">No shots yet. Tap "+ Add Shot" to begin.</div></div>`;
+    container.innerHTML = `<div class="card"><div style="text-align:center;padding:20px;color:var(--muted);">No shots yet. Tap "+ Log Shot" to begin.</div></div>`;
     return;
   }
   container.innerHTML = `<div class="card">${h.shots.map((s,i) => {
@@ -1647,9 +1651,9 @@ function addShotModal() {
   document.getElementById('shot-hdr-title').textContent = 'Log Shot';
   document.getElementById('shot-hdr-sub').textContent   = `Shot #${shotNum} · Hole ${holeN}`;
 
-  // Show 🗺️ button if hole has a map
+  // Show 🗺️ button (repo images always present)
   const mapBtn = document.getElementById('shot-map-btn');
-  if (mapBtn) mapBtn.style.display = getHoleMap(holeN)?.image ? 'block' : 'none';
+  if (mapBtn) mapBtn.style.display = 'block';
 
   // Smart defaults
   let defaultType = 'approach', defaultDist = 150, prevLandedOnGreen = false;
@@ -5607,21 +5611,22 @@ let _hmrImg  = null;
 let _hmrGpsWatch = null;
 let _hmrAnimFrame = null;
 
-function openHoleMapInRound() {
-  // Use the currently active hole
+let _hmrReturnScreen = 's-hole';
+
+function openHoleMapInRound(returnScreen) {
+  _hmrReturnScreen = returnScreen || 's-hole';
+
   const holeN = state.currentHole?.n || 1;
   _hmrHole = holeN;
 
   const hd = getHoleMap(holeN);
-  // Repo image always available
 
   showScreen('s-hole-map-round');
   document.getElementById('hmr-title').textContent = `Hole ${holeN} Map`;
-  document.getElementById('hmr-sub').textContent = hd.transform?.scale
+  document.getElementById('hmr-sub').textContent = hd?.transform?.scale
     ? `${(hd.points||[]).length} points mapped`
     : '⚠️ Not calibrated — distances unavailable';
 
-  // Load the image
   _hmrImg = new Image();
   _hmrImg.onload = () => {
     renderHmrCanvas();
@@ -5634,7 +5639,7 @@ function openHoleMapInRound() {
 function closeHoleMapRound() {
   stopHmrGPS();
   if (_hmrAnimFrame) { cancelAnimationFrame(_hmrAnimFrame); _hmrAnimFrame = null; }
-  showScreen('s-hole');
+  showScreen(_hmrReturnScreen);
 }
 
 function startHmrGPS() {
