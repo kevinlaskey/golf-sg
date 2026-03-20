@@ -31,6 +31,9 @@
   /* ── screens ── */
   .screen { display: none; min-height: 100vh; flex-direction: column; }
   #s-gps-map { height: 100vh; min-height: unset; overflow: hidden; }
+  #s-hole-map-editor { height: 100vh; min-height: unset; overflow: hidden; }
+  #s-hole-map-round { height: 100vh; min-height: unset; overflow: hidden; }
+  #s-live-map { height: 100vh; min-height: unset; overflow: hidden; background: #0f172a; }
   .screen.active { display: flex; }
 
   /* ── header ── */
@@ -96,6 +99,16 @@
   .sel-btn.active { border-color: var(--green); background: #edf7eb; color: var(--green); font-weight: 600; }
   .sel-btn:active { transform: scale(0.96); }
   .sel-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+  /* ── shot type pills ── */
+  .shot-pill {
+    border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 6px 12px;
+    background: white; font-family: 'DM Sans', sans-serif; font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+    color: var(--muted);
+  }
+  .shot-pill.active { border-color: var(--green); background: var(--green); color: white; }
+  .shot-pill:active { transform: scale(0.96); }
 
   /* ── distance slider ── */
   .dist-display {
@@ -294,6 +307,7 @@
       </button>
       <div id="sub-admin" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
         <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showGPS()">📡 GPS Distances</button>
+        <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showHoleSetupHome()">🗺️ Hole Maps</button>
         <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;border-bottom:1px solid #e5e7eb;text-align:left;padding-left:24px;" onclick="showDataScreen()">💾 Backup & Restore</button>
         <button class="btn btn-ghost btn-sm" style="border-radius:0;border:none;text-align:left;padding-left:24px;color:var(--red);" onclick="resetAllData()">🗑️ Reset All Data</button>
       </div>
@@ -342,6 +356,7 @@
     </div>
     <div style="position:absolute;top:52px;right:16px;display:flex;gap:6px;">
       <button class="btn btn-sm" style="width:auto;padding:8px 10px;background:rgba(255,255,255,0.15);color:white;border:none;" onclick="showDistancesFromHole()">📏</button>
+      <button class="btn btn-sm" id="hole-map-btn" style="width:auto;padding:8px 10px;background:rgba(255,255,255,0.15);color:white;border:none;display:none;" onclick="openHoleMapInRound()">🗺️</button>
       <button class="btn btn-sm btn-gold" style="width:auto;padding:8px 14px;" onclick="addShotModal()">+ Shot</button>
     </div>
   </div>
@@ -369,85 +384,87 @@
   <div class="hdr">
     <button class="back-btn" onclick="showScreen('s-hole')">←</button>
     <div style="text-align:center">
-      <div class="hdr-title">Log Shot</div>
+      <div class="hdr-title" id="shot-hdr-title">Log Shot</div>
       <div class="hdr-sub" id="shot-hdr-sub">Shot #1</div>
     </div>
+    <button id="shot-map-btn" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:6px 10px;font-size:16px;cursor:pointer;display:none;" onclick="openHoleMapInRound()">🗺️</button>
   </div>
-  <div class="content">
+  <div class="content" style="padding:12px 14px;">
 
-    <!-- Shot Type -->
-    <div class="card-title">Shot Type</div>
-    <div class="grid-2" style="margin-bottom:6px;" id="shot-type-grid">
-      <button class="sel-btn" onclick="selectShotType('tee')" id="st-tee"><span class="icon">🏌️</span>Tee Shot</button>
-      <button class="sel-btn" onclick="selectShotType('approach')" id="st-approach"><span class="icon">🎯</span>Approach</button>
-      <button class="sel-btn" onclick="selectShotType('chip')" id="st-chip"><span class="icon">⛳</span>Chip/Pitch</button>
-      <button class="sel-btn" onclick="selectShotType('putt')" id="st-putt"><span class="icon">🏳️</span>Putt</button>
-      <button class="sel-btn" onclick="selectShotType('sand')" id="st-sand"><span class="icon">🏖️</span>Sand</button>
-      <button class="sel-btn" onclick="selectShotType('penalty')" id="st-penalty"><span class="icon">🚫</span>Penalty Stroke</button>
-    </div>
-    <!-- Penalty explanation — shown only when penalty is selected -->
-    <div id="penalty-note" style="display:none;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#92400e;line-height:1.5;">
-      <strong>Water / OB drop:</strong> Use this to represent the penalty stroke itself — the stroke you used but went nowhere.<br>
-      Set <em>Distance After</em> to your drop location. The next shot logs from there normally.<br>
-      <span style="opacity:0.75;">Example: Ball in water at 150y → log Penalty with Distance After = 150y → next shot is Approach from 150y hitting 3.</span>
-    </div>
-
-    <!-- Distance FROM — read-only label; editable only when Penalty is selected -->
-    <div class="card-title" id="dist-from-title">Distance to Pin</div>
-    <div id="dist-from-label-mode" class="card" style="padding:14px 16px;">
+    <!-- ① GPS / Distance from pin -->
+    <div id="shot-gps-card" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);border-radius:14px;padding:14px 16px;margin-bottom:12px;color:white;position:relative;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;">Starting distance</div>
-          <div style="font-family:'Playfair Display',serif;font-size:40px;font-weight:900;color:var(--green);line-height:1;">
-            <span id="dist-from-val">150</span><span id="dist-from-unit" style="font-size:20px;font-weight:400;"> yds</span>
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Distance to Pin</div>
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span id="shot-dist-big" style="font-family:'Playfair Display',serif;font-size:48px;font-weight:900;line-height:1;color:#34d399;">—</span>
+            <span id="shot-dist-unit" style="font-size:18px;color:#94a3b8;">yds</span>
           </div>
-          <div id="dist-from-label-sub" style="font-size:11px;color:var(--muted);margin-top:4px;">Carried over from previous shot</div>
+          <div id="shot-gps-status" style="font-size:10px;color:#64748b;margin-top:3px;">📡 Starting GPS…</div>
         </div>
-        <div style="font-size:32px;opacity:0.2;">📍</div>
+        <div style="text-align:right;">
+          <div style="font-size:10px;color:#94a3b8;margin-bottom:6px;">Adjust</div>
+          <input type="number" id="shot-dist-override" min="1" max="700" placeholder="—"
+            style="width:64px;padding:6px 8px;border-radius:8px;border:1.5px solid #334155;background:#1e293b;color:white;font-size:16px;font-weight:700;text-align:center;"
+            oninput="shotDistOverride(this.value)">
+        </div>
       </div>
-    </div>
-    <div id="dist-from-edit-mode" style="display:none;">
-      <div class="card" style="padding:12px 16px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-          <div class="dist-display" style="flex:1;margin:0;"><span id="dist-from-val-edit">150</span><span id="dist-from-unit-edit"> yds</span></div>
-          <input type="number" id="dist-from-manual" min="1" max="600" value="150"
-            style="width:72px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
-            oninput="manualDistFrom(this.value)" onchange="manualDistFrom(this.value)">
-        </div>
-        <input type="range" id="dist-from-slider" min="1" max="600" value="150" oninput="updateDistFrom(this.value)">
-        <div class="dist-presets" id="dist-from-presets">
-          <div class="dist-preset" onclick="setDistFrom(10)">10</div>
-          <div class="dist-preset" onclick="setDistFrom(20)">20</div>
-          <div class="dist-preset" onclick="setDistFrom(40)">40</div>
-          <div class="dist-preset" onclick="setDistFrom(75)">75</div>
-          <div class="dist-preset" onclick="setDistFrom(100)">100</div>
-          <div class="dist-preset" onclick="setDistFrom(125)">125</div>
-          <div class="dist-preset" onclick="setDistFrom(150)">150</div>
-          <div class="dist-preset" onclick="setDistFrom(175)">175</div>
-          <div class="dist-preset" onclick="setDistFrom(200)">200</div>
-          <div class="dist-preset" onclick="setDistFrom(250)">250</div>
-          <div class="dist-preset" onclick="setDistFrom(300)">300</div>
-        </div>
+      <!-- Distance to mapped points mini-panel -->
+      <div id="shot-map-distances" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #1e3a5f;">
+        <div id="shot-map-dist-list" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
       </div>
     </div>
 
-    <!-- Club Suggestion Strip (approach/chip only) -->
-    <div id="club-suggest-box" style="display:none;margin-bottom:14px;"></div>
+    <!-- ② Shot type — compact pill row -->
+    <div style="display:flex;gap:5px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;" id="shot-type-row">
+      <button class="shot-pill" onclick="selectShotType('tee')"     id="st-tee">🏌️ Tee</button>
+      <button class="shot-pill" onclick="selectShotType('approach')" id="st-approach">🎯 Approach</button>
+      <button class="shot-pill" onclick="selectShotType('chip')"     id="st-chip">⛳ Chip</button>
+      <button class="shot-pill" onclick="selectShotType('putt')"     id="st-putt">🏳️ Putt</button>
+      <button class="shot-pill" onclick="selectShotType('sand')"     id="st-sand">🏖️ Sand</button>
+      <button class="shot-pill" onclick="selectShotType('penalty')"  id="st-penalty">🚫 Penalty</button>
+    </div>
 
-    <!-- Distance TO -->
-    <div class="card-title" id="dist-to-title">Distance to Pin (After Shot)</div>
-    <div class="card" style="padding:12px 16px;">
-      <!-- On Green toggle (shown for approach/chip/sand) -->
-      <div id="on-green-toggle" style="display:none;margin-bottom:10px;">
-        <div style="display:flex;gap:6px;">
-          <button id="tog-not-green" class="sel-btn btn-sm active" style="flex:1;" onclick="setOnGreen(false)">🌿 Not on Green</button>
-          <button id="tog-on-green" class="sel-btn btn-sm" style="flex:1;" onclick="setOnGreen(true)">⛳ On Green</button>
-        </div>
+    <!-- Penalty note -->
+    <div id="penalty-note" style="display:none;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#92400e;line-height:1.5;">
+      <strong>Water / OB drop:</strong> Represents the penalty stroke itself — the shot used but went nowhere. Set Distance After to your drop location.
+    </div>
+
+    <!-- ③ Club grid — primary UI -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Club</div>
+      <button id="shot-dispersion-btn" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:var(--green);border-radius:8px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;" onclick="showClubDispersion()">📊 Dispersion</button>
+    </div>
+    <!-- Club suggestions strip (when GPS dist available) -->
+    <div id="shot-club-suggest" style="display:none;margin-bottom:8px;"></div>
+    <!-- Full club grid -->
+    <div id="club-grid" style="margin-bottom:10px;"></div>
+
+    <!-- Wedge swing type -->
+    <div id="wedge-swing-section" style="display:none;margin-bottom:10px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Swing</div>
+      <div style="display:flex;gap:5px;">
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('7:30')"  id="swing-730">7:30</button>
+        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectSwing('9:00')"  id="swing-900">9:00</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('11:30')" id="swing-1130">11:30</button>
+        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('Full')"  id="swing-Full">Full</button>
       </div>
+    </div>
+
+    <!-- ④ After shot: distance remaining + on-green -->
+    <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;" id="dist-to-title">After Shot — Distance Remaining</div>
+    <!-- On-green toggle (approach/chip/sand) -->
+    <div id="on-green-toggle" style="display:none;margin-bottom:8px;">
+      <div style="display:flex;gap:6px;">
+        <button id="tog-not-green" class="sel-btn active" style="flex:1;padding:10px;" onclick="setOnGreen(false)">🌿 Not on Green</button>
+        <button id="tog-on-green"  class="sel-btn" style="flex:1;padding:10px;" onclick="setOnGreen(true)">⛳ On Green</button>
+      </div>
+    </div>
+    <div class="card" style="padding:12px 14px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
         <div class="dist-display" style="flex:1;margin:0;"><span id="dist-to-val">0</span><span id="dist-to-unit"> yds</span></div>
         <input type="number" id="dist-to-manual" min="0" max="600" value="0"
-          style="width:72px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
+          style="width:64px;padding:8px;border:2px solid var(--green);border-radius:8px;font-size:16px;font-weight:700;text-align:center;color:var(--green);background:white;"
           oninput="manualDistTo(this.value)" onchange="manualDistTo(this.value)">
       </div>
       <input type="range" id="dist-to-slider" min="0" max="600" value="0" oninput="updateDistTo(this.value)">
@@ -459,92 +476,99 @@
         <div class="dist-preset" onclick="setDistTo(15)">15</div>
         <div class="dist-preset" onclick="setDistTo(30)">30</div>
         <div class="dist-preset" onclick="setDistTo(50)">50</div>
-        <div class="dist-preset" onclick="setDistTo(80)">80</div>
         <div class="dist-preset" onclick="setDistTo(100)">100</div>
         <div class="dist-preset" onclick="setDistTo(150)">150</div>
       </div>
     </div>
 
-    <!-- Miss Direction -->
-    <div class="card-title">Miss Direction</div>
-    <div class="card">
-      <div class="compass" id="miss-compass">
-        <button class="compass-btn" onclick="selectMiss('long-left')" id="miss-long-left">Long<br>Left</button>
-        <button class="compass-btn" onclick="selectMiss('long')" id="miss-long">Long</button>
-        <button class="compass-btn" onclick="selectMiss('long-right')" id="miss-long-right">Long<br>Right</button>
-        <button class="compass-btn" onclick="selectMiss('left')" id="miss-left">Left</button>
-        <button class="compass-btn center active" onclick="selectMiss('on-target')" id="miss-on-target">✓<br>On Target</button>
-        <button class="compass-btn" onclick="selectMiss('right')" id="miss-right">Right</button>
-        <button class="compass-btn" onclick="selectMiss('short-left')" id="miss-short-left">Short<br>Left</button>
-        <button class="compass-btn" onclick="selectMiss('short')" id="miss-short">Short</button>
-        <button class="compass-btn" onclick="selectMiss('short-right')" id="miss-short-right">Short<br>Right</button>
-      </div>
-    </div>
-
-    <!-- Putt Read (shown for putts only) -->
+    <!-- Putt read (putts only) -->
     <div id="putt-read-section" style="display:none;">
-      <div class="card-title">Break <span style="font-size:11px;font-weight:400;color:var(--muted);">Which way does it move?</span></div>
-      <div style="display:flex;gap:6px;margin-bottom:14px;">
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectBreak('left')" id="break-left">↰ Left</button>
-        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectBreak('none')" id="break-none">→ No Break</button>
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectBreak('right')" id="break-right">↱ Right</button>
-      </div>
-      <div class="card-title">Slope <span style="font-size:11px;font-weight:400;color:var(--muted);">Relative to hole</span></div>
-      <div style="display:flex;gap:6px;margin-bottom:14px;">
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSlope('downhill')" id="slope-downhill">⬇️ Downhill</button>
-        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectSlope('flat')" id="slope-flat">➡️ Flat</button>
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSlope('uphill')" id="slope-uphill">⬆️ Uphill</button>
-      </div>
-    </div>
-
-    <!-- Club -->
-    <div class="card-title">Club Used</div>
-    <div id="club-grid" style="margin-bottom:14px;"></div>
-
-    <!-- Wedge Swing Type (shown only for PW/52/56/60) -->
-    <div id="wedge-swing-section" style="display:none;">
-      <div class="card-title">Swing Type <span style="font-size:11px;font-weight:400;color:var(--muted);">Clock position</span></div>
-      <div style="display:flex;gap:6px;margin-bottom:14px;">
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('7:30')" id="swing-730">🕖 7:30</button>
-        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectSwing('9:00')" id="swing-900">🕘 9:00</button>
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('11:30')" id="swing-1130">🕦 11:30</button>
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSwing('Full')" id="swing-Full">💪 Full</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Break</div>
+          <div style="display:flex;gap:4px;">
+            <button class="sel-btn btn-sm" style="flex:1;" onclick="selectBreak('left')"  id="break-left">↰ L</button>
+            <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectBreak('none')"  id="break-none">→ None</button>
+            <button class="sel-btn btn-sm" style="flex:1;" onclick="selectBreak('right')" id="break-right">↱ R</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Slope</div>
+          <div style="display:flex;gap:4px;">
+            <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSlope('downhill')" id="slope-downhill">⬇️</button>
+            <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectSlope('flat')"     id="slope-flat">➡️</button>
+            <button class="sel-btn btn-sm" style="flex:1;" onclick="selectSlope('uphill')"   id="slope-uphill">⬆️</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Shot Shape (hidden for putts) -->
-    <div id="shot-shape-section">
-      <div class="card-title">Shot Shape <span style="font-size:11px;font-weight:400;color:var(--muted);">Intended shape</span></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="shape-grid">
-        <button class="sel-btn btn-sm active" onclick="selectShape('straight')" id="shape-straight">➡️ Straight</button>
-        <button class="sel-btn btn-sm" onclick="selectShape('draw')" id="shape-draw">↩️ Draw</button>
-        <button class="sel-btn btn-sm" onclick="selectShape('fade')" id="shape-fade">↪️ Fade</button>
-        <button class="sel-btn btn-sm" onclick="selectShape('punch')" id="shape-punch">⬇️ Punch</button>
-        <button class="sel-btn btn-sm" onclick="selectShape('flop')" id="shape-flop">⬆️ Flop</button>
-      </div>
-    </div>
+    <!-- ⑤ Advanced section (collapsed by default) -->
+    <button id="advanced-toggle-btn" onclick="toggleAdvancedShot()" style="width:100%;padding:10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;">
+      <span id="advanced-arrow">▸</span> Advanced Details
+      <span id="advanced-summary" style="font-size:11px;color:#94a3b8;margin-left:4px;"></span>
+    </button>
+    <div id="advanced-section" style="display:none;">
 
-    <!-- Lie (hidden for putts and tee shots) -->
-    <div id="lie-section">
-      <div class="card-title">Lie</div>
-      <div style="display:flex;gap:6px;margin-bottom:14px;">
-        <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectLie('fairway')" id="lie-fairway">🟩 Fairway</button>
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('rough')" id="lie-rough">🌿 Rough</button>
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('heavy')" id="lie-heavy">🌾 Heavy</button>
-        <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('sand')" id="lie-sand">🏖️ Sand</button>
+      <!-- Miss compass -->
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Miss Direction</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div class="compass" id="miss-compass">
+          <button class="compass-btn" onclick="selectMiss('long-left')"   id="miss-long-left">Long<br>Left</button>
+          <button class="compass-btn" onclick="selectMiss('long')"        id="miss-long">Long</button>
+          <button class="compass-btn" onclick="selectMiss('long-right')"  id="miss-long-right">Long<br>Right</button>
+          <button class="compass-btn" onclick="selectMiss('left')"        id="miss-left">Left</button>
+          <button class="compass-btn center active" onclick="selectMiss('on-target')" id="miss-on-target">✓<br>On Target</button>
+          <button class="compass-btn" onclick="selectMiss('right')"       id="miss-right">Right</button>
+          <button class="compass-btn" onclick="selectMiss('short-left')"  id="miss-short-left">Short<br>Left</button>
+          <button class="compass-btn" onclick="selectMiss('short')"       id="miss-short">Short</button>
+          <button class="compass-btn" onclick="selectMiss('short-right')" id="miss-short-right">Short<br>Right</button>
+        </div>
       </div>
-    </div>
 
-    <!-- Strike Quality -->
-    <div class="card-title">Strike Quality</div>
-    <div class="grid-2" style="margin-bottom:14px;">
-      <button class="sel-btn active" onclick="selectStrike('good')" id="strike-good"><span class="icon">✅</span>Good Strike</button>
-      <button class="sel-btn" onclick="selectStrike('bad')" id="strike-bad"><span class="icon">❌</span>Bad Strike</button>
+      <!-- Shape, Lie, Strike in a compact grid -->
+      <div id="shot-shape-section">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Shot Shape</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;" id="shape-grid">
+          <button class="sel-btn btn-sm active" onclick="selectShape('straight')" id="shape-straight">➡️ Straight</button>
+          <button class="sel-btn btn-sm" onclick="selectShape('draw')"    id="shape-draw">↩️ Draw</button>
+          <button class="sel-btn btn-sm" onclick="selectShape('fade')"    id="shape-fade">↪️ Fade</button>
+          <button class="sel-btn btn-sm" onclick="selectShape('punch')"   id="shape-punch">⬇️ Punch</button>
+          <button class="sel-btn btn-sm" onclick="selectShape('flop')"    id="shape-flop">⬆️ Flop</button>
+        </div>
+      </div>
+
+      <div id="lie-section">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Lie</div>
+        <div style="display:flex;gap:5px;margin-bottom:10px;">
+          <button class="sel-btn btn-sm active" style="flex:1;" onclick="selectLie('fairway')" id="lie-fairway">🟩 FW</button>
+          <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('rough')"   id="lie-rough">🌿 Rough</button>
+          <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('heavy')"   id="lie-heavy">🌾 Heavy</button>
+          <button class="sel-btn btn-sm" style="flex:1;" onclick="selectLie('sand')"    id="lie-sand">🏖️ Sand</button>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">Strike Quality</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <button class="sel-btn active" onclick="selectStrike('good')" id="strike-good">✅ Good</button>
+        <button class="sel-btn" onclick="selectStrike('bad')"  id="strike-bad">❌ Bad</button>
+      </div>
     </div>
 
     <!-- Save -->
-    <button class="btn btn-primary" style="font-size:16px;padding:16px;" onclick="saveShot()">Save Shot</button>
+    <button class="btn btn-primary" style="font-size:16px;padding:16px;" onclick="saveShot()">✓ Save Shot</button>
     <div style="height:20px;"></div>
+  </div>
+</div>
+
+<!-- Club dispersion bottom sheet -->
+<div id="dispersion-sheet" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.5);" onclick="if(event.target===this)closeDispersionSheet()">
+  <div style="position:absolute;bottom:0;left:0;right:0;background:white;border-radius:20px 20px 0 0;max-height:85vh;overflow-y:auto;padding:20px 16px 32px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div id="disp-sheet-title" style="font-size:16px;font-weight:800;">Club Dispersion</div>
+      <button onclick="closeDispersionSheet()" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;">✕ Close</button>
+    </div>
+    <div id="disp-sheet-content"></div>
   </div>
 </div>
 
@@ -805,6 +829,112 @@
     <button class="btn btn-sm btn-ghost" onclick="closeMapPicker()">Cancel</button>
     <button class="btn btn-sm" id="map-save-btn" style="background:var(--green);color:white;padding:10px 20px;" onclick="saveMapPoint()">✅ Save</button>
   </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: IN-ROUND HOLE MAP (distances overlay)
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-hole-map-round" style="height:100vh;min-height:unset;overflow:hidden;">
+  <div class="hdr" style="padding-bottom:8px;">
+    <button class="back-btn" onclick="closeHoleMapRound()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="hmr-title">Hole 1 Map</div>
+      <div class="hdr-sub" id="hmr-sub">Starting GPS…</div>
+    </div>
+    <button style="background:var(--green);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;" onclick="closeHoleMapRound()">Done</button>
+  </div>
+  <!-- GPS status bar -->
+  <div id="hmr-gps-bar" style="background:#1e3a5f;color:white;padding:5px 14px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
+    <span id="hmr-gps-status">📡 Acquiring GPS…</span>
+    <span id="hmr-gps-acc" style="color:#93c5fd;"></span>
+  </div>
+  <!-- Canvas: full image with distance overlays -->
+  <div id="hmr-canvas-wrap" style="flex:1;overflow:auto;position:relative;background:#111;">
+    <canvas id="hmr-canvas" style="display:block;touch-action:pan-x pan-y;"></canvas>
+  </div>
+  <!-- Bottom: scrollable distance panel -->
+  <div id="hmr-dist-panel" style="max-height:180px;overflow-y:auto;background:white;border-top:2px solid #e5e7eb;padding:8px 12px;">
+    <div style="font-size:11px;color:var(--muted);text-align:center;padding:8px;">Waiting for GPS…</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: HOLE MAP SETUP (image georeferencing)
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-hole-setup">
+  <div class="hdr">
+    <button class="back-btn" onclick="closeHoleSetup()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="hms-title">Hole Map Setup</div>
+      <div class="hdr-sub" id="hms-sub">Upload · Calibrate · Map Points</div>
+    </div>
+  </div>
+  <div class="content" id="hms-content" style="padding:0;"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: HOLE MAP POINT EDITOR (tap image to place)
+═══════════════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: HOLE MAP EDITOR (Configure mode — Admin)
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-hole-map-editor">
+  <div class="hdr" style="padding-bottom:8px;">
+    <button class="back-btn" onclick="closeHoleMapEditor()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="hme-title">Map Points</div>
+      <div class="hdr-sub" id="hme-sub">Tap image to place a point</div>
+    </div>
+    <button style="background:var(--green);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;" onclick="finishHoleMapEditor()">Done</button>
+  </div>
+  <!-- GPS status bar -->
+  <div id="hme-gps-bar" style="background:#1e3a5f;color:white;padding:6px 14px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
+    <span id="hme-gps-status">📡 GPS not started</span>
+    <button onclick="toggleHmeGPS()" id="hme-gps-btn" style="background:#2563eb;border:none;color:white;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Start GPS</button>
+  </div>
+  <!-- Canvas -->
+  <div id="hme-canvas-wrap" style="flex:1;overflow:auto;position:relative;background:#111;">
+    <canvas id="hme-canvas" style="display:block;touch-action:none;cursor:crosshair;"></canvas>
+  </div>
+  <!-- Bottom toolbar -->
+  <div style="padding:8px 14px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;align-items:center;">
+    <div id="hme-point-count" style="flex:1;font-size:12px;font-weight:600;color:var(--green);"></div>
+    <button onclick="hmeUndoLast()" style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">↩ Undo</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: ADD/EDIT MAP POINT FORM
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-hole-map-point">
+  <div class="hdr">
+    <button class="back-btn" onclick="cancelHoleMapPoint()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" id="hmp-title">Add Point</div>
+      <div class="hdr-sub" id="hmp-sub"></div>
+    </div>
+  </div>
+  <div class="content" id="hmp-content" style="padding:16px;"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN: LIVE HOLE MAP (In-round — distances overlay)
+═══════════════════════════════════════════════════ -->
+<div class="screen" id="s-live-map">
+  <div class="hdr" style="padding-bottom:6px;background:#0f172a;">
+    <button class="back-btn" style="color:white;" onclick="closeLiveMap()">←</button>
+    <div style="text-align:center">
+      <div class="hdr-title" style="color:white;" id="lm-title">H1 Live Map</div>
+      <div id="lm-gps-status" style="font-size:11px;color:#94a3b8;">Starting GPS…</div>
+    </div>
+    <button onclick="lmRefresh()" style="background:#1d4ed8;border:none;color:white;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;">↻ Update</button>
+  </div>
+  <!-- Main canvas: hole image + distance overlays -->
+  <div id="lm-canvas-wrap" style="flex:1;overflow:auto;position:relative;background:#111;">
+    <canvas id="lm-canvas" style="display:block;"></canvas>
+  </div>
+  <!-- Distance panel at bottom -->
+  <div id="lm-distances" style="background:#0f172a;color:white;padding:10px 14px;max-height:180px;overflow-y:auto;"></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
@@ -1451,6 +1581,7 @@ function openHole(n) {
   }
   document.getElementById('hole-hdr-title').textContent = `Hole ${n}`;
   document.getElementById('hole-hdr-sub').textContent = `Par ${hInfo.par} · ${hInfo.yds} yds`;
+  updateHoleMapBtn(n);
   renderHoleDetail();
   showScreen('s-hole');
 }
@@ -1504,13 +1635,16 @@ function shotTypeLabel(t) {
 // ═══════════════════════════════════════════════════════════════════
 function addShotModal() {
   const shotNum = state.currentHole.shots.length + 1;
-  document.getElementById('shot-hdr-sub').textContent = `Shot #${shotNum} · Hole ${state.currentHole.n}`;
+  const holeN   = state.currentHole.n;
+  document.getElementById('shot-hdr-title').textContent = 'Log Shot';
+  document.getElementById('shot-hdr-sub').textContent   = `Shot #${shotNum} · Hole ${holeN}`;
+
+  // Show 🗺️ button if hole has a map
+  const mapBtn = document.getElementById('shot-map-btn');
+  if (mapBtn) mapBtn.style.display = getHoleMap(holeN)?.image ? 'block' : 'none';
 
   // Smart defaults
-  let defaultType = 'approach';
-  let defaultDist = 150;
-  let prevLandedOnGreen = false;
-
+  let defaultType = 'approach', defaultDist = 150, prevLandedOnGreen = false;
   if (shotNum === 1) {
     defaultType = state.currentHole.par === 3 ? 'approach' : 'tee';
     defaultDist = state.currentHole.yds;
@@ -1519,48 +1653,49 @@ function addShotModal() {
     if (prev) {
       prevLandedOnGreen = !!prev.landedOnGreen;
       defaultDist = prev.distTo;
-      if (prev.type === 'putt') {
-        // Previous was a putt — always stay in putt mode
-        defaultType = 'putt';
-      } else if (prevLandedOnGreen) {
-        // Approach/chip that landed on green — switch to putt
-        defaultType = 'putt';
-      } else {
-        // Still in the fairway/rough
-        if (defaultDist <= 50) defaultType = 'chip';
-        else defaultType = 'approach';
-      }
+      if (prev.type === 'putt' || prevLandedOnGreen) defaultType = 'putt';
+      else if (defaultDist <= 50) defaultType = 'chip';
+      else defaultType = 'approach';
     }
   }
 
-  state.currentShot = { type: defaultType, distFrom: defaultDist, distTo: 0, miss: 'on-target', club: '', strike: 'good', shape: 'straight', landedOnGreen: false, puttBreak: 'none', puttSlope: 'flat', lie: 'fairway' };
+  state.currentShot = {
+    type: defaultType, distFrom: defaultDist, distTo: 0,
+    miss: 'on-target', club: '', strike: 'good', shape: 'straight',
+    landedOnGreen: false, puttBreak: 'none', puttSlope: 'flat', lie: 'fairway'
+  };
 
+  // ── Update shot type pills ─────────────────────────────────────
   ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
     document.getElementById('st-'+x).classList.toggle('active', x === defaultType);
   });
 
   const isPutt = defaultType === 'putt';
 
-  // If we're auto-going to putt:
-  // - prev was an approach/chip that landed on green: distTo is in FEET already (on-green mode) → no conversion
-  // - prev was a fairway shot NOT on green and distance is small (yards→putt): convert yards→feet  
-  // - prev was already a putt: distTo is already in FEET → no conversion
+  // ── GPS distance card ─────────────────────────────────────────
+  // Start GPS and compute distance to pin from hole map
+  _shotGpsWatch && navigator.geolocation.clearWatch(_shotGpsWatch);
+  _shotGpsWatch = null;
+  updateShotGpsCard(defaultDist, isPutt);
+  startShotGPS();
+
+  // ── Putt/non-putt mode switches ───────────────────────────────
   let distFromDisplay = defaultDist;
   const prevShot = shotNum > 1 ? state.currentHole.shots[shotNum-2] : null;
-  const prevWasPutt = prevShot && prevShot.type === 'putt';
+  const prevWasPutt = prevShot?.type === 'putt';
   if (isPutt && !prevLandedOnGreen && !prevWasPutt && shotNum > 1) {
     distFromDisplay = Math.round(defaultDist * 3);
   }
 
   setPuttMode(isPutt);
   document.getElementById('shot-shape-section').style.display = isPutt ? 'none' : '';
-  // Reset on-green toggle to "not on green" and restore yards for distTo
   document.getElementById('on-green-toggle').style.display = ['approach','chip','sand','tee'].includes(defaultType) ? '' : 'none';
   document.getElementById('tog-not-green').classList.add('active');
   document.getElementById('tog-on-green').classList.remove('active');
+
   if (!isPutt) {
     document.getElementById('dist-to-unit').textContent = ' yds';
-    document.getElementById('dist-to-title').textContent = 'Distance to Pin (After Shot)';
+    document.getElementById('dist-to-title').textContent = 'After Shot — Distance Remaining';
     document.getElementById('dist-to-slider').max = 600;
     document.getElementById('dist-to-manual').max = 600;
     document.getElementById('dist-to-presets').innerHTML = `
@@ -1577,62 +1712,282 @@ function addShotModal() {
   }
 
   const max = isPutt ? 90 : 600;
-  document.getElementById('dist-from-slider').max = max;
   document.getElementById('dist-to-slider').max = max;
   setDistFrom(Math.min(distFromDisplay, max));
   setDistTo(0);
-  // Par 3 shot 1: editable (tee box varies). All other shots: label only.
-  // Penalty always editable (handled by selectShotType).
+
+  // distFrom edit mode (penalty / par3 shot1)
   const hInfo = COURSE.holes.find(h => h.n === state.currentHole.n);
   const editableStart = shotNum === 1 && hInfo && hInfo.par === 3;
   setDistFromMode(editableStart);
-  // Update label subtitle
-  const labelSub = document.getElementById('dist-from-label-sub');
-  if (labelSub) labelSub.textContent = editableStart ? 'Adjust for your tee box' : 'Carried over from previous shot';
 
-  selectMiss('on-target');
-  selectStrike('good');
-  selectShape('straight');
-  selectBreak('none');
-  selectSlope('flat');
-  selectLie('fairway');
+  selectMiss('on-target'); selectStrike('good'); selectShape('straight');
+  selectBreak('none'); selectSlope('flat'); selectLie('fairway');
   state.currentShot.swingType = null;
   document.getElementById('wedge-swing-section').style.display = 'none';
-  // Lie shown for approach/chip/sand; hidden for tee and putt
   document.getElementById('lie-section').style.display = ['approach','chip','sand'].includes(defaultType) ? '' : 'none';
   document.getElementById('putt-read-section').style.display = isPutt ? '' : 'none';
-  // Auto-select putter for putts
-  if (isPutt) {
-    state.currentShot.club = 'Put';
-  }
+  if (isPutt) state.currentShot.club = 'Put';
   renderClubs();
-  renderClubSuggestions();
+  renderShotClubSuggestions();
+
+  // ── Advanced section — collapsed by default ───────────────────
+  document.getElementById('advanced-section').style.display = 'none';
+  document.getElementById('advanced-arrow').textContent = '▸';
+  updateAdvancedSummary();
+
   showScreen('s-shot');
 }
+
+// ── GPS for shot screen ───────────────────────────────────────────
+let _shotGpsWatch = null;
+
+function startShotGPS() {
+  if (!navigator.geolocation) {
+    document.getElementById('shot-gps-status').textContent = '❌ GPS not supported';
+    return;
+  }
+  document.getElementById('shot-gps-status').textContent = '📡 Acquiring GPS…';
+  _shotGpsWatch = navigator.geolocation.watchPosition(pos => {
+    _gpsLat = pos.coords.latitude;
+    _gpsLng = pos.coords.longitude;
+    _gpsAcc = Math.round(pos.coords.accuracy);
+
+    const holeN = state.currentHole?.n;
+    const hd = getHoleMap(holeN);
+    const isPutt = state.currentShot?.type === 'putt';
+
+    // Distance to pin from hole map green_edge points
+    if (hd?.points?.length) {
+      const greenPts = hd.points.filter(p => p.type === 'green_edge' && p.lat && p.lng);
+      if (greenPts.length) {
+        // Average the front-of-green points (shortest distances)
+        const dists = greenPts.map(p => gpsYards(_gpsLat, _gpsLng, p.lat, p.lng)).sort((a,b)=>a-b);
+        const pinDist = dists[Math.floor(dists.length/2)]; // median
+        if (!_shotDistManualOverride) {
+          updateShotGpsCard(pinDist, isPutt);
+          setDistFrom(Math.min(pinDist, isPutt ? 90 : 600));
+          state.currentShot.distFrom = Math.min(pinDist, isPutt ? 90 : 600);
+          renderShotClubSuggestions();
+        }
+      }
+      // Show distances to ALL mapped points in the mini-panel
+      const allWithDist = hd.points
+        .filter(p => p.lat && p.lng)
+        .map(p => ({ ...p, d: gpsYards(_gpsLat, _gpsLng, p.lat, p.lng) }))
+        .sort((a,b) => a.d - b.d);
+      renderShotMapDistances(allWithDist);
+    }
+
+    document.getElementById('shot-gps-status').textContent = `📡 Live · ±${_gpsAcc}m`;
+  }, err => {
+    document.getElementById('shot-gps-status').textContent = `⚠️ GPS unavailable`;
+  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 });
+}
+
+let _shotDistManualOverride = false;
+
+function shotDistOverride(val) {
+  const n = parseInt(val);
+  if (!isNaN(n) && n > 0) {
+    _shotDistManualOverride = true;
+    setDistFrom(Math.min(n, 600));
+    state.currentShot.distFrom = Math.min(n, 600);
+    document.getElementById('shot-dist-big').textContent = n;
+    document.getElementById('shot-gps-status').textContent = '✏️ Distance manually set';
+    renderShotClubSuggestions();
+  }
+}
+
+function updateShotGpsCard(dist, isPutt) {
+  const el = document.getElementById('shot-dist-big');
+  const unit = document.getElementById('shot-dist-unit');
+  if (el) el.textContent = dist;
+  if (unit) unit.textContent = isPutt ? ' ft' : ' yds';
+}
+
+function renderShotMapDistances(pts) {
+  const wrap = document.getElementById('shot-map-distances');
+  const list  = document.getElementById('shot-map-dist-list');
+  if (!wrap || !list || !pts.length) return;
+  wrap.style.display = '';
+
+  // Show water, carry, layup, green_edge (up to 6 most relevant)
+  const priority = ['water','carry','layup','green_edge','bunker'];
+  const shown = pts
+    .filter(p => priority.includes(p.type))
+    .slice(0, 6);
+
+  list.innerHTML = shown.map(p => {
+    const td = PT_MAP[p.type] || PT_MAP.other;
+    const col = p.d < 50 ? '#ef4444' : p.d < 120 ? '#d97706' : '#475569';
+    return `<div style="background:${col}22;border:1px solid ${col}44;color:${col};border-radius:8px;padding:3px 8px;font-size:11px;font-weight:700;">
+      ${td.icon} ${p.d}y <span style="font-weight:400;opacity:0.8;">${p.label}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Advanced section toggle ────────────────────────────────────────
+let _advancedOpen = false;
+
+function toggleAdvancedShot() {
+  _advancedOpen = !_advancedOpen;
+  document.getElementById('advanced-section').style.display = _advancedOpen ? '' : 'none';
+  document.getElementById('advanced-arrow').textContent = _advancedOpen ? '▾' : '▸';
+  updateAdvancedSummary();
+}
+
+function updateAdvancedSummary() {
+  const s = state.currentShot;
+  const parts = [];
+  if (s.miss && s.miss !== 'on-target') parts.push(s.miss.replace('-',' '));
+  if (s.shape && s.shape !== 'straight') parts.push(s.shape);
+  if (s.strike === 'bad') parts.push('bad strike');
+  const el = document.getElementById('advanced-summary');
+  if (el) el.textContent = parts.length ? parts.join(' · ') : '';
+}
+
+// ── Club dispersion bottom sheet ───────────────────────────────────
+function showClubDispersion() {
+  const club = state.currentShot?.club;
+  if (!club || club === 'Put') { alert('Select a club first.'); return; }
+
+  const sheet = document.getElementById('dispersion-sheet');
+  const title = document.getElementById('disp-sheet-title');
+  const content = document.getElementById('disp-sheet-content');
+  if (!sheet) return;
+
+  title.textContent = `${club} Dispersion`;
+
+  // Gather shots for this club from rounds + range
+  const roundShots = state.rounds.flatMap(r => r.holes.flatMap(h =>
+    h.shots.filter(s => s.club === club && s.type !== 'putt')
+  ));
+  const rangeForClub = (state.rangeShots||[]).filter(s => s.club === club);
+
+  // Build stats
+  const carries = roundShots.filter(s=>s.distFrom>s.distTo&&s.strike!=='bad')
+    .map(s => s.distFrom - s.distTo);
+  const rangeCarries = rangeForClub.filter(s=>s.carry>0&&s.strike!=='bad').map(s=>s.carry);
+  const allCarries = [...carries, ...rangeCarries];
+
+  // Wedge swing breakdown
+  const WEDGE_CLUBS = ['PW','52','56','60'];
+  const isWedge = WEDGE_CLUBS.includes(club);
+  const swingTypes = ['7:30','9:00','11:30','Full'];
+
+  let statsHtml = '';
+
+  if (allCarries.length) {
+    const avg = Math.round(allCarries.reduce((a,b)=>a+b,0)/allCarries.length);
+    const sorted = [...allCarries].sort((a,b)=>a-b);
+    const lo = sorted[Math.floor(sorted.length*0.1)];
+    const hi = sorted[Math.floor(sorted.length*0.9)];
+    statsHtml += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:14px;">
+      <div style="background:#f0fdf4;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:22px;font-weight:900;color:var(--green);">${avg}</div>
+        <div style="font-size:10px;color:var(--muted);">Avg carry (yds)</div>
+      </div>
+      <div style="background:#fef3c7;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:22px;font-weight:900;color:#92400e;">${lo}–${hi}</div>
+        <div style="font-size:10px;color:var(--muted);">80% range</div>
+      </div>
+      <div style="background:#f0f9ff;border-radius:10px;padding:10px 6px;">
+        <div style="font-size:22px;font-weight:900;color:#0369a1;">${allCarries.length}</div>
+        <div style="font-size:10px;color:var(--muted);">shots tracked</div>
+      </div>
+    </div>`;
+  } else {
+    statsHtml = `<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">
+      No carry data yet for ${club}.<br>Hit some shots on the range or course first.
+    </div>`;
+  }
+
+  // Miss direction breakdown
+  if (roundShots.length >= 3) {
+    const missCounts = {};
+    roundShots.forEach(s => { missCounts[s.miss||'on-target'] = (missCounts[s.miss||'on-target']||0)+1; });
+    const total = roundShots.length;
+    const missOrder = ['long-left','long','long-right','left','on-target','right','short-left','short','short-right'];
+    const missEmoji = {'on-target':'🎯','long':'⬆️','short':'⬇️','left':'⬅️','right':'➡️',
+      'long-left':'↖️','long-right':'↗️','short-left':'↙️','short-right':'↘️'};
+    const missRows = missOrder.filter(m => missCounts[m]).map(m => {
+      const pct = Math.round((missCounts[m]||0)/total*100);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+        <div style="width:24px;text-align:center;">${missEmoji[m]||'·'}</div>
+        <div style="flex:1;font-size:12px;">${m.replace('-',' ')}</div>
+        <div style="width:${Math.max(pct,3)}%;height:8px;background:${m==='on-target'?'var(--green)':'#f59e0b'};border-radius:4px;min-width:4px;max-width:60%;"></div>
+        <div style="font-size:12px;font-weight:700;width:32px;text-align:right;">${pct}%</div>
+      </div>`;
+    }).join('');
+    statsHtml += `<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Miss Pattern (${total} shots)</div>
+      <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:14px;">${missRows}</div>`;
+  }
+
+  // Wedge swing breakdown table
+  if (isWedge) {
+    const swingRows = swingTypes.map(sw => {
+      const rShots = rangeForClub.filter(s=>s.swingType===sw&&s.carry>0&&s.strike!=='bad').map(s=>s.carry);
+      const cShots = roundShots.filter(s=>s.swingType===sw&&s.distFrom>s.distTo&&s.strike!=='bad').map(s=>s.distFrom-s.distTo);
+      const all = [...rShots,...cShots];
+      if (!all.length) return `<div style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;"><div style="font-size:12px;font-weight:700;width:44px;">${sw}</div><div style="font-size:12px;color:#d1d5db;">no data</div></div>`;
+      const avg = Math.round(all.reduce((a,b)=>a+b,0)/all.length);
+      const lo = Math.min(...all), hi = Math.max(...all);
+      return `<div style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #f1f5f9;">
+        <div style="font-size:12px;font-weight:700;width:44px;">${sw}</div>
+        <div style="flex:1;font-size:13px;font-weight:800;color:var(--green);">${avg}y</div>
+        <div style="font-size:11px;color:var(--muted);">${lo}–${hi}y · ${all.length} shots</div>
+      </div>`;
+    }).join('');
+    statsHtml += `<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Swing Breakdown</div>
+      <div style="background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:14px;">${swingRows}</div>`;
+  }
+
+  // Dispersion oval SVG
+  if (roundShots.length >= 3) {
+    statsHtml += `<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Shot Dispersion</div>
+      <div style="background:#f8fafc;border-radius:10px;padding:8px;margin-bottom:8px;">
+        ${buildOvalDispersionSVG(roundShots, '')}
+      </div>`;
+  }
+
+  content.innerHTML = statsHtml;
+  sheet.style.display = '';
+}
+
+function closeDispersionSheet() {
+  const sheet = document.getElementById('dispersion-sheet');
+  if (sheet) sheet.style.display = 'none';
+}
+
+// ── Override selectShotType to update pills instead of sel-btns ────
+const _origSelectShotType = typeof selectShotType === 'function' ? selectShotType : null;
 
 function selectShotType(t) {
   const wasPutt = state.currentShot.type === 'putt';
   const nowPutt = t === 'putt';
   state.currentShot.type = t;
+  // Update both old sel-btns (stats screens etc) AND new shot-pills
   ['tee','approach','chip','putt','sand','penalty'].forEach(x => {
-    document.getElementById('st-'+x).classList.toggle('active', x === t);
+    const el = document.getElementById('st-'+x);
+    if (!el) return;
+    const isPill = el.classList.contains('shot-pill');
+    if (isPill) el.classList.toggle('active', x === t);
+    else el.classList.toggle('active', x === t);
   });
 
-  // Show/hide on-green toggle for shots that can land on green
   const canLandOnGreen = ['approach','chip','sand','tee'].includes(t);
-  document.getElementById('on-green-toggle').style.display = canLandOnGreen ? '' : 'none';
+  const otg = document.getElementById('on-green-toggle');
+  if (otg) otg.style.display = canLandOnGreen ? '' : 'none';
   if (!canLandOnGreen) setOnGreen(false);
 
-  // Switch units if transitioning to/from putt
   if (wasPutt !== nowPutt) {
     if (nowPutt) {
-      // Convert current yards distFrom → feet
       const yds = state.currentShot.distFrom || 0;
       const ft = Math.round(yds * 3);
       setPuttMode(true);
       setDistFrom(Math.min(ft, 90));
     } else {
-      // Convert feet → yards
       const ft = state.currentShot.distFrom || 0;
       const yds = Math.round(ft / 3);
       setPuttMode(false);
@@ -1641,14 +1996,11 @@ function selectShotType(t) {
     setDistTo(0);
   }
 
-  // Show/hide penalty note
   const penNote = document.getElementById('penalty-note');
   if (penNote) penNote.style.display = t === 'penalty' ? '' : 'none';
 
-  // Only penalty gets editable distFrom (drop scenario changes your distance)
   setDistFromMode(t === 'penalty');
 
-  // Auto-select putter when switching to putt
   if (nowPutt && !wasPutt) {
     state.currentShot.club = 'Put';
     renderClubs();
@@ -1656,16 +2008,114 @@ function selectShotType(t) {
     state.currentShot.club = '';
     renderClubs();
   }
-  document.getElementById('shot-shape-section').style.display = nowPutt ? 'none' : '';
-  document.getElementById('putt-read-section').style.display = nowPutt ? '' : 'none';
-  document.getElementById('lie-section').style.display = ['approach','chip','sand'].includes(t) ? '' : 'none';
-  // Auto-set lie to sand when sand type selected; fairway when switching to approach/chip
+
+  const sss = document.getElementById('shot-shape-section');
+  if (sss) sss.style.display = nowPutt ? 'none' : '';
+  const prs = document.getElementById('putt-read-section');
+  if (prs) prs.style.display = nowPutt ? '' : 'none';
+  const ls = document.getElementById('lie-section');
+  if (ls) ls.style.display = ['approach','chip','sand'].includes(t) ? '' : 'none';
+
   if (t === 'sand' && state.currentShot.lie !== 'sand') selectLie('sand');
   else if ((t === 'approach' || t === 'chip') && state.currentShot.lie === 'sand') selectLie('fairway');
+
   const max = nowPutt ? 90 : 600;
-  document.getElementById('dist-from-slider').max = max;
-  document.getElementById('dist-to-slider').max = max;
-  renderClubSuggestions();
+  const dfs = document.getElementById('dist-from-slider'); if (dfs) dfs.max = max;
+  const dts = document.getElementById('dist-to-slider');   if (dts) dts.max = max;
+
+  renderShotClubSuggestions();
+}
+
+function renderShotClubSuggestions() {
+  // Works for both old 'club-suggest-box' and new 'shot-club-suggest'
+  const dist = state.currentShot?.distFrom || 0;
+  ['club-suggest-box','shot-club-suggest'].forEach(id => {
+    const box = document.getElementById(id);
+    if (!box) return;
+    if (!dist || state.currentShot?.type === 'putt') { box.style.display = 'none'; return; }
+    // reuse the existing renderClubSuggestions logic by temporarily patching box id
+    _renderClubSuggestionsInto(box, dist);
+  });
+}
+
+// Shared suggestion renderer (called by both old and new IDs)
+function _renderClubSuggestionsInto(box, dist) {
+  const roundShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const rangeShots = state.rangeShots || [];
+  const carries = {};
+  function addCarry(key, carry) { if (!carries[key]) carries[key]=[]; carries[key].push(carry); }
+  roundShots.forEach(s => {
+    if (s.type==='putt'||(s.strike||'good')!=='good'||(s.shape||'straight')==='punch') return;
+    const c = s.distFrom - s.distTo; if (c<=0) return;
+    const key = WEDGE_CLUBS.includes(s.club)&&s.swingType?`${s.club}|${s.swingType}`:s.club;
+    addCarry(key,c); if(WEDGE_CLUBS.includes(s.club)&&!s.swingType) addCarry(s.club,c);
+  });
+  rangeShots.forEach(s => {
+    if ((s.strike||'good')!=='good'||!s.carry||s.carry<=0) return;
+    const key = WEDGE_CLUBS.includes(s.club)&&s.swingType?`${s.club}|${s.swingType}`:s.club;
+    addCarry(key,s.carry);
+  });
+  const avgCarry={};
+  Object.entries(carries).forEach(([k,arr])=>{ avgCarry[k]=Math.round(arr.reduce((a,b)=>a+b,0)/arr.length); });
+  if (!Object.keys(avgCarry).length) { box.style.display='none'; return; }
+  const WINDOW=15;
+  const options = Object.entries(avgCarry).map(([key,avg])=>{
+    const [club,swing]=key.split('|'); const diff=avg-dist;
+    return {key,club,swing:swing||null,avg,diff};
+  }).filter(o=>Math.abs(o.diff)<=WINDOW).sort((a,b)=>a.avg-b.avg);
+  if (!options.length) { box.style.display='none'; return; }
+  const short=options.filter(o=>o.diff<-3);
+  const carry=options.filter(o=>Math.abs(o.diff)<=3);
+  const longer=options.filter(o=>o.diff>3);
+  function chip(o){
+    const label=o.swing?`${o.club} <span style="font-size:9px;opacity:0.75">${o.swing}</span>`:o.club;
+    const diffStr=o.diff===0?'±0':(o.diff>0?'+':'')+o.diff;
+    const isCarry=Math.abs(o.diff)<=3;
+    return `<div onclick="selectClub('${o.club}')${o.swing?`;selectSwing('${o.swing}')`:''}"
+      style="flex:1;text-align:center;padding:7px 3px;border-radius:8px;cursor:pointer;
+             background:${isCarry?'var(--green)':'white'};
+             border:1.5px solid ${isCarry?'var(--green)':'#e5e7eb'};
+             color:${isCarry?'white':'var(--dark)'};">
+      <div style="font-size:13px;font-weight:800;line-height:1.2;">${label}</div>
+      <div style="font-size:11px;font-weight:700;margin-top:1px;opacity:${isCarry?1:.7};">${o.avg}y</div>
+      <div style="font-size:9px;opacity:.65;">${diffStr}</div>
+    </div>`;
+  }
+  const cols=[
+    {label:'🔻 Short',items:short},
+    {label:'🎯 Carry',items:carry},
+    {label:'🔺 Long', items:longer},
+  ];
+  box.style.display='';
+  box.innerHTML=`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:11px;padding:9px 11px;">
+    <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;">🏌️ Clubs for ${dist} yds</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;">
+      ${cols.map(col=>`<div>
+        <div style="font-size:9px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:4px;text-transform:uppercase;">${col.label}</div>
+        ${col.items.length?`<div style="display:flex;flex-direction:column;gap:3px;">${col.items.map(chip).join('')}</div>`:`<div style="text-align:center;font-size:11px;color:#d1d5db;padding:8px 0;">—</div>`}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// Keep old renderClubSuggestions working (used in edit shot flow / range)
+function renderClubSuggestions() {
+  const box = document.getElementById('club-suggest-box');
+  if (!box) { renderShotClubSuggestions(); return; }
+  const dist = state.currentShot?.distFrom || 0;
+  if (!dist || state.currentShot?.type === 'putt') { box.style.display = 'none'; return; }
+  _renderClubSuggestionsInto(box, dist);
+}
+
+function selectClub(c) {
+  state.currentShot.club = c;
+  renderClubs();
+  showWedgeSwing(c);
+  // Show dispersion button for any non-putter club
+  const btn = document.getElementById('shot-dispersion-btn');
+  if (btn) btn.style.display = (c && c !== 'Put') ? '' : 'none';
+  // Update advanced summary if it's open
+  updateAdvancedSummary();
 }
 
 function isPuttMode() { return state.currentShot.type === 'putt'; }
@@ -1717,10 +2167,12 @@ function setOnGreen(onGreen) {
 
 function updateDistFrom(v) {
   state.currentShot.distFrom = parseInt(v);
-  document.getElementById('dist-from-val').textContent = v;
-  document.getElementById('dist-from-val-edit').textContent = v;
-  if (document.getElementById('dist-from-manual')) document.getElementById('dist-from-manual').value = v;
-  renderClubSuggestions();
+  const el = document.getElementById('dist-from-val'); if (el) el.textContent = v;
+  const el2 = document.getElementById('dist-from-val-edit'); if (el2) el2.textContent = v;
+  const fm = document.getElementById('dist-from-manual'); if (fm) fm.value = v;
+  // Update GPS card big number too
+  const big = document.getElementById('shot-dist-big'); if (big) big.textContent = v;
+  renderShotClubSuggestions();
 }
 function updateDistTo(v) {
   state.currentShot.distTo = parseInt(v);
@@ -1729,12 +2181,13 @@ function updateDistTo(v) {
 }
 function setDistFrom(v) {
   state.currentShot.distFrom = v;
-  document.getElementById('dist-from-val').textContent = v;
-  document.getElementById('dist-from-val-edit').textContent = v;
-  const slider = document.getElementById('dist-from-slider');
-  if (slider) slider.value = v;
-  if (document.getElementById('dist-from-manual')) document.getElementById('dist-from-manual').value = v;
-  renderClubSuggestions();
+  const el = document.getElementById('dist-from-val'); if (el) el.textContent = v;
+  const el2 = document.getElementById('dist-from-val-edit'); if (el2) el2.textContent = v;
+  const slider = document.getElementById('dist-from-slider'); if (slider) slider.value = v;
+  const fm = document.getElementById('dist-from-manual'); if (fm) fm.value = v;
+  // Update GPS card big number
+  const big = document.getElementById('shot-dist-big'); if (big) big.textContent = v;
+  renderShotClubSuggestions();
 }
 function setDistTo(v) {
   state.currentShot.distTo = v;
@@ -1743,19 +2196,18 @@ function setDistTo(v) {
   document.getElementById('dist-to-manual').value = v;
 }
 function manualDistFrom(v) {
-  const n = parseInt(v);
-  if (isNaN(n) || n < 0) return;
+  const n = parseInt(v); if (isNaN(n) || n < 0) return;
   const max = isPuttMode() ? 90 : 600;
   const clamped = Math.min(n, max);
   state.currentShot.distFrom = clamped;
-  document.getElementById('dist-from-val').textContent = clamped;
-  document.getElementById('dist-from-val-edit').textContent = clamped;
-  document.getElementById('dist-from-slider').value = clamped;
-  renderClubSuggestions();
+  const el = document.getElementById('dist-from-val'); if (el) el.textContent = clamped;
+  const el2 = document.getElementById('dist-from-val-edit'); if (el2) el2.textContent = clamped;
+  const slider = document.getElementById('dist-from-slider'); if (slider) slider.value = clamped;
+  const big = document.getElementById('shot-dist-big'); if (big) big.textContent = clamped;
+  renderShotClubSuggestions();
 }
 function manualDistTo(v) {
-  const n = parseInt(v);
-  if (isNaN(n) || n < 0) return;
+  const n = parseInt(v); if (isNaN(n) || n < 0) return;
   const max = isPuttMode() ? 90 : 600;
   const clamped = Math.min(n, max);
   state.currentShot.distTo = clamped;
@@ -1764,27 +2216,34 @@ function manualDistTo(v) {
 }
 
 function setDistFromMode(editable) {
-  document.getElementById('dist-from-label-mode').style.display = editable ? 'none' : '';
-  document.getElementById('dist-from-edit-mode').style.display  = editable ? '' : 'none';
+  // In new design, distFrom is set via GPS card — only penalty needs an editable field
+  // The old label/edit mode elements may not exist; be null-safe
+  const lm = document.getElementById('dist-from-label-mode'); if (lm) lm.style.display = editable ? 'none' : '';
+  const em = document.getElementById('dist-from-edit-mode');  if (em) em.style.display  = editable ? '' : 'none';
+  // In the new GPS card, show/hide the override input based on penalty
+  const ov = document.getElementById('shot-dist-override'); if (ov) ov.style.opacity = editable ? '1' : '0.5';
 }
 
 function setPuttMode(on) {
   const unit = on ? ' ft' : ' yds';
   const max  = on ? 90 : 600;
-  // Sync unit labels in both label-mode and edit-mode
-  document.getElementById('dist-from-unit').textContent      = unit;
-  document.getElementById('dist-from-unit-edit').textContent = unit;
-  document.getElementById('dist-to-unit').textContent        = unit;
-  document.getElementById('dist-from-slider').max = max;
-  document.getElementById('dist-to-slider').max   = max;
-  document.getElementById('dist-from-manual').max = max;
-  document.getElementById('dist-to-manual').max   = max;
-  document.getElementById('dist-from-title').textContent = on ? 'Distance to Hole' : 'Distance to Pin';
-  document.getElementById('dist-to-title').textContent   = on ? 'Distance to Hole (After Putt)'  : 'Distance to Pin (After Shot)';
+  // Null-safe updates for old elements that no longer exist in new screen
+  const dfu  = document.getElementById('dist-from-unit');      if (dfu)  dfu.textContent  = unit;
+  const dfue = document.getElementById('dist-from-unit-edit'); if (dfue) dfue.textContent = unit;
+  const dtu  = document.getElementById('dist-to-unit');        if (dtu)  dtu.textContent  = unit;
+  const dfs  = document.getElementById('dist-from-slider');    if (dfs)  dfs.max = max;
+  const dts  = document.getElementById('dist-to-slider');      if (dts)  dts.max = max;
+  const dfm  = document.getElementById('dist-from-manual');    if (dfm)  dfm.max = max;
+  const dtm  = document.getElementById('dist-to-manual');      if (dtm)  dtm.max = max;
+  const dft  = document.getElementById('dist-from-title');     if (dft)  dft.textContent = on ? 'Distance to Hole' : 'Distance to Pin';
+  const dtt  = document.getElementById('dist-to-title');       if (dtt)  dtt.textContent = on ? 'Distance to Hole (After Putt)' : 'After Shot — Distance Remaining';
+  // Update GPS card unit
+  const distUnit = document.getElementById('shot-dist-unit'); if (distUnit) distUnit.textContent = on ? ' ft' : ' yds';
 
   // Swap presets
   if (on) {
-    document.getElementById('dist-from-presets').innerHTML = `
+    const fp = document.getElementById('dist-from-presets');
+    if (fp) fp.innerHTML = `
       <div class="dist-preset" onclick="setDistFrom(2)">2 ft</div>
       <div class="dist-preset" onclick="setDistFrom(3)">3 ft</div>
       <div class="dist-preset" onclick="setDistFrom(5)">5 ft</div>
@@ -1808,7 +2267,8 @@ function setPuttMode(on) {
       <div class="dist-preset" onclick="setDistTo(10)">10 ft</div>
       <div class="dist-preset" onclick="setDistTo(15)">15 ft</div>`;
   } else {
-    document.getElementById('dist-from-presets').innerHTML = `
+    const fp = document.getElementById('dist-from-presets');
+    if (fp) fp.innerHTML = `
       <div class="dist-preset" onclick="setDistFrom(3)">3</div>
       <div class="dist-preset" onclick="setDistFrom(6)">6</div>
       <div class="dist-preset" onclick="setDistFrom(10)">10</div>
@@ -1837,13 +2297,15 @@ function setPuttMode(on) {
 function selectMiss(m) {
   state.currentShot.miss = m;
   document.querySelectorAll('.compass-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('miss-'+m.replace('-','-')).classList.add('active');
+  const el = document.getElementById('miss-'+m); if (el) el.classList.add('active');
+  updateAdvancedSummary();
 }
 
 function selectStrike(s) {
   state.currentShot.strike = s;
   document.getElementById('strike-good').classList.toggle('active', s === 'good');
   document.getElementById('strike-bad').classList.toggle('active', s === 'bad');
+  updateAdvancedSummary();
 }
 
 function selectShape(s) {
@@ -1851,112 +2313,10 @@ function selectShape(s) {
   ['straight','draw','fade','punch','flop'].forEach(x =>
     document.getElementById('shape-'+x).classList.toggle('active', x === s)
   );
+  updateAdvancedSummary();
 }
 
-function renderClubSuggestions() {
-  const box = document.getElementById('club-suggest-box');
-  if (!box) return;
-  const type = state.currentShot.type;
-  const dist = state.currentShot.distFrom;
-  if (!['approach','chip','sand'].includes(type) || !dist || dist <= 0) {
-    box.style.display = 'none';
-    return;
-  }
 
-  // Build avg carry per club+swing from round + range shots (good, fairway, no punch)
-  const roundShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
-  const rangeShots = state.rangeShots || [];
-  const carries = {}; // key = "club" or "club|swing"
-
-  function addCarry(key, carry) {
-    if (!carries[key]) carries[key] = [];
-    carries[key].push(carry);
-  }
-
-  roundShots.forEach(s => {
-    if (s.type === 'putt') return;
-    if ((s.strike||'good') !== 'good') return;
-    if ((s.shape||'straight') === 'punch') return;
-    const c = s.distFrom - s.distTo;
-    if (c <= 0) return;
-    const key = WEDGE_CLUBS.includes(s.club) && s.swingType ? `${s.club}|${s.swingType}` : s.club;
-    addCarry(key, c);
-    if (WEDGE_CLUBS.includes(s.club) && !s.swingType) addCarry(s.club, c);
-  });
-  rangeShots.forEach(s => {
-    if ((s.strike||'good') !== 'good') return;
-    if (!s.carry || s.carry <= 0) return;
-    const key = WEDGE_CLUBS.includes(s.club) && s.swingType ? `${s.club}|${s.swingType}` : s.club;
-    addCarry(key, s.carry);
-  });
-
-  // Compute avg per key
-  const avgCarry = {};
-  Object.entries(carries).forEach(([k, arr]) => {
-    avgCarry[k] = Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
-  });
-
-  if (!Object.keys(avgCarry).length) { box.style.display = 'none'; return; }
-
-  const WINDOW = 13; // ±13 yards
-  // Build option list: { label, avg, diff }
-  const options = Object.entries(avgCarry).map(([key, avg]) => {
-    const [club, swing] = key.split('|');
-    const diff = avg - dist;
-    return { key, club, swing: swing||null, avg, diff };
-  }).filter(o => Math.abs(o.diff) <= WINDOW)
-    .sort((a,b) => a.avg - b.avg); // short → long
-
-  if (!options.length) { box.style.display = 'none'; return; }
-
-  // Group into short (negative diff), carry (±3), long (positive diff)
-  const short  = options.filter(o => o.diff < -3);
-  const carry  = options.filter(o => Math.abs(o.diff) <= 3);
-  const longer = options.filter(o => o.diff > 3);
-
-  function chip(o) {
-    const label = o.swing ? `${o.club}<br><span style="font-size:9px;opacity:0.8;">${o.swing}</span>` : o.club;
-    const diffStr = o.diff === 0 ? '±0' : (o.diff > 0 ? '+' : '') + o.diff;
-    const isCarry = Math.abs(o.diff) <= 3;
-    return `<div onclick="selectClub('${o.club}')${o.swing ? `;selectSwing('${o.swing}')` : ''}"
-      style="flex:1;text-align:center;padding:8px 4px;border-radius:8px;cursor:pointer;
-             background:${isCarry?'var(--green)':'white'};
-             border:1.5px solid ${isCarry?'var(--green)':'#e5e7eb'};
-             color:${isCarry?'white':'var(--dark)'};">
-      <div style="font-size:13px;font-weight:800;line-height:1.2;">${label}</div>
-      <div style="font-size:11px;font-weight:700;margin-top:2px;opacity:${isCarry?'1':'0.7'};">${o.avg}y</div>
-      <div style="font-size:9px;opacity:0.65;">${diffStr}</div>
-    </div>`;
-  }
-
-  // Build columns — always show all three, grayed out if empty
-  const cols = [
-    { label: '🔻 Short', items: short, hint: 'Covers front' },
-    { label: '🎯 Carry', items: carry, hint: 'Pins the flag' },
-    { label: '🔺 Long',  items: longer, hint: 'Covers back' },
-  ];
-
-  box.style.display = '';
-  box.innerHTML = `
-    <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:10px 12px;">
-      <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">
-        🏌️ Club Suggestions — ${dist} yds
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
-        ${cols.map(col => `
-          <div>
-            <div style="font-size:9px;font-weight:700;color:var(--muted);text-align:center;margin-bottom:5px;text-transform:uppercase;letter-spacing:.05em;">${col.label}</div>
-            ${col.items.length
-              ? `<div style="display:flex;flex-direction:column;gap:4px;">${col.items.map(chip).join('')}</div>`
-              : `<div style="text-align:center;font-size:11px;color:#d1d5db;padding:10px 0;">—</div>`
-            }
-          </div>
-        `).join('')}
-      </div>
-      <div style="font-size:9px;color:var(--muted);margin-top:7px;text-align:center;">Tap a club to select it · based on your avg carry</div>
-      <button onclick="showDistancesFromShot()" style="margin-top:8px;width:100%;padding:9px;border-radius:8px;border:1.5px solid var(--green);background:white;color:var(--green);font-size:12px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">📏 View All Club Distances</button>
-    </div>`;
-}
 
 function selectLie(l) {
   state.currentShot.lie = l;
@@ -2001,11 +2361,6 @@ function renderClubs() {
   ).join('')}</div>`;
 }
 
-function selectClub(c) {
-  state.currentShot.club = c;
-  renderClubs();
-  showWedgeSwing(c);
-}
 
 function saveShot() {
   const s = state.currentShot;
@@ -2156,10 +2511,12 @@ function showRoundSummary(r) {
 // DATA BACKUP / RESTORE
 // ═══════════════════════════════════════════════════════════════════
 function resetAllData() {
-  if (!confirm('⚠️ Reset ALL data?\n\nThis will permanently delete all rounds and shots. This cannot be undone.\n\nTip: Use "Backup & Restore" first to save a copy.')) return;
+  if (!confirm('⚠️ Reset ALL data?\n\nThis will permanently delete all rounds and shots. This cannot be undone.\n\nTip: Use "Backup & Restore" first to save a copy.\n\nNote: Hole Map data (images + GPS points) is NEVER deleted.')) return;
   if (!confirm('Are you sure? All your round history will be gone.')) return;
   state.rounds = [];
   saveState();
+  // NOTE: lcc_gps_cal and lcc_hole_map are intentionally NOT cleared here.
+  // They are permanent course knowledge data.
   renderHome();
 }
 
@@ -4520,7 +4877,14 @@ function renderCalibrate() {
 // Stop GPS watch when navigating away
 const _origShowScreen = showScreen;
 showScreen = function(id) {
+  // Stop the GPS distances screen GPS when leaving it
   if (id !== 's-gps') stopGPS();
+  // Stop the shot screen GPS when leaving shot logging
+  if (id !== 's-shot' && _shotGpsWatch !== null) {
+    navigator.geolocation.clearWatch(_shotGpsWatch);
+    _shotGpsWatch = null;
+    _shotDistManualOverride = false;
+  }
   _origShowScreen(id);
 };
 
@@ -4667,8 +5031,856 @@ function saveMapPoint() {
   saveCalData(d);
   closeMapPicker();
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLE MAP SYSTEM — lcc_hole_map (PERMANENT, never cleared)
+// ═══════════════════════════════════════════════════════════════════
+const POINT_TYPES = [
+  { key:'green_edge', icon:'🟢', label:'Green Edge',    color:'#16a34a' },
+  { key:'tee_box',    icon:'⛳', label:'Tee Box',       color:'#0d9488' },
+  { key:'fairway',    icon:'🏌️', label:'Fairway Zone',  color:'#15803d' },
+  { key:'bunker',     icon:'🏖️', label:'Bunker',        color:'#b45309' },
+  { key:'water',      icon:'💧', label:'Water Hazard',  color:'#1d4ed8' },
+  { key:'ob',         icon:'⛔', label:'OB / Fence',    color:'#dc2626' },
+  { key:'layup',      icon:'📍', label:'Layup Target',  color:'#059669' },
+  { key:'tree',       icon:'🌲', label:'Tree Line',     color:'#4d7c0f' },
+  { key:'carry',      icon:'🎯', label:'Carry Line',    color:'#7c3aed' },
+  { key:'other',      icon:'📌', label:'Other',         color:'#6b7280' },
+];
+const PT_MAP = Object.fromEntries(POINT_TYPES.map(t => [t.key, t]));
+
+function getHoleMapData() {
+  try { return JSON.parse(localStorage.getItem('lcc_hole_map') || '{}'); } catch { return {}; }
+}
+function saveHoleMapData(d) { localStorage.setItem('lcc_hole_map', JSON.stringify(d)); }
+function getHoleMap(n)       { const d = getHoleMapData(); return d[n] || null; }
+function saveHoleMap(n, data) { const d = getHoleMapData(); d[n] = data; saveHoleMapData(d); }
+
+// ── Geo transform ─────────────────────────────────────────────────
+function computeTransform(refs) {
+  if (!refs || refs.length < 2) return null;
+  const r0 = refs[0], r1 = refs[1];
+  const dPx = r1.px - r0.px, dPy = r1.py - r0.py;
+  const pixDist = Math.sqrt(dPx*dPx + dPy*dPy);
+  if (pixDist < 5) return null;
+  const realYds = gpsYards(r0.lat, r0.lng, r1.lat, r1.lng);
+  const scale = realYds / pixDist;
+  const dLat = (r1.lat - r0.lat) * Math.PI / 180;
+  const dLng = (r1.lng - r0.lng) * Math.PI / 180;
+  const gpsBearing = Math.atan2(dLng * Math.cos(r0.lat * Math.PI/180), dLat);
+  const pixBearing = Math.atan2(dPy, dPx);
+  const angle = gpsBearing - pixBearing;
+  return { scale, angle, refPx: r0.px, refPy: r0.py, refLat: r0.lat, refLng: r0.lng, refs };
+}
+
+function pixelToGPS(px, py, transform) {
+  if (!transform) return null;
+  const { scale, angle, refPx, refPy, refLat, refLng } = transform;
+  const dx = px - refPx, dy = py - refPy;
+  const distPx = Math.sqrt(dx*dx + dy*dy);
+  const distYds = distPx * scale;
+  const pixBearing = Math.atan2(dy, dx);
+  const gpsBearing = pixBearing + angle;
+  const distM = distYds * 0.9144;
+  const R = 6371000;
+  const dNorth = distM * Math.cos(gpsBearing) / R * (180/Math.PI);
+  const dEast  = distM * Math.sin(gpsBearing) / R * (180/Math.PI) / Math.cos(refLat * Math.PI/180);
+  return { lat: refLat + dNorth, lng: refLng + dEast };
+}
+
+function gpsToPixel(lat, lng, transform) {
+  if (!transform) return null;
+  const { scale, angle, refPx, refPy, refLat, refLng } = transform;
+  const R = 6371000;
+  const distN = (lat - refLat) * Math.PI/180 * R;
+  const distE = (lng - refLng) * Math.PI/180 * R * Math.cos(refLat * Math.PI/180);
+  const distM = Math.sqrt(distN*distN + distE*distE);
+  const distYds = distM / 0.9144;
+  const gpsBearing = Math.atan2(distE, distN);
+  const pixBearing = gpsBearing - angle;
+  const distPx = distYds / scale;
+  return { px: refPx + distPx*Math.cos(pixBearing), py: refPy + distPx*Math.sin(pixBearing) };
+}
+
+// ── State ─────────────────────────────────────────────────────────
+let _hmsHole = 1, _hmsStage = 1;
+let _hmsPendingRef = null;
+let _hmeHole = 1;
+let _hmeImg  = null;
+let _hmePendingPx = null, _hmePendingPy = null;
+let _hmeEditId = null;
+let _hmpSelectedType = 'green_edge';
+
+// ── Hole Setup Home ───────────────────────────────────────────────
+function showHoleSetupHome() {
+  showScreen('s-hole-setup');
+  document.getElementById('hms-title').textContent = '🗺️ Hole Maps';
+  document.getElementById('hms-sub').textContent = 'Course knowledge base';
+  renderHoleSetupHome();
+}
+
+function renderHoleSetupHome() {
+  const el = document.getElementById('hms-content');
+  const allData = getHoleMapData();
+  const info = [{n:1,par:4,yds:396},{n:2,par:3,yds:114},{n:3,par:5,yds:485},{n:4,par:3,yds:185},{n:5,par:4,yds:283},{n:6,par:5,yds:469},{n:7,par:4,yds:381},{n:8,par:4,yds:437},{n:9,par:4,yds:303},{n:10,par:3,yds:218},{n:11,par:4,yds:363},{n:12,par:4,yds:318},{n:13,par:3,yds:153},{n:14,par:5,yds:452},{n:15,par:5,yds:484},{n:16,par:4,yds:390},{n:17,par:4,yds:334},{n:18,par:4,yds:345}];
+  const totalPoints = Object.values(allData).reduce((s,h) => s+(h.points?.length||0), 0);
+  const holesWithImage = Object.values(allData).filter(h=>h.image).length;
+  const holesCalibrated = Object.values(allData).filter(h=>h.transform?.scale).length;
+  const rows = info.map(h => {
+    const hd = allData[h.n] || {};
+    const hasImg = !!hd.image, hasCal = !!(hd.transform?.scale), ptCount = hd.points?.length||0;
+    const status = !hasImg ? `<span style="color:var(--muted);font-size:11px;">No image</span>`
+                 : !hasCal ? `<span style="color:#b45309;font-size:11px;">⚠️ Needs calibration</span>`
+                 : `<span style="color:#16a34a;font-size:11px;">✓ ${ptCount} pt${ptCount!==1?'s':''}</span>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f3f4f6;cursor:pointer;" onclick="openHoleSetup(${h.n})">
+      <div><span style="font-weight:700;color:var(--green);">H${h.n}</span><span style="font-size:12px;color:var(--muted);margin-left:6px;">Par ${h.par} · ${h.yds} yds</span></div>
+      <div style="display:flex;align-items:center;gap:10px;">${status}<span style="color:var(--muted);">›</span></div>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div style="padding:14px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
+      <div><div style="font-size:22px;font-weight:900;color:var(--green);">${holesWithImage}</div><div style="font-size:10px;color:var(--muted);">Images</div></div>
+      <div><div style="font-size:22px;font-weight:900;color:var(--green);">${holesCalibrated}</div><div style="font-size:10px;color:var(--muted);">Calibrated</div></div>
+      <div><div style="font-size:22px;font-weight:900;color:var(--green);">${totalPoints}</div><div style="font-size:10px;color:var(--muted);">Points</div></div>
+    </div>
+  </div>
+  <div>${rows}</div>
+  <div style="padding:16px;font-size:11px;color:var(--muted);text-align:center;line-height:1.6;">
+    📌 Hole map data is permanent — it survives Reset All Data.<br>
+    Upload PuttView scans, calibrate with 2+ yardage markers, then tap the image to map any course feature.
+  </div>`;
+}
+
+function closeHoleSetup() { showScreen('s-home'); renderHome(); }
+
+function openHoleSetup(n) {
+  _hmsHole = n;
+  const hd = getHoleMap(n) || {};
+  _hmsStage = hd.image ? (hd.transform?.scale ? 3 : 2) : 1;
+  showScreen('s-hole-setup');
+  renderHoleSetup();
+}
+
+function renderHoleSetup() {
+  const info = [{n:1,par:4,yds:396},{n:2,par:3,yds:114},{n:3,par:5,yds:485},{n:4,par:3,yds:185},{n:5,par:4,yds:283},{n:6,par:5,yds:469},{n:7,par:4,yds:381},{n:8,par:4,yds:437},{n:9,par:4,yds:303},{n:10,par:3,yds:218},{n:11,par:4,yds:363},{n:12,par:4,yds:318},{n:13,par:3,yds:153},{n:14,par:5,yds:452},{n:15,par:5,yds:484},{n:16,par:4,yds:390},{n:17,par:4,yds:334},{n:18,par:4,yds:345}].find(h=>h.n===_hmsHole);
+  document.getElementById('hms-title').textContent = `Hole ${_hmsHole} Setup`;
+  document.getElementById('hms-sub').textContent = `Par ${info.par} · ${info.yds} yds`;
+  const el = document.getElementById('hms-content');
+  const hd = getHoleMap(_hmsHole) || {};
+  const stages = [{n:1,label:'📷 Image'},{n:2,label:'📐 Calibrate'},{n:3,label:'📍 Points'}];
+  const stageHtml = `<div style="display:flex;border-bottom:2px solid #e5e7eb;background:white;">
+    ${stages.map(s=>`<button onclick="_hmsStage=${s.n};renderHoleSetup()" style="flex:1;padding:10px 4px;border:none;background:none;font-size:12px;font-weight:600;color:${_hmsStage===s.n?'var(--green)':'var(--muted)'};border-bottom:${_hmsStage===s.n?'3px solid var(--green)':'3px solid transparent'};cursor:pointer;">${s.label}</button>`).join('')}
+  </div>`;
+  let body = '';
+  if (_hmsStage===1) body = renderHmsStage1(hd);
+  if (_hmsStage===2) body = renderHmsStage2(hd);
+  if (_hmsStage===3) body = renderHmsStage3(hd);
+  el.innerHTML = stageHtml + body;
+  if (_hmsStage===1) { const fi=document.getElementById('hms-file-input'); if(fi) fi.onchange=handleHmsImageUpload; }
+}
+
+// Stage 1: Image upload
+function renderHmsStage1(hd) {
+  if (hd.image) {
+    const kb = Math.round(hd.image.length*0.75/1024);
+    return `<div style="padding:16px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Current Image</div>
+      <img src="${hd.image}" style="width:100%;border-radius:10px;border:2px solid #e5e7eb;"/>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">~${kb} KB</div>
+      <div style="margin-top:14px;display:flex;gap:10px;">
+        <label style="flex:1;"><input type="file" id="hms-file-input" accept="image/*" style="display:none;"/>
+        <div class="btn btn-ghost btn-sm" style="text-align:center;cursor:pointer;">🔄 Replace Image</div></label>
+        <button class="btn btn-sm" style="flex:1;background:var(--green);color:white;" onclick="_hmsStage=2;renderHoleSetup()">Next: Calibrate →</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;color:var(--red);" onclick="deleteHmsImage()">🗑️ Delete Image</button>
+    </div>`;
+  }
+  return `<div style="padding:24px 16px;text-align:center;">
+    <div style="font-size:48px;margin-bottom:12px;">📷</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">Upload Hole ${_hmsHole} Scan</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;">Photograph or scan the PuttView page for Hole ${_hmsHole}.<br>Any clear top-down image works.</div>
+    <label style="display:block;"><input type="file" id="hms-file-input" accept="image/*" style="display:none;" capture="environment"/>
+    <div class="btn btn-primary" style="cursor:pointer;">📷 Choose Image / Take Photo</div></label>
+    <div style="margin-top:16px;font-size:11px;color:var(--muted);">JPEG, PNG · Phone camera fine</div>
+  </div>`;
+}
+
+function handleHmsImageUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    const img = new Image();
+    img.onload = () => {
+      const hd = getHoleMap(_hmsHole) || {};
+      hd.image = evt.target.result; hd.imageW = img.width; hd.imageH = img.height;
+      saveHoleMap(_hmsHole, hd); _hmsStage=2; renderHoleSetup();
+    };
+    img.src = evt.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function deleteHmsImage() {
+  if (!confirm('Delete image for Hole '+_hmsHole+'? All calibration and points will also be removed.')) return;
+  const d=getHoleMapData(); delete d[_hmsHole]; saveHoleMapData(d);
+  _hmsStage=1; renderHoleSetup();
+}
+
+// Stage 2: Calibration
+function renderHmsStage2(hd) {
+  if (!hd.image) return `<div style="padding:24px;text-align:center;color:var(--muted);">Upload image first.<br><button class="btn btn-sm" style="margin-top:8px;" onclick="_hmsStage=1;renderHoleSetup()">← Stage 1</button></div>`;
+  const refs = hd.transform?.refs || [];
+  const transform = refs.length>=2 ? computeTransform(refs) : null;
+  const calOk = !!transform;
+  const refRows = refs.map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;">
+    <div><div style="font-size:13px;font-weight:600;">${r.label||'Ref '+(i+1)}</div><div style="font-size:10px;color:var(--muted);">Pixel(${Math.round(r.px)},${Math.round(r.py)}) → ${r.lat?.toFixed(5)}, ${r.lng?.toFixed(5)}</div></div>
+    <button class="btn btn-sm btn-ghost" style="color:var(--red);font-size:11px;" onclick="deleteCalRef(${i})">✕</button>
+  </div>`).join('');
+
+  return `<div style="padding:16px;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">Tap a <b>printed yardage marker</b> on the image. Add at least 2 reference points, each linked to a real GPS position.</div>
+    <div style="position:relative;border-radius:10px;overflow:hidden;border:2px solid ${calOk?'#16a34a':'#e5e7eb'};cursor:crosshair;" id="cal-img-wrap">
+      <img src="${hd.image}" style="width:100%;display:block;" id="cal-img" onclick="handleCalImageTap(event)"/>
+      ${refs.map((r,i)=>{const px=(r.px/hd.imageW*100).toFixed(1),py=(r.py/hd.imageH*100).toFixed(1);return `<div style="position:absolute;left:${px}%;top:${py}%;transform:translate(-50%,-50%);width:22px;height:22px;background:#3b82f6;border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;pointer-events:none;">${i+1}</div>`;}).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">↑ Tap a yardage marker on the image</div>
+    ${refs.length ? `<div style="margin-top:12px;">${refRows}</div>` : ''}
+    <div style="margin-top:12px;padding:10px 12px;background:${calOk?'#f0fdf4':'#fef3f2'};border-radius:8px;">
+      ${calOk ? `<div style="color:#16a34a;font-size:13px;font-weight:600;">✅ Calibrated — ${transform.scale.toFixed(3)} yds/pixel</div>`
+              : `<div style="color:#b91c1c;font-size:13px;">${refs.length<2?`Need ${2-refs.length} more ref point${refs.length===1?'':'s'}.`:'Computing…'}</div>`}
+    </div>
+    ${calOk ? `<button class="btn btn-sm" style="width:100%;margin-top:12px;background:var(--green);color:white;" onclick="_hmsStage=3;renderHoleSetup()">Next: Map Points →</button>` : ''}
+    ${refs.length ? `<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;color:var(--red);" onclick="clearAllCalRefs()">Clear Ref Points</button>` : ''}
+  </div>`;
+}
+
+function handleCalImageTap(e) {
+  const img = e.currentTarget;
+  const rect = img.getBoundingClientRect();
+  const px = (e.clientX-rect.left)*(img.naturalWidth/rect.width);
+  const py = (e.clientY-rect.top)*(img.naturalHeight/rect.height);
+  _hmsPendingRef = {px, py};
+  showCalRefDialog(px, py);
+}
+
+function showCalRefDialog(px, py) {
+  const el = document.getElementById('hms-content');
+  el.innerHTML = `<div style="position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;">
+    <div style="background:white;border-radius:20px 20px 0 0;width:100%;max-height:85vh;overflow:auto;padding:16px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Calibration Reference Point</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Pixel: (${Math.round(px)}, ${Math.round(py)})</div>
+      <label style="display:block;margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Label (e.g. "150 yd marker")</div>
+        <input type="text" id="cal-ref-label" placeholder="150 yd marker" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
+      </label>
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Real-world GPS position</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Latitude</div>
+        <input type="number" id="cal-ref-lat" placeholder="40.2765" step="0.000001" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
+        <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Longitude</div>
+        <input type="number" id="cal-ref-lng" placeholder="-79.3732" step="0.000001" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:10px;" onclick="useMyGPSForCalRef()">📡 Use My GPS Position</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="_hmsPendingRef=null;renderHoleSetup()">Cancel</button>
+        <button class="btn btn-sm" style="flex:2;background:var(--green);color:white;" onclick="saveCalRef()">Save Reference Point</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function useMyGPSForCalRef() {
+  if (_gpsLat===null) { alert('GPS not available. Start GPS first.'); return; }
+  document.getElementById('cal-ref-lat').value = _gpsLat.toFixed(6);
+  document.getElementById('cal-ref-lng').value = _gpsLng.toFixed(6);
+}
+
+function saveCalRef() {
+  if (!_hmsPendingRef) return;
+  const label = document.getElementById('cal-ref-label')?.value.trim() || 'Ref point';
+  const lat   = parseFloat(document.getElementById('cal-ref-lat')?.value);
+  const lng   = parseFloat(document.getElementById('cal-ref-lng')?.value);
+  if (isNaN(lat)||isNaN(lng)) { alert('Please enter GPS coordinates.'); return; }
+  const hd = getHoleMap(_hmsHole) || {};
+  if (!hd.transform) hd.transform = {};
+  if (!hd.transform.refs) hd.transform.refs = [];
+  hd.transform.refs.push({px:_hmsPendingRef.px, py:_hmsPendingRef.py, lat, lng, label});
+  const t = computeTransform(hd.transform.refs);
+  if (t) Object.assign(hd.transform, t);
+  saveHoleMap(_hmsHole, hd);
+  _hmsPendingRef = null;
+  renderHoleSetup();
+}
+
+function deleteCalRef(i) {
+  const hd = getHoleMap(_hmsHole)||{};
+  if (!hd.transform?.refs) return;
+  hd.transform.refs.splice(i,1);
+  const t = computeTransform(hd.transform.refs);
+  if (t) Object.assign(hd.transform,t); else {delete hd.transform.scale;delete hd.transform.angle;}
+  saveHoleMap(_hmsHole,hd); renderHoleSetup();
+}
+
+function clearAllCalRefs() {
+  if (!confirm('Clear all calibration points for Hole '+_hmsHole+'?')) return;
+  const hd = getHoleMap(_hmsHole)||{};
+  if (hd.transform) {hd.transform.refs=[];delete hd.transform.scale;delete hd.transform.angle;}
+  saveHoleMap(_hmsHole,hd); renderHoleSetup();
+}
+
+// Stage 3: Points list
+function renderHmsStage3(hd) {
+  if (!hd.image) return `<div style="padding:24px;text-align:center;color:var(--muted);">Upload image first.<button class="btn btn-sm" style="margin-top:8px;display:block;" onclick="_hmsStage=1;renderHoleSetup()">← Stage 1</button></div>`;
+  const points = hd.points||[];
+  const hasCal = !!(hd.transform?.scale);
+  const grouped = {};
+  points.forEach(p => { if(!grouped[p.type]) grouped[p.type]=[]; grouped[p.type].push(p); });
+  const groupHtml = Object.entries(grouped).map(([type,pts])=>{
+    const td=PT_MAP[type]||PT_MAP.other;
+    return `<div style="margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;padding:6px 0 4px;">${td.icon} ${td.label} (${pts.length})</div>
+      ${pts.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f3f4f6;">
+        <div><div style="font-size:13px;font-weight:600;">${p.label}</div><div style="font-size:10px;color:var(--muted);">${p.lat?.toFixed(5)}, ${p.lng?.toFixed(5)}</div></div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-ghost" style="font-size:11px;" onclick="_hmeHole=${_hmsHole};editHoleMapPoint('${p.id}',false)">Edit</button>
+          <button class="btn btn-sm btn-ghost" style="font-size:11px;color:var(--red);" onclick="deleteHoleMapPoint('${p.id}')">✕</button>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+  return `<div style="padding:16px;">
+    ${!hasCal?`<div style="background:#fef3f2;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#b91c1c;">⚠️ Not calibrated — GPS positions computed from image will be approximate. <button class="btn btn-sm btn-ghost" style="margin-top:4px;" onclick="_hmsStage=2;renderHoleSetup()">Calibrate →</button></div>`:''}
+    <button class="btn btn-primary" style="width:100%;margin-bottom:14px;" onclick="openHoleMapEditor(${_hmsHole})">📍 Open Image Editor (${points.length} points)</button>
+    ${points.length===0?`<div style="text-align:center;color:var(--muted);padding:20px;font-size:13px;">No points yet. Tap the button above to start mapping.</div>`:groupHtml}
+    ${points.length>0?`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px;color:var(--red);" onclick="clearAllHoleMapPoints()">🗑️ Clear All Points for H${_hmsHole}</button>`:''}
+  </div>`;
+}
+
+function deleteHoleMapPoint(id) {
+  if (!confirm('Delete this point?')) return;
+  const hd=getHoleMap(_hmsHole)||{}; hd.points=(hd.points||[]).filter(p=>p.id!==id);
+  saveHoleMap(_hmsHole,hd); renderHoleSetup();
+}
+
+function clearAllHoleMapPoints() {
+  if (!confirm('Delete ALL '+((getHoleMap(_hmsHole)?.points?.length)||0)+' points for Hole '+_hmsHole+'?')) return;
+  const hd=getHoleMap(_hmsHole)||{}; hd.points=[];
+  saveHoleMap(_hmsHole,hd); renderHoleSetup();
+}
+
+// ── Map Editor ────────────────────────────────────────────────────
+function openHoleMapEditor(n) {
+  _hmeHole=n; _hmeEditId=null;
+  showScreen('s-hole-map-editor');
+  document.getElementById('hme-title').textContent=`H${n} Points`;
+  document.getElementById('hme-sub').textContent='Tap image to add · Tap dot to edit';
+  document.getElementById('hme-point-count').textContent='';
+  const hd=getHoleMap(n);
+  if (!hd?.image) { document.getElementById('hme-canvas-wrap').innerHTML='<div style="color:white;padding:32px;text-align:center;">No image uploaded.</div>'; return; }
+  _hmeImg=new Image();
+  _hmeImg.onload=()=>drawHmeCanvas();
+  _hmeImg.src=hd.image;
+}
+
+function drawHmeCanvas() {
+  const hd=getHoleMap(_hmeHole);
+  if (!_hmeImg||!hd) return;
+  const wrap=document.getElementById('hme-canvas-wrap');
+  const canvas=document.getElementById('hme-canvas');
+  if (!canvas) return;
+  const cw=wrap.clientWidth;
+  canvas.width=_hmeImg.naturalWidth;
+  canvas.height=_hmeImg.naturalHeight;
+  canvas.style.width=cw+'px';
+  canvas.style.height=(cw/_hmeImg.naturalWidth*_hmeImg.naturalHeight)+'px';
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(_hmeImg,0,0);
+  // Draw cal refs
+  (hd.transform?.refs||[]).forEach((r,i)=>{
+    ctx.beginPath(); ctx.arc(r.px,r.py,16,0,Math.PI*2);
+    ctx.fillStyle='#3b82f688'; ctx.fill();
+    ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle='white'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText((i+1).toString(),r.px,r.py+4);
+  });
+  // Draw points
+  (hd.points||[]).forEach(p=>{
+    const td=PT_MAP[p.type]||PT_MAP.other;
+    ctx.beginPath(); ctx.arc(p.px,p.py,18,0,Math.PI*2);
+    ctx.fillStyle=td.color+'cc'; ctx.fill();
+    ctx.strokeStyle='white'; ctx.lineWidth=3; ctx.stroke();
+    ctx.fillStyle='white'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(p.label.slice(0,14),p.px,p.py-22);
+    ctx.fillText(td.icon,p.px,p.py+5);
+  });
+  const pts=hd.points||[];
+  document.getElementById('hme-point-count').textContent=`${pts.length} pt${pts.length!==1?'s':''}`;
+  canvas.onclick=handleHmeTap;
+}
+
+function handleHmeTap(e) {
+  const canvas=e.currentTarget;
+  const rect=canvas.getBoundingClientRect();
+  const px=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const py=(e.clientY-rect.top)*(canvas.height/rect.height);
+  const hd=getHoleMap(_hmeHole);
+  const hitR=24*(canvas.width/rect.width);
+  const hit=(hd?.points||[]).find(p=>Math.sqrt((p.px-px)**2+(p.py-py)**2)<hitR);
+  if (hit) { _hmeHole=_hmeHole; editHoleMapPoint(hit.id,true); return; }
+  _hmePendingPx=px; _hmePendingPy=py;
+  openHoleMapPointForm(null);
+}
+
+function finishHoleMapEditor() { showScreen('s-hole-setup'); _hmsStage=3; renderHoleSetup(); }
+function closeHoleMapEditor() { finishHoleMapEditor(); }
+
+// ── Point form ────────────────────────────────────────────────────
+function openHoleMapPointForm(existingId) {
+  _hmeEditId=existingId;
+  showScreen('s-hole-map-point');
+  const hd=getHoleMap(_hmeHole);
+  const existing=existingId?(hd?.points||[]).find(p=>p.id===existingId):null;
+  const isEdit=!!existing;
+  document.getElementById('hmp-title').textContent=isEdit?'Edit Point':'New Point';
+  document.getElementById('hmp-sub').textContent=`Hole ${_hmeHole}`;
+  let lat='',lng='';
+  if (!isEdit&&hd?.transform?.scale) {
+    const gps=pixelToGPS(_hmePendingPx,_hmePendingPy,hd.transform);
+    if (gps) {lat=gps.lat.toFixed(6);lng=gps.lng.toFixed(6);}
+  } else if (existing) {lat=existing.lat?.toFixed(6)||'';lng=existing.lng?.toFixed(6)||'';}
+  const selType=existing?.type||'green_edge';
+  _hmpSelectedType=selType;
+  const typeButtons=POINT_TYPES.map(t=>`<button type="button" onclick="selectHmpType('${t.key}',this)" id="hmp-type-${t.key}"
+    style="padding:8px 4px;border:2px solid ${selType===t.key?t.color:'#e5e7eb'};background:${selType===t.key?t.color+'22':'white'};border-radius:8px;font-size:10px;cursor:pointer;flex:1;min-width:50px;text-align:center;">
+    ${t.icon}<br>${t.label}</button>`).join('');
+  document.getElementById('hmp-content').innerHTML=`
+    <div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:600;margin-bottom:8px;">Type</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;">${typeButtons}</div></div>
+    <label style="display:block;margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Label *</div>
+      <input type="text" id="hmp-label" placeholder="e.g. Front Left Edge" value="${existing?.label||''}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
+    </label>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">GPS Position</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Latitude</div>
+        <input type="number" id="hmp-lat" value="${lat}" placeholder="40.2765" step="0.000001"
+          style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
+        <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Longitude</div>
+        <input type="number" id="hmp-lng" value="${lng}" placeholder="-79.3732" step="0.000001"
+          style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
+      </div>
+      ${hd?.transform?.scale?`<div style="font-size:11px;color:#16a34a;margin-bottom:6px;">✓ Auto-computed from calibrated image</div>`:
+        `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Image not calibrated — enter GPS manually or walk there</div>`}
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="useMyGPSForPoint()">📡 Use My GPS</button>
+    </div>
+    <label style="display:block;margin-bottom:16px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Note (optional)</div>
+      <input type="text" id="hmp-note" placeholder="e.g. Aim left of flag" value="${existing?.note||''}"
+        style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/>
+    </label>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="cancelHoleMapPoint()">Cancel</button>
+      <button class="btn btn-sm" style="flex:2;background:var(--green);color:white;" onclick="saveHoleMapPoint()">${isEdit?'✅ Update':'✅ Save'}</button>
+    </div>
+    ${isEdit?`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;color:var(--red);" onclick="confirmDeleteAndReturn('${existingId}')">🗑️ Delete This Point</button>`:''}`;
+}
+
+function confirmDeleteAndReturn(id) {
+  if (!confirm('Delete this point?')) return;
+  const hd=getHoleMap(_hmeHole)||{}; hd.points=(hd.points||[]).filter(p=>p.id!==id);
+  saveHoleMap(_hmeHole,hd); showScreen('s-hole-map-editor'); drawHmeCanvas();
+}
+
+function selectHmpType(key, btn) {
+  _hmpSelectedType=key;
+  POINT_TYPES.forEach(t=>{
+    const b=document.getElementById('hmp-type-'+t.key); if(!b) return;
+    b.style.borderColor=t.key===key?t.color:'#e5e7eb';
+    b.style.background =t.key===key?t.color+'22':'white';
+  });
+}
+
+function useMyGPSForPoint() {
+  if (_gpsLat===null) {alert('GPS not available. Start GPS first.'); return;}
+  document.getElementById('hmp-lat').value=_gpsLat.toFixed(6);
+  document.getElementById('hmp-lng').value=_gpsLng.toFixed(6);
+}
+
+function saveHoleMapPoint() {
+  const label=document.getElementById('hmp-label')?.value.trim();
+  const lat=parseFloat(document.getElementById('hmp-lat')?.value);
+  const lng=parseFloat(document.getElementById('hmp-lng')?.value);
+  const note=document.getElementById('hmp-note')?.value.trim()||'';
+  if (!label) {alert('Please enter a label.'); return;}
+  if (isNaN(lat)||isNaN(lng)) {alert('Please enter GPS coordinates.'); return;}
+  const hd=getHoleMap(_hmeHole)||{}; if (!hd.points) hd.points=[];
+  if (_hmeEditId) {
+    const pt=hd.points.find(p=>p.id===_hmeEditId);
+    if (pt) {pt.label=label;pt.type=_hmpSelectedType;pt.lat=lat;pt.lng=lng;pt.note=note;}
+  } else {
+    hd.points.push({id:'pt_'+Date.now().toString(36), label, type:_hmpSelectedType,
+      px:_hmePendingPx, py:_hmePendingPy, lat, lng, note, ts:Date.now()});
+  }
+  saveHoleMap(_hmeHole,hd);
+  showScreen('s-hole-map-editor'); drawHmeCanvas();
+}
+
+function cancelHoleMapPoint() {
+  showScreen('s-hole-map-editor'); drawHmeCanvas();
+}
+
+function editHoleMapPoint(id, fromEditor) {
+  _hmeEditId=id; _hmePendingPx=null; _hmePendingPy=null;
+  openHoleMapPointForm(id);
+}
+
+// ── "You Are Here" on hole map ─────────────────────────────────────
+// ── Legacy live map stubs (old screen, kept for DOM compatibility) ──
+function closeLiveMap() { showScreen('s-hole'); }
+function lmRefresh() { /* no-op — use s-hole-map-round instead */ }
+
+// ── Admin editor missing stubs ─────────────────────────────────────
+let _hmeGpsWatch = null;
+
+function toggleHmeGPS() {
+  const btn = document.getElementById('hme-gps-btn');
+  const status = document.getElementById('hme-gps-status');
+  if (_hmeGpsWatch !== null) {
+    navigator.geolocation.clearWatch(_hmeGpsWatch);
+    _hmeGpsWatch = null;
+    if (btn) btn.textContent = 'Start GPS';
+    if (status) status.textContent = '📡 GPS stopped';
+  } else {
+    if (status) status.textContent = '📡 Acquiring…';
+    _hmeGpsWatch = navigator.geolocation.watchPosition(pos => {
+      _gpsLat = pos.coords.latitude;
+      _gpsLng = pos.coords.longitude;
+      _gpsAcc = Math.round(pos.coords.accuracy);
+      if (status) status.textContent = `📡 ±${_gpsAcc}m — ${_gpsLat.toFixed(5)}, ${_gpsLng.toFixed(5)}`;
+      if (btn) btn.textContent = 'Stop GPS';
+    }, err => {
+      if (status) status.textContent = '❌ GPS error: ' + err.message;
+    }, { enableHighAccuracy: true, maximumAge: 2000 });
+  }
+}
+
+function hmeUndoLast() {
+  const hd = getHoleMap(_hmeHole);
+  if (!hd?.points?.length) return;
+  if (!confirm('Remove the last placed point?')) return;
+  hd.points.pop();
+  saveHoleMap(_hmeHole, hd);
+  drawHmeCanvas();
+}
+
+// ── Show/hide 🗺️ map button based on whether hole has a map ─────────
+function updateHoleMapBtn(holeN) {
+  const btn = document.getElementById('hole-map-btn');
+  if (!btn) return;
+  const hd = getHoleMap(holeN);
+  // Show button if there's an image (calibration not required — we'll still show image)
+  btn.style.display = hd?.image ? 'block' : 'none';
+}
+
+// ── In-round hole map ─────────────────────────────────────────────────
+let _hmrHole = 1;
+let _hmrImg  = null;
+let _hmrGpsWatch = null;
+let _hmrAnimFrame = null;
+
+function openHoleMapInRound() {
+  // Use the currently active hole
+  const holeN = state.currentHole?.n || 1;
+  _hmrHole = holeN;
+
+  const hd = getHoleMap(holeN);
+  if (!hd?.image) {
+    alert(`No map uploaded for Hole ${holeN} yet.\n\nGo to Admin → 🗺️ Hole Maps to add one.`);
+    return;
+  }
+
+  showScreen('s-hole-map-round');
+  document.getElementById('hmr-title').textContent = `Hole ${holeN} Map`;
+  document.getElementById('hmr-sub').textContent = hd.transform?.scale
+    ? `${(hd.points||[]).length} points mapped`
+    : '⚠️ Not calibrated — distances unavailable';
+
+  // Load the image
+  _hmrImg = new Image();
+  _hmrImg.onload = () => {
+    renderHmrCanvas();
+    renderHmrDistPanel();
+    startHmrGPS();
+  };
+  _hmrImg.src = hd.image;
+}
+
+function closeHoleMapRound() {
+  stopHmrGPS();
+  if (_hmrAnimFrame) { cancelAnimationFrame(_hmrAnimFrame); _hmrAnimFrame = null; }
+  showScreen('s-hole');
+}
+
+function startHmrGPS() {
+  stopHmrGPS();
+  const status = document.getElementById('hmr-gps-status');
+  const acc    = document.getElementById('hmr-gps-acc');
+  if (!navigator.geolocation) {
+    if (status) status.textContent = '❌ GPS not supported';
+    return;
+  }
+  if (status) status.textContent = '📡 Acquiring GPS…';
+  _hmrGpsWatch = navigator.geolocation.watchPosition(pos => {
+    _gpsLat = pos.coords.latitude;
+    _gpsLng = pos.coords.longitude;
+    _gpsAcc = Math.round(pos.coords.accuracy);
+    if (status) status.textContent = `📡 Live GPS`;
+    if (acc) acc.textContent = `±${_gpsAcc}m`;
+    renderHmrCanvas();
+    renderHmrDistPanel();
+  }, err => {
+    if (status) status.textContent = `❌ ${err.message}`;
+  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 });
+}
+
+function stopHmrGPS() {
+  if (_hmrGpsWatch !== null) {
+    navigator.geolocation.clearWatch(_hmrGpsWatch);
+    _hmrGpsWatch = null;
+  }
+}
+
+function renderHmrCanvas() {
+  const hd = getHoleMap(_hmrHole);
+  if (!_hmrImg || !hd) return;
+  const wrap   = document.getElementById('hmr-canvas-wrap');
+  const canvas = document.getElementById('hmr-canvas');
+  if (!canvas || !wrap) return;
+
+  const cw = wrap.clientWidth;
+  const ch = cw / _hmrImg.naturalWidth * _hmrImg.naturalHeight;
+  canvas.width  = _hmrImg.naturalWidth;
+  canvas.height = _hmrImg.naturalHeight;
+  canvas.style.width  = cw + 'px';
+  canvas.style.height = ch + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(_hmrImg, 0, 0);
+
+  const pts = hd.points || [];
+  const hasGPS = _gpsLat !== null;
+  const hasCal = !!(hd.transform?.scale);
+
+  // ── Draw all mapped points ──────────────────────────────────────
+  pts.forEach(p => {
+    const td = PT_MAP[p.type] || PT_MAP.other;
+    const dist = (hasGPS && p.lat && p.lng)
+      ? Math.round(gpsYards(_gpsLat, _gpsLng, p.lat, p.lng))
+      : null;
+
+    // Outer glow ring
+    ctx.beginPath();
+    ctx.arc(p.px, p.py, 22, 0, Math.PI * 2);
+    ctx.fillStyle = td.color + '33';
+    ctx.fill();
+
+    // Coloured dot
+    ctx.beginPath();
+    ctx.arc(p.px, p.py, 14, 0, Math.PI * 2);
+    ctx.fillStyle = td.color;
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Icon in dot
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(td.icon, p.px, p.py + 5);
+
+    // Distance badge above
+    if (dist !== null) {
+      const badge = `${dist}y`;
+      const bw = ctx.measureText(badge).width + 14;
+      const bh = 20;
+      const bx = p.px - bw/2;
+      const by = p.py - 40;
+      // Badge background
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 5)
+                    : ctx.rect(bx, by, bw, bh);
+      ctx.fillStyle = dist < 50 ? '#ef4444' : dist < 120 ? '#f59e0b' : '#1e3a5f';
+      ctx.fill();
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(badge, p.px, by + 14);
+    }
+
+    // Label below
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    // Label background
+    const lbl = p.label.slice(0, 16);
+    const lw = ctx.measureText(lbl).width + 10;
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(p.px - lw/2, p.py + 20, lw, 14);
+    ctx.fillStyle = '#1e293b';
+    ctx.fillText(lbl, p.px, p.py + 31);
+  });
+
+  // ── Draw "You are here" dot ────────────────────────────────────
+  if (hasGPS && hasCal) {
+    const pos = gpsToPixel(_gpsLat, _gpsLng, hd.transform);
+    if (pos && pos.px > 0 && pos.px < canvas.width && pos.py > 0 && pos.py < canvas.height) {
+      // Accuracy ring
+      if (_gpsAcc) {
+        const accPx = (_gpsAcc / 0.9144) / hd.transform.scale; // metres → yards → pixels
+        ctx.beginPath();
+        ctx.arc(pos.px, pos.py, accPx, 0, Math.PI * 2);
+        ctx.strokeStyle = '#3b82f644';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#3b82f611';
+        ctx.fill();
+      }
+      // Outer pulse ring
+      ctx.beginPath();
+      ctx.arc(pos.px, pos.py, 20, 0, Math.PI * 2);
+      ctx.fillStyle = '#3b82f622';
+      ctx.fill();
+      // Blue dot
+      ctx.beginPath();
+      ctx.arc(pos.px, pos.py, 11, 0, Math.PI * 2);
+      ctx.fillStyle = '#3b82f6';
+      ctx.fill();
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // "YOU" label
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('YOU', pos.px, pos.py + 3);
+    }
+  }
+}
+
+function renderHmrDistPanel() {
+  const panel = document.getElementById('hmr-dist-panel');
+  if (!panel) return;
+  const hd  = getHoleMap(_hmrHole);
+  const pts = hd?.points || [];
+  if (!pts.length) {
+    panel.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px;">No points mapped for this hole yet.<br>Go to Admin → 🗺️ Hole Maps to add them.</div>';
+    return;
+  }
+  if (_gpsLat === null) {
+    panel.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px;">📡 Waiting for GPS…</div>';
+    return;
+  }
+
+  // Compute distances to all points, sort closest first
+  const withDist = pts
+    .filter(p => p.lat && p.lng)
+    .map(p => ({ ...p, dist: Math.round(gpsYards(_gpsLat, _gpsLng, p.lat, p.lng)) }))
+    .sort((a, b) => a.dist - b.dist);
+
+  // Group by type
+  const groups = {};
+  withDist.forEach(p => {
+    if (!groups[p.type]) groups[p.type] = [];
+    groups[p.type].push(p);
+  });
+
+  // Type display order
+  const typeOrder = ['green_edge','water','carry','layup','bunker','ob','tee_box','fairway','tree','other'];
+
+  let html = '';
+  typeOrder.forEach(type => {
+    const grp = groups[type];
+    if (!grp?.length) return;
+    const td = PT_MAP[type] || PT_MAP.other;
+    html += `<div style="margin-bottom:8px;">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${td.icon} ${td.label}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        ${grp.map(p => {
+          const col = p.dist < 50 ? '#ef4444' : p.dist < 120 ? '#d97706' : '#1e3a5f';
+          return `<div style="background:${col};color:white;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap;" onclick="scrollToPointOnCanvas(${p.px},${p.py})">
+            <span style="font-size:15px;">${p.dist}</span><span style="font-size:10px;opacity:0.8;margin-left:2px;">yds</span>
+            <div style="font-size:9px;opacity:0.8;margin-top:1px;">${p.label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  });
+
+  panel.innerHTML = html || '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px;">No points with GPS coordinates yet.</div>';
+}
+
+function scrollToPointOnCanvas(px, py) {
+  // Scroll the canvas wrap so this point is centred
+  const wrap   = document.getElementById('hmr-canvas-wrap');
+  const canvas = document.getElementById('hmr-canvas');
+  if (!wrap || !canvas) return;
+  const scale = parseFloat(canvas.style.width) / canvas.width;
+  const cx = px * scale - wrap.clientWidth / 2;
+  const cy = py * scale - wrap.clientHeight / 2;
+  wrap.scrollTo({ left: Math.max(0, cx), top: Math.max(0, cy), behavior: 'smooth' });
+}
+
 loadState();
 renderHome();
+
+function showYouAreHere(holeN) {
+  const hd=getHoleMap(holeN);
+  if (!hd?.image||!hd?.transform?.scale||_gpsLat===null) return false;
+  const pos=gpsToPixel(_gpsLat,_gpsLng,hd.transform);
+  if (!pos) return false;
+  _hmeHole=holeN;
+  showScreen('s-hole-map-editor');
+  document.getElementById('hme-title').textContent=`H${holeN} — You Are Here`;
+  document.getElementById('hme-sub').textContent=`GPS ±${_gpsAcc||'?'}m accuracy`;
+  _hmeImg=new Image();
+  _hmeImg.onload=()=>{
+    drawHmeCanvas();
+    const canvas=document.getElementById('hme-canvas');
+    if (!canvas) return;
+    const ctx=canvas.getContext('2d');
+    // Pulse ring
+    ctx.beginPath(); ctx.arc(pos.px,pos.py,30,0,Math.PI*2);
+    ctx.fillStyle='#3b82f622'; ctx.fill();
+    // Blue dot
+    ctx.beginPath(); ctx.arc(pos.px,pos.py,16,0,Math.PI*2);
+    ctx.fillStyle='#3b82f6'; ctx.fill();
+    ctx.strokeStyle='white'; ctx.lineWidth=3; ctx.stroke();
+    ctx.fillStyle='white'; ctx.font='bold 10px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('YOU',pos.px,pos.py+4);
+    // Distance annotations for green edges
+    const pts=(getHoleMap(holeN)?.points||[]);
+    pts.filter(p=>p.type==='green_edge').forEach(p=>{
+      const d=gpsYards(_gpsLat,_gpsLng,p.lat,p.lng);
+      ctx.fillStyle='#fff'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+      ctx.fillText(d+'y',p.px,p.py+28);
+    });
+    // Bottom panel: all distances sorted
+    const distPts=pts.map(p=>({...p,d:gpsYards(_gpsLat,_gpsLng,p.lat,p.lng)})).sort((a,b)=>a.d-b.d);
+    const panel=document.getElementById('hme-mode-label').parentElement;
+    const greenPts=distPts.filter(p=>p.type==='green_edge').slice(0,6);
+    if (greenPts.length) {
+      panel.innerHTML=`<div><b style="color:var(--green);font-size:12px;">🟢 Green edges</b>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">
+        ${greenPts.map(p=>`<div style="background:white;border:1px solid #e5e7eb;border-radius:6px;padding:3px 8px;font-size:11px;"><b>${p.d}</b> yds · ${p.label}</div>`).join('')}
+        </div></div>`;
+    }
+  };
+  _hmeImg.src=hd.image;
+  return true;
+}
 </script>
 
 <script id='seed-injector'>
