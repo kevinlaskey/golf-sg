@@ -5287,15 +5287,21 @@ function handleCalImageTap(e) {
 
 function showCalRefDialog(px, py) {
   const el = document.getElementById('hms-content');
+  const calChips = ['Sprinkler','150 yd','200 yd','100 yd','250 yd','Front of Green','Back of Green','Fairway Corner','Bunker Edge','Water Edge','Tee Box','Cart Path'];
   el.innerHTML = `<div style="position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;">
     <div style="background:white;border-radius:20px 20px 0 0;width:100%;max-height:85vh;overflow:auto;padding:16px;">
       <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Calibration Reference Point</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Pixel: (${Math.round(px)}, ${Math.round(py)})</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Stand at this exact spot on the course, then tap 📡 Use My GPS</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Quick Label</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
+        ${calChips.map(t=>`<button type="button" onclick="calQuickLabel('${t}')"
+          style="padding:4px 10px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);">${t}</button>`).join('')}
+      </div>
       <label style="display:block;margin-bottom:10px;">
-        <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Label (e.g. "150 yd marker")</div>
-        <input type="text" id="cal-ref-label" placeholder="150 yd marker" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
+        <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Label</div>
+        <input type="text" id="cal-ref-label" placeholder="e.g. Sprinkler - 150" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
       </label>
-      <div style="font-size:12px;font-weight:600;margin-bottom:8px;">Real-world GPS position</div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;">GPS Position</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
         <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Latitude</div>
         <input type="number" id="cal-ref-lat" placeholder="40.2765" step="0.000001" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
@@ -5309,6 +5315,14 @@ function showCalRefDialog(px, py) {
       </div>
     </div>
   </div>`;
+}
+
+function calQuickLabel(text) {
+  const el = document.getElementById('cal-ref-label');
+  if (!el) return;
+  el.value = text + ' - ';
+  el.focus();
+  el.setSelectionRange(el.value.length, el.value.length);
 }
 
 function useMyGPSForCalRef() {
@@ -5477,11 +5491,17 @@ function openHoleMapPointForm(existingId) {
   document.getElementById('hmp-content').innerHTML=`
     <div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:600;margin-bottom:8px;">Type</div>
     <div style="display:flex;flex-wrap:wrap;gap:5px;">${typeButtons}</div></div>
-    <label style="display:block;margin-bottom:12px;">
-      <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Label *</div>
-      <input type="text" id="hmp-label" placeholder="e.g. Front Left Edge" value="${existing?.label||''}"
+    <div style="margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Label *</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">
+        ${['Green','Sprinkler','Sand Trap','Water','Tee Box','OB Stake','Layup','Dogleg','Tree Line','Bunker Edge','Carry'].map(t=>
+          `<button type="button" onclick="hmpQuickLabel('${t}')"
+            style="padding:4px 10px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);">${t}</button>`
+        ).join('')}
+      </div>
+      <input type="text" id="hmp-label" placeholder="e.g. Sprinkler - 201" value="${existing?.label||''}"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
-    </label>
+    </div>
     <div style="margin-bottom:12px;">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px;">GPS Position</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
@@ -5521,6 +5541,18 @@ function selectHmpType(key, btn) {
     b.style.borderColor=t.key===key?t.color:'#e5e7eb';
     b.style.background =t.key===key?t.color+'22':'white';
   });
+}
+
+function hmpQuickLabel(text) {
+  const el = document.getElementById('hmp-label');
+  if (!el) return;
+  // Set to "Text - " so user just types the number, or replace if already has a quick label
+  const cur = el.value.trim();
+  // If the field already ends with " - " or is empty, just set prefix
+  el.value = text + ' - ';
+  el.focus();
+  // Move cursor to end
+  el.setSelectionRange(el.value.length, el.value.length);
 }
 
 function useMyGPSForPoint() {
