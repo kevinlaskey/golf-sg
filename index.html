@@ -5173,11 +5173,14 @@ function renderHoleSetupHome() {
   <div>${rows}</div>
   <div style="padding:16px;font-size:11px;color:var(--muted);text-align:center;line-height:1.6;">
     📌 Hole map data is permanent — it survives Reset All Data.<br>
-    Upload PuttView scans, calibrate with 2+ yardage markers, then tap the image to map any course feature.
+    Upload PuttView scans, calibrate with 2+ visible landmarks, then tap the image to map any course feature.
   </div>`;
 }
 
-function closeHoleSetup() { showScreen('s-home'); renderHome(); }
+function closeHoleSetup() {
+  if (_hmsGpsWatch !== null) { navigator.geolocation.clearWatch(_hmsGpsWatch); _hmsGpsWatch = null; }
+  showScreen('s-home'); renderHome();
+}
 
 function openHoleSetup(n) {
   _hmsHole = n;
@@ -5203,6 +5206,43 @@ function renderHoleSetup() {
   if (_hmsStage===3) body = renderHmsStage3(hd);
   el.innerHTML = stageHtml + body;
   if (_hmsStage===1) { const fi=document.getElementById('hms-file-input'); if(fi) fi.onchange=handleHmsImageUpload; }
+  // Auto-start GPS on stages that need it (calibrate + points)
+  if (_hmsStage===2 || _hmsStage===3) startHmsGPS();
+}
+
+let _hmsGpsWatch = null;
+function startHmsGPS() {
+  if (_hmsGpsWatch !== null) return; // already running
+  if (!navigator.geolocation) return;
+  _hmsGpsWatch = navigator.geolocation.watchPosition(pos => {
+    _gpsLat = pos.coords.latitude;
+    _gpsLng = pos.coords.longitude;
+    _gpsAcc = Math.round(pos.coords.accuracy);
+    const statusEl = document.getElementById('hms-gps-status');
+    if (statusEl) statusEl.textContent = `📡 GPS Active · ±${_gpsAcc}m`;
+    if (_hmsStage === 2) {
+      const bar = document.getElementById('hms-gps-status');
+      if (bar) {
+        bar.closest('div').style.background = '#f0fdf4';
+        bar.closest('div').style.borderColor = '#bbf7d0';
+        bar.style.color = '#16a34a';
+        bar.textContent = `📡 GPS Active · ±${_gpsAcc}m`;
+        const coord = bar.closest('div').querySelector('span:last-child');
+        if (coord) { coord.style.color='var(--muted)'; coord.textContent=`${_gpsLat.toFixed(5)}, ${_gpsLng.toFixed(5)}`; }
+      }
+    }
+  }, err => {
+    const statusEl = document.getElementById('hms-gps-status');
+    if (statusEl) statusEl.textContent = `❌ GPS error: ${err.message}`;
+  }, { enableHighAccuracy: true, maximumAge: 3000 });
+}
+
+function forceStartHmsGPS() {
+  // Clear any stalled watch and restart
+  if (_hmsGpsWatch !== null) { navigator.geolocation.clearWatch(_hmsGpsWatch); _hmsGpsWatch = null; }
+  const statusEl = document.getElementById('hms-gps-status');
+  if (statusEl) statusEl.textContent = '📡 Requesting GPS…';
+  startHmsGPS();
 }
 
 // Stage 1: Image upload
@@ -5250,7 +5290,6 @@ function deleteHmsImage() {
 
 // Stage 2: Calibration
 function renderHmsStage2(hd) {
-  // Repo image always available — no upload-first guard needed
   const refs = hd.transform?.refs || [];
   const transform = refs.length>=2 ? computeTransform(refs) : null;
   const calOk = !!transform;
@@ -5259,13 +5298,26 @@ function renderHmsStage2(hd) {
     <button class="btn btn-sm btn-ghost" style="color:var(--red);font-size:11px;" onclick="deleteCalRef(${i})">✕</button>
   </div>`).join('');
 
+  // GPS status for calibration
+  const gpsOk = _gpsLat !== null;
+  const gpsStatus = gpsOk
+    ? `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:#16a34a;font-weight:600;">📡 GPS Active · ±${_gpsAcc||'?'}m</span>
+        <span style="font-size:11px;color:var(--muted);">${_gpsLat.toFixed(5)}, ${_gpsLng.toFixed(5)}</span>
+      </div>`
+    : `<div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:8px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:#92400e;font-weight:600;" id="hms-gps-status">📡 Acquiring GPS…</span>
+        <button onclick="forceStartHmsGPS()" style="background:#d97706;border:none;color:white;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">Start GPS</button>
+      </div>`;
+
   return `<div style="padding:16px;">
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">Tap a <b>printed yardage marker</b> on the image. Add at least 2 reference points, each linked to a real GPS position.</div>
+    ${gpsStatus}
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5;">Tap a spot on the image that you can <b>clearly identify on the map AND stand on exactly</b> — front of green, tee box edge, bunker corner. Add at least 2 points spread far apart for best accuracy.</div>
     <div style="position:relative;border-radius:10px;overflow:hidden;border:2px solid ${calOk?'#16a34a':'#e5e7eb'};cursor:crosshair;" id="cal-img-wrap">
       <img src="${holeImageSrc(_hmsHole)}" style="width:100%;display:block;" id="cal-img" onclick="handleCalImageTap(event)"/>
       ${refs.map((r,i)=>{const _iw=hd&&hd.imageW||document.getElementById('cal-img')?.naturalWidth||800,_ih=hd&&hd.imageH||document.getElementById('cal-img')?.naturalHeight||1200,px=(r.px/_iw*100).toFixed(1),py=(r.py/_ih*100).toFixed(1);return `<div style="position:absolute;left:${px}%;top:${py}%;transform:translate(-50%,-50%);width:22px;height:22px;background:#3b82f6;border:2px solid white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;pointer-events:none;">${i+1}</div>`;}).join('')}
     </div>
-    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">↑ Tap a yardage marker on the image</div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">↑ Tap a visible landmark on the image (green edge, tee, bunker corner)</div>
     ${refs.length ? `<div style="margin-top:12px;">${refRows}</div>` : ''}
     <div style="margin-top:12px;padding:10px 12px;background:${calOk?'#f0fdf4':'#fef3f2'};border-radius:8px;">
       ${calOk ? `<div style="color:#16a34a;font-size:13px;font-weight:600;">✅ Calibrated — ${transform.scale.toFixed(3)} yds/pixel</div>`
@@ -5287,11 +5339,13 @@ function handleCalImageTap(e) {
 
 function showCalRefDialog(px, py) {
   const el = document.getElementById('hms-content');
-  const calChips = ['Sprinkler','150 yd','200 yd','100 yd','250 yd','Front of Green','Back of Green','Fairway Corner','Bunker Edge','Water Edge','Tee Box','Cart Path'];
+  const calChips = ['Front of Green','Back of Green','Tee Box Edge','Bunker Front','Bunker Back','Fairway Corner','Dogleg Corner','Water Edge','Cart Path Corner','OB Stake'];
   el.innerHTML = `<div style="position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;">
     <div style="background:white;border-radius:20px 20px 0 0;width:100%;max-height:85vh;overflow:auto;padding:16px;">
       <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Calibration Reference Point</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Stand at this exact spot on the course, then tap 📡 Use My GPS</div>
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:12px;color:#166534;line-height:1.5;">
+        Pick a spot that is <strong>clearly visible on the map image</strong> AND that you can <strong>stand on exactly</strong> on the course — front of green, tee box edge, bunker corner. Then tap 📡 to stamp your GPS.
+      </div>
       <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Quick Label</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
         ${calChips.map(t=>`<button type="button" onclick="calQuickLabel('${t}')"
@@ -5299,7 +5353,7 @@ function showCalRefDialog(px, py) {
       </div>
       <label style="display:block;margin-bottom:10px;">
         <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Label</div>
-        <input type="text" id="cal-ref-label" placeholder="e.g. Sprinkler - 150" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
+        <input type="text" id="cal-ref-label" placeholder="e.g. Front of Green" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
       </label>
       <div style="font-size:12px;font-weight:600;margin-bottom:8px;">GPS Position</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
@@ -5326,7 +5380,10 @@ function calQuickLabel(text) {
 }
 
 function useMyGPSForCalRef() {
-  if (_gpsLat===null) { alert('GPS not available. Start GPS first.'); return; }
+  if (_gpsLat===null) {
+    alert('GPS not acquired yet — make sure you\'re outdoors with a clear sky view. The app is trying to get your position automatically.');
+    return;
+  }
   document.getElementById('cal-ref-lat').value = _gpsLat.toFixed(6);
   document.getElementById('cal-ref-lng').value = _gpsLng.toFixed(6);
 }
@@ -5415,6 +5472,8 @@ function openHoleMapEditor(n) {
   _hmeImg=new Image();
   _hmeImg.onload=()=>{ if(hd&&!hd.imageW){hd.imageW=_hmeImg.naturalWidth;hd.imageH=_hmeImg.naturalHeight;saveHoleMap(n,hd);} drawHmeCanvas(); };
   _hmeImg.src=holeImageSrc(n);
+  // Auto-start GPS so it's ready when user taps a point
+  if (_hmeGpsWatch === null) toggleHmeGPS();
 }
 
 function drawHmeCanvas() {
@@ -5556,7 +5615,10 @@ function hmpQuickLabel(text) {
 }
 
 function useMyGPSForPoint() {
-  if (_gpsLat===null) {alert('GPS not available. Start GPS first.'); return;}
+  if (_gpsLat===null) {
+    alert('GPS not acquired yet — make sure you\'re outdoors with a clear sky view. The app is trying to get your position automatically.');
+    return;
+  }
   document.getElementById('hmp-lat').value=_gpsLat.toFixed(6);
   document.getElementById('hmp-lng').value=_gpsLng.toFixed(6);
 }
