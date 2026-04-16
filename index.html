@@ -852,16 +852,19 @@
       <div class="hdr-title" id="hmr-title">Hole 1 Map</div>
       <div class="hdr-sub" id="hmr-sub">Starting GPS…</div>
     </div>
-    <button style="background:var(--green);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;" onclick="closeHoleMapRound()">Done</button>
+    <div style="display:flex;gap:6px;">
+      <button onclick="hmrFitCanvas()" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;" title="Fit to screen">⤢</button>
+      <button style="background:var(--green);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;" onclick="closeHoleMapRound()">Done</button>
+    </div>
   </div>
   <!-- GPS status bar -->
   <div id="hmr-gps-bar" style="background:#1e3a5f;color:white;padding:5px 14px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
     <span id="hmr-gps-status">📡 Acquiring GPS…</span>
     <span id="hmr-gps-acc" style="color:#93c5fd;"></span>
   </div>
-  <!-- Canvas: full image with distance overlays -->
-  <div id="hmr-canvas-wrap" style="flex:1;overflow:auto;position:relative;background:#111;">
-    <canvas id="hmr-canvas" style="display:block;touch-action:pan-x pan-y;"></canvas>
+  <!-- Canvas: full image with distance overlays, pinch-zoom + pan -->
+  <div id="hmr-canvas-wrap" style="flex:1;overflow:hidden;position:relative;background:#111;touch-action:none;">
+    <canvas id="hmr-canvas" style="display:block;position:absolute;top:0;left:0;transform-origin:0 0;"></canvas>
   </div>
   <!-- Bottom: scrollable distance panel -->
   <div id="hmr-dist-panel" style="max-height:180px;overflow-y:auto;background:white;border-top:2px solid #e5e7eb;padding:8px 12px;">
@@ -6018,20 +6021,22 @@ let _hmrReturnScreen = 's-hole';
 
 function openHoleMapInRound(returnScreen) {
   _hmrReturnScreen = returnScreen || 's-hole';
-
   const holeN = state.currentHole?.n || 1;
   _hmrHole = holeN;
+  // Reset zoom/pan
+  _hmrScale = 1; _hmrOffX = 0; _hmrOffY = 0;
 
   const hd = getHoleMap(holeN);
-
   showScreen('s-hole-map-round');
   document.getElementById('hmr-title').textContent = `Hole ${holeN} Map`;
   document.getElementById('hmr-sub').textContent = hd?.transform?.scale
-    ? `${(hd.points||[]).length} points mapped`
+    ? `${(hd.points||[]).length} points · pinch to zoom`
     : '⚠️ Not calibrated — distances unavailable';
 
   _hmrImg = new Image();
   _hmrImg.onload = () => {
+    hmrFitCanvas();
+    setupHmrTouch();
     renderHmrCanvas();
     renderHmrDistPanel();
     startHmrGPS();
@@ -6074,19 +6079,90 @@ function stopHmrGPS() {
   }
 }
 
+// ── In-round map zoom/pan state ───────────────────────────────────
+let _hmrScale = 1, _hmrOffX = 0, _hmrOffY = 0;
+let _hmrPinchStartDist = null, _hmrPinchStartScale = null;
+let _hmrPanStartX = null, _hmrPanStartY = null;
+let _hmrPanStartOffX = null, _hmrPanStartOffY = null;
+
+function hmrApplyTransform() {
+  const canvas = document.getElementById('hmr-canvas');
+  if (canvas) canvas.style.transform = `translate(${_hmrOffX}px,${_hmrOffY}px) scale(${_hmrScale})`;
+}
+
+function hmrFitCanvas() {
+  const wrap = document.getElementById('hmr-canvas-wrap');
+  const canvas = document.getElementById('hmr-canvas');
+  if (!wrap || !canvas || !_hmrImg) return;
+  canvas.width  = _hmrImg.naturalWidth;
+  canvas.height = _hmrImg.naturalHeight;
+  canvas.style.width  = _hmrImg.naturalWidth  + 'px';
+  canvas.style.height = _hmrImg.naturalHeight + 'px';
+  _hmrScale = wrap.clientWidth / _hmrImg.naturalWidth;
+  _hmrOffX = 0; _hmrOffY = 0;
+  hmrApplyTransform();
+}
+
+function setupHmrTouch() {
+  const wrap = document.getElementById('hmr-canvas-wrap');
+  if (!wrap) return;
+  // Clone to remove any stale listeners
+  const newWrap = wrap.cloneNode(false);
+  while (wrap.firstChild) newWrap.appendChild(wrap.firstChild);
+  wrap.parentNode.replaceChild(newWrap, wrap);
+  const w = document.getElementById('hmr-canvas-wrap');
+  w.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      _hmrPinchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      _hmrPinchStartScale = _hmrScale;
+      _hmrPanStartX = null;
+    } else if (e.touches.length === 1) {
+      _hmrPanStartX = e.touches[0].clientX;
+      _hmrPanStartY = e.touches[0].clientY;
+      _hmrPanStartOffX = _hmrOffX;
+      _hmrPanStartOffY = _hmrOffY;
+    }
+  }, { passive: false });
+  w.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 2 && _hmrPinchStartDist !== null) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const wrap2 = document.getElementById('hmr-canvas-wrap');
+      const minScale = wrap2 ? wrap2.clientWidth / (_hmrImg?.naturalWidth || 800) * 0.8 : 0.3;
+      _hmrScale = Math.max(minScale, Math.min(8, _hmrPinchStartScale * dist / _hmrPinchStartDist));
+      hmrApplyTransform();
+    } else if (e.touches.length === 1 && _hmrPanStartX !== null) {
+      _hmrOffX = _hmrPanStartOffX + (e.touches[0].clientX - _hmrPanStartX);
+      _hmrOffY = _hmrPanStartOffY + (e.touches[0].clientY - _hmrPanStartY);
+      hmrApplyTransform();
+    }
+  }, { passive: false });
+  w.addEventListener('touchend', () => {
+    _hmrPinchStartDist = null;
+    _hmrPanStartX = null;
+  }, { passive: false });
+}
+
 function renderHmrCanvas() {
   const hd = getHoleMap(_hmrHole);
   if (!_hmrImg || !hd) return;
-  const wrap   = document.getElementById('hmr-canvas-wrap');
   const canvas = document.getElementById('hmr-canvas');
-  if (!canvas || !wrap) return;
+  if (!canvas) return;
 
-  const cw = wrap.clientWidth;
-  const ch = cw / _hmrImg.naturalWidth * _hmrImg.naturalHeight;
-  canvas.width  = _hmrImg.naturalWidth;
-  canvas.height = _hmrImg.naturalHeight;
-  canvas.style.width  = cw + 'px';
-  canvas.style.height = ch + 'px';
+  // Size canvas to natural image dimensions; transform handles display scale
+  if (canvas.width !== _hmrImg.naturalWidth) {
+    canvas.width  = _hmrImg.naturalWidth;
+    canvas.height = _hmrImg.naturalHeight;
+    canvas.style.width  = _hmrImg.naturalWidth  + 'px';
+    canvas.style.height = _hmrImg.naturalHeight + 'px';
+  }
 
   const ctx = canvas.getContext('2d');
   ctx.drawImage(_hmrImg, 0, 0);
@@ -6323,14 +6399,12 @@ function renderHmrDistPanel() {
 }
 
 function scrollToPointOnCanvas(px, py) {
-  // Scroll the canvas wrap so this point is centred
-  const wrap   = document.getElementById('hmr-canvas-wrap');
-  const canvas = document.getElementById('hmr-canvas');
-  if (!wrap || !canvas) return;
-  const scale = parseFloat(canvas.style.width) / canvas.width;
-  const cx = px * scale - wrap.clientWidth / 2;
-  const cy = py * scale - wrap.clientHeight / 2;
-  wrap.scrollTo({ left: Math.max(0, cx), top: Math.max(0, cy), behavior: 'smooth' });
+  const wrap = document.getElementById('hmr-canvas-wrap');
+  if (!wrap) return;
+  // Centre the tapped point in the visible wrap area
+  _hmrOffX = wrap.clientWidth  / 2 - px * _hmrScale;
+  _hmrOffY = wrap.clientHeight / 2 - py * _hmrScale;
+  hmrApplyTransform();
 }
 
 loadState();
