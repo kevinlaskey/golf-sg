@@ -939,6 +939,7 @@
   <!-- Quick labels -->
   <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Label *</div>
   <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;" id="hme-quick-chips">
+    <button type="button" onclick="hmeSheetQuickLabel('Green Middle')"   style="padding:4px 9px;border:1.5px solid #16a34a;border-radius:16px;background:#f0fdf4;font-size:11px;font-weight:700;cursor:pointer;color:#16a34a;">🎯 Green Middle</button>
     <button type="button" onclick="hmeSheetQuickLabel('Green Front')"    style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Front</button>
     <button type="button" onclick="hmeSheetQuickLabel('Green Back')"     style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Back</button>
     <button type="button" onclick="hmeSheetQuickLabel('Green Left')"     style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Left</button>
@@ -1825,19 +1826,22 @@ function startShotGPS() {
     const hd = getHoleMap(holeN);
     const isPutt = state.currentShot?.type === 'putt';
 
-    // Distance to pin from hole map green_edge points
+    // Distance to pin — prefer green_middle, fall back to green_edge median
     if (hd?.points?.length) {
+      const middlePt = hd.points.find(p => p.type === 'green_middle' && p.lat && p.lng);
       const greenPts = hd.points.filter(p => p.type === 'green_edge' && p.lat && p.lng);
-      if (greenPts.length) {
-        // Average the front-of-green points (shortest distances)
+      let pinDist = null;
+      if (middlePt) {
+        pinDist = Math.round(gpsYards(_gpsLat, _gpsLng, middlePt.lat, middlePt.lng));
+      } else if (greenPts.length) {
         const dists = greenPts.map(p => gpsYards(_gpsLat, _gpsLng, p.lat, p.lng)).sort((a,b)=>a-b);
-        const pinDist = dists[Math.floor(dists.length/2)]; // median
-        if (!_shotDistManualOverride) {
-          updateShotGpsCard(pinDist, isPutt);
-          setDistFrom(Math.min(pinDist, isPutt ? 90 : 600));
-          state.currentShot.distFrom = Math.min(pinDist, isPutt ? 90 : 600);
-          renderShotClubSuggestions();
-        }
+        pinDist = dists[Math.floor(dists.length/2)];
+      }
+      if (pinDist !== null && !_shotDistManualOverride) {
+        updateShotGpsCard(pinDist, isPutt);
+        setDistFrom(Math.min(pinDist, isPutt ? 90 : 600));
+        state.currentShot.distFrom = Math.min(pinDist, isPutt ? 90 : 600);
+        renderShotClubSuggestions();
       }
       // Show distances to ALL mapped points in the mini-panel
       const allWithDist = hd.points
@@ -5111,16 +5115,17 @@ function saveMapPoint() {
 // HOLE MAP SYSTEM — lcc_hole_map (PERMANENT, never cleared)
 // ═══════════════════════════════════════════════════════════════════
 const POINT_TYPES = [
-  { key:'green_edge', icon:'🟢', label:'Green Edge',    color:'#16a34a' },
-  { key:'tee_box',    icon:'⛳', label:'Tee Box',       color:'#0d9488' },
-  { key:'fairway',    icon:'🏌️', label:'Fairway Zone',  color:'#15803d' },
-  { key:'bunker',     icon:'🏖️', label:'Bunker',        color:'#b45309' },
-  { key:'water',      icon:'💧', label:'Water Hazard',  color:'#1d4ed8' },
-  { key:'ob',         icon:'⛔', label:'OB / Fence',    color:'#dc2626' },
-  { key:'layup',      icon:'📍', label:'Layup Target',  color:'#059669' },
-  { key:'tree',       icon:'🌲', label:'Tree Line',     color:'#4d7c0f' },
-  { key:'carry',      icon:'🎯', label:'Carry Line',    color:'#7c3aed' },
-  { key:'other',      icon:'📌', label:'Other',         color:'#6b7280' },
+  { key:'green_middle', icon:'🎯', label:'Green Middle',  color:'#16a34a' },
+  { key:'green_edge',   icon:'🟢', label:'Green Edge',    color:'#15803d' },
+  { key:'tee_box',      icon:'⛳', label:'Tee Box',       color:'#0d9488' },
+  { key:'fairway',      icon:'🏌️', label:'Fairway Zone',  color:'#15803d' },
+  { key:'bunker',       icon:'🏖️', label:'Bunker',        color:'#b45309' },
+  { key:'water',        icon:'💧', label:'Water Hazard',  color:'#1d4ed8' },
+  { key:'ob',           icon:'⛔', label:'OB / Fence',    color:'#dc2626' },
+  { key:'layup',        icon:'📍', label:'Layup Target',  color:'#059669' },
+  { key:'tree',         icon:'🌲', label:'Tree Line',     color:'#4d7c0f' },
+  { key:'carry',        icon:'🎯', label:'Carry Line',    color:'#7c3aed' },
+  { key:'other',        icon:'📌', label:'Other',         color:'#6b7280' },
 ];
 const PT_MAP = Object.fromEntries(POINT_TYPES.map(t => [t.key, t]));
 
@@ -5206,9 +5211,15 @@ function renderHoleSetupHome() {
   const rows = info.map(h => {
     const hd = allData[h.n] || {};
     const hasImg = true, hasCal = !!(hd.transform?.scale), ptCount = hd.points?.length||0;
-    const status = !hasImg ? `<span style="color:var(--muted);font-size:11px;">No image</span>`
-                 : !hasCal ? `<span style="color:#b45309;font-size:11px;">⚠️ Needs calibration</span>`
-                 : `<span style="color:#16a34a;font-size:11px;">✓ ${ptCount} pt${ptCount!==1?'s':''}</span>`;
+    const hasMiddle = hd.points?.some(p => p.type === 'green_middle' && p.lat && p.lng);
+    const hasFront  = hd.points?.some(p => (p.type === 'green_edge' || p.type === 'green_middle') && p.label?.toLowerCase().includes('front') && p.lat && p.lng);
+    const hasBack   = hd.points?.some(p => (p.type === 'green_edge') && p.label?.toLowerCase().includes('back') && p.lat && p.lng);
+    const missingKey = !hasMiddle;
+    const status = !hasCal
+      ? `<span style="color:#b45309;font-size:11px;">⚠️ Needs calibration</span>`
+      : missingKey
+      ? `<span style="color:#d97706;font-size:11px;">🎯 Add Green Middle</span>`
+      : `<span style="color:#16a34a;font-size:11px;">✓ ${ptCount} pt${ptCount!==1?'s':''}</span>`;
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f3f4f6;cursor:pointer;" onclick="openHoleSetup(${h.n})">
       <div><span style="font-weight:700;color:var(--green);">H${h.n}</span><span style="font-size:12px;color:var(--muted);margin-left:6px;">Par ${h.par} · ${h.yds} yds</span></div>
       <div style="display:flex;align-items:center;gap:10px;">${status}<span style="color:var(--muted);">›</span></div>
@@ -5733,7 +5744,9 @@ function drawHmeCanvas() {
   if (countEl) countEl.textContent = `${pts.length} point${pts.length !== 1 ? 's' : ''}`;
   if (calEl) {
     const gpsCount = pts.filter(p => p.lat && p.lng).length;
-    if (calOk) calEl.textContent = `✅ Calibrated · ${hd.transform.scale.toFixed(3)} yds/px`;
+    const hasMiddle = (hd?.points||[]).some(p => p.type === 'green_middle' && p.lat && p.lng);
+    if (calOk && hasMiddle) calEl.textContent = `✅ Calibrated · ${hd.transform.scale.toFixed(3)} yds/px`;
+    else if (calOk && !hasMiddle) calEl.textContent = `⚠️ Add 🎯 Green Middle for pin distance`;
     else if (gpsCount >= 2) calEl.textContent = '⏳ Computing…';
     else calEl.textContent = `📐 Need ${2 - gpsCount} more GPS point${2-gpsCount!==1?'s':''} to calibrate`;
   }
@@ -5753,10 +5766,14 @@ function openHmeSheet(existingId, isRef, px, py) {
   const allPts = getAllHmePoints(hd);
   const existing = existingId ? allPts.find(p => p.id === existingId) : null;
   const isEdit = !!existing;
+  // Default new points to green_middle if no green_middle exists yet, else green_edge
+  const hasMiddle = (hd?.points||[]).some(p => p.type === 'green_middle');
+  const defaultType = !isEdit ? (hasMiddle ? 'green_edge' : 'green_middle') : (existing?.type || 'green_edge');
 
   document.getElementById('hme-sheet-title').textContent = isEdit ? 'Edit Point' : 'Add Point';
   document.getElementById('hme-sheet-sub').textContent = isEdit
     ? `Hole ${_hmeHole} · ${existing.label}`
+    : !hasMiddle ? `🎯 Green Middle recommended first`
     : `Hole ${_hmeHole} · Tap 📡 to stamp your GPS`;
 
   // Update GPS coords display
@@ -5767,7 +5784,6 @@ function openHmeSheet(existingId, isRef, px, py) {
     document.getElementById('hme-sheet-lat').value = existing.lat?.toFixed(6) || '';
     document.getElementById('hme-sheet-lng').value = existing.lng?.toFixed(6) || '';
   } else if (hd?.transform?.scale) {
-    // Auto-compute GPS from pixel position if calibrated
     const gps = pixelToGPS(px, py, hd.transform);
     if (gps) {
       document.getElementById('hme-sheet-lat').value = gps.lat.toFixed(6);
@@ -5781,10 +5797,11 @@ function openHmeSheet(existingId, isRef, px, py) {
     document.getElementById('hme-sheet-lng').value = '';
   }
 
-  document.getElementById('hme-sheet-label').value = existing?.label || '';
+  // Pre-fill label for first-time green_middle
+  document.getElementById('hme-sheet-label').value = existing?.label || (!isEdit && defaultType === 'green_middle' ? 'Green Middle' : '');
 
-  // Type buttons
-  const selType = existing?.type || 'green_edge';
+  // Type buttons — use defaultType
+  const selType = defaultType;
   _hmpSelectedType = selType;
   document.getElementById('hme-sheet-types').innerHTML = POINT_TYPES.map(t =>
     `<button type="button" onclick="hmeSelectType('${t.key}')" id="hme-type-${t.key}"
@@ -6074,7 +6091,7 @@ function renderHmrCanvas() {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(_hmrImg, 0, 0);
 
-  const pts = hd.points || [];
+  const pts = getAllHmePoints(hd);  // refs + named points unified
   const hasGPS = _gpsLat !== null;
   const hasCal = !!(hd.transform?.scale);
 
@@ -6250,7 +6267,8 @@ function renderHmrDistPanel() {
   const panel = document.getElementById('hmr-dist-panel');
   if (!panel) return;
   const hd  = getHoleMap(_hmrHole);
-  const pts = hd?.points || [];
+  const pts = getAllHmePoints(hd);  // refs + named points
+
   if (!pts.length) {
     panel.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px;">No points mapped for this hole yet.<br>Go to Admin → 🗺️ Hole Maps to add them.</div>';
     return;
@@ -6260,27 +6278,33 @@ function renderHmrDistPanel() {
     return;
   }
 
-  // Compute distances to all points, sort closest first
+  // Compute distances to all GPS-stamped points, sort closest first
   const withDist = pts
-    .filter(p => p.lat && p.lng)
+    .filter(p => p.lat && p.lng && !p._isRef)  // named points only in distance panel
     .map(p => ({ ...p, dist: Math.round(gpsYards(_gpsLat, _gpsLng, p.lat, p.lng)) }))
     .sort((a, b) => a.dist - b.dist);
 
-  // Group by type
+  if (!withDist.length) {
+    panel.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px;">No GPS-stamped points yet — add points in Admin → Hole Maps.</div>';
+    return;
+  }
+
+  // Group by type, show green first then everything else
   const groups = {};
   withDist.forEach(p => {
     if (!groups[p.type]) groups[p.type] = [];
     groups[p.type].push(p);
   });
 
-  // Type display order
-  const typeOrder = ['green_edge','water','carry','layup','bunker','ob','tee_box','fairway','tree','other'];
-
+  const typeOrder = ['green_middle','green_edge','water','carry','layup','bunker','ob','tee_box','fairway','tree','other','ref'];
   let html = '';
   typeOrder.forEach(type => {
     const grp = groups[type];
     if (!grp?.length) return;
-    const td = PT_MAP[type] || PT_MAP.other;
+    const td = type === 'green_middle'
+      ? { icon: '🎯', label: 'Green Middle' }
+      : type === 'ref' ? { icon: '📐', label: 'Reference' }
+      : (PT_MAP[type] || PT_MAP.other);
     html += `<div style="margin-bottom:8px;">
       <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${td.icon} ${td.label}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;">
@@ -6295,7 +6319,7 @@ function renderHmrDistPanel() {
     </div>`;
   });
 
-  panel.innerHTML = html || '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px;">No points with GPS coordinates yet.</div>';
+  panel.innerHTML = html;
 }
 
 function scrollToPointOnCanvas(px, py) {
