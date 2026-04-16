@@ -369,6 +369,13 @@
       <button class="btn btn-ghost" style="flex:1;padding:13px;font-size:18px;" onclick="showDistancesFromHole()" title="Distances">📏</button>
       <button id="hole-map-btn" class="btn btn-ghost" style="flex:1;padding:13px;font-size:18px;display:none;" onclick="openHoleMapInRound('s-hole')" title="Hole Map">🗺️</button>
     </div>
+    <!-- Mark Tee button — shown when no shots logged yet, par 4/5 only -->
+    <div id="mark-tee-row" style="margin-bottom:8px;display:none;">
+      <button id="mark-tee-btn" onclick="markTeePosition()"
+        style="width:100%;padding:11px;border-radius:10px;border:2px dashed #d1d5db;background:white;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s;">
+        📍 Mark Tee Position
+      </button>
+    </div>
     <div class="card-title" style="padding:0 4px;margin-top:4px;">Shots</div>
     <div id="shot-list-container"></div>
     <div style="height:16px;"></div>
@@ -1651,6 +1658,9 @@ function openHole(n) {
     state.currentRound.holes.push(state.currentHole);
     state.currentRound.holes.sort((a,b)=>a.n-b.n);
   }
+  // Reset tee marker for new hole (restore if already marked)
+  _teeLat = state.currentHole.teeLat || null;
+  _teeLng = state.currentHole.teeLng || null;
   document.getElementById('hole-hdr-title').textContent = `Hole ${n}`;
   document.getElementById('hole-hdr-sub').textContent = `Par ${hInfo.par} · ${hInfo.yds} yds`;
   updateHoleMapBtn(n);
@@ -1666,6 +1676,31 @@ function renderHoleDetail() {
   document.getElementById('hole-vs-par-disp').textContent = h.shots.length ? (diff===0?'E':(diff>0?'+'+diff:diff)) : '—';
   document.getElementById('hole-sg-disp').textContent = h.shots.length ? (sg>=0?'+':'')+sg.toFixed(2) : '—';
   document.getElementById('hole-sg-disp').style.color = sg >= 0 ? 'var(--green2)' : 'var(--red)';
+
+  // Show Mark Tee button for par 4/5 when no shots yet
+  const markTeeRow = document.getElementById('mark-tee-row');
+  if (markTeeRow) {
+    const showTee = h.par >= 4 && h.shots.length === 0;
+    markTeeRow.style.display = showTee ? '' : 'none';
+    // Restore state if tee was already marked this hole
+    if (showTee && h.teeLat) {
+      _teeLat = h.teeLat; _teeLng = h.teeLng;
+      const btn = document.getElementById('mark-tee-btn');
+      if (btn) {
+        btn.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="text-align:left;">
+              <div style="font-size:14px;font-weight:800;color:#16a34a;">✅ Tee Marked</div>
+              <div style="font-size:11px;color:#15803d;margin-top:1px;">📡 ${h.teeLat.toFixed(5)}, ${h.teeLng.toFixed(5)}</div>
+            </div>
+            <div style="font-size:11px;color:#86efac;font-weight:600;">Tap to re-mark</div>
+          </div>`;
+        btn.style.background = '#f0fdf4'; btn.style.borderColor = '#86efac';
+        btn.style.borderStyle = 'solid'; btn.style.color = '#16a34a';
+        btn.style.textAlign = 'left'; btn.style.padding = '10px 14px';
+      }
+    }
+  }
 
   const container = document.getElementById('shot-list-container');
   if (!h.shots.length) {
@@ -1702,9 +1737,59 @@ function shotTypeLabel(t) {
   return {tee:'🏌️ Tee',approach:'🎯 Approach',chip:'⛳ Chip/Pitch',putt:'🏳️ Putt',sand:'🏖️ Sand',penalty:'⚠️ Penalty'}[t] || t;
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// ADD SHOT
-// ═══════════════════════════════════════════════════════════════════
+// ── Tee position marking ──────────────────────────────────────────
+let _teeLat = null, _teeLng = null;  // GPS stamped at tee box
+
+function markTeePosition() {
+  if (_gpsLat === null) {
+    // Try to get GPS on demand
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        _gpsLat = pos.coords.latitude; _gpsLng = pos.coords.longitude; _gpsAcc = Math.round(pos.coords.accuracy);
+        _doMarkTee();
+      }, () => alert('GPS not available. Step outside with clear sky view and try again.'), { enableHighAccuracy: true, timeout: 8000 });
+    } else alert('GPS not supported on this device.');
+    return;
+  }
+  _doMarkTee();
+}
+
+function _doMarkTee() {
+  _teeLat = _gpsLat; _teeLng = _gpsLng;
+  const btn = document.getElementById('mark-tee-btn');
+  if (btn) {
+    const acc = _gpsAcc || '?';
+    const lat = _teeLat.toFixed(5);
+    const lng = _teeLng.toFixed(5);
+    btn.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="text-align:left;">
+          <div style="font-size:14px;font-weight:800;color:#16a34a;">✅ Tee Marked</div>
+          <div style="font-size:11px;color:#15803d;margin-top:1px;">📡 ±${acc}m · ${lat}, ${lng}</div>
+        </div>
+        <div style="font-size:11px;color:#86efac;font-weight:600;">Tap to re-mark</div>
+      </div>`;
+    btn.style.background = '#f0fdf4';
+    btn.style.borderColor = '#86efac';
+    btn.style.borderStyle = 'solid';
+    btn.style.color = '#16a34a';
+    btn.style.textAlign = 'left';
+    btn.style.padding = '10px 14px';
+  }
+  // Store on current hole for map display
+  if (state.currentHole) state.currentHole.teeLat = _teeLat, state.currentHole.teeLng = _teeLng;
+}
+
+function resetTeeMarker() {
+  _teeLat = null; _teeLng = null;
+  if (state.currentHole) { delete state.currentHole.teeLat; delete state.currentHole.teeLng; }
+  const btn = document.getElementById('mark-tee-btn');
+  if (btn) {
+    btn.textContent = '📍 Mark Tee Position';
+    btn.style.background = 'white'; btn.style.borderColor = '#d1d5db';
+    btn.style.borderStyle = 'dashed'; btn.style.color = 'var(--muted)';
+  }
+}
 function addShotModal() {
   const shotNum = state.currentHole.shots.length + 1;
   const holeN   = state.currentHole.n;
@@ -1719,7 +1804,18 @@ function addShotModal() {
   let defaultType = 'approach', defaultDist = 150, prevLandedOnGreen = false;
   if (shotNum === 1) {
     defaultType = state.currentHole.par === 3 ? 'approach' : 'tee';
-    defaultDist = state.currentHole.yds;
+    // If tee was marked, use GPS tee→green distance; otherwise use printed yardage
+    if (_teeLat !== null && _teeLng !== null) {
+      const hd = getHoleMap(state.currentHole.n);
+      const midPt = hd?.points?.find(p => p.type === 'green_middle' && p.lat && p.lng);
+      if (midPt) {
+        defaultDist = Math.round(gpsYards(_teeLat, _teeLng, midPt.lat, midPt.lng));
+      } else {
+        defaultDist = state.currentHole.yds; // fallback to printed
+      }
+    } else {
+      defaultDist = state.currentHole.yds;
+    }
   } else {
     const prev = state.currentHole.shots[shotNum-2];
     if (prev) {
@@ -6335,8 +6431,155 @@ function renderHmrCanvas() {
       ctx.font = 'bold 8px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('YOU', pos.px, pos.py + 3);
+
+      // ── Club dispersion arcs from current position ───────────────
+      drawClubArcs(ctx, pos.px, pos.py, hd);
     }
   }
+
+  // ── Draw tee marker if marked this hole ────────────────────────
+  if (hasCal && state.currentHole?.teeLat) {
+    const teePos = gpsToPixel(state.currentHole.teeLat, state.currentHole.teeLng, hd.transform);
+    if (teePos && teePos.px > 0 && teePos.px < canvas.width) {
+      // Outer ring
+      ctx.beginPath();
+      ctx.arc(teePos.px, teePos.py, 18, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b33'; ctx.fill();
+      // Dot
+      ctx.beginPath();
+      ctx.arc(teePos.px, teePos.py, 12, 0, Math.PI * 2);
+      ctx.fillStyle = '#f59e0b'; ctx.fill();
+      ctx.strokeStyle = 'white'; ctx.lineWidth = 2.5; ctx.stroke();
+      // Label
+      ctx.fillStyle = 'white'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('TEE', teePos.px, teePos.py + 4);
+    }
+  }
+}
+
+// ── Club dispersion arcs ─────────────────────────────────────────────
+// Draws arcs from current GPS position. Suggested club arc is bright green,
+// others are subtle dashed. Labels stacked on the right edge of each arc.
+function drawClubArcs(ctx, fromPx, fromPy, hd) {
+  if (!hd?.transform?.scale) return;
+  if (_gpsLat === null) return;
+
+  // Build avgCarry map
+  const roundShots = state.rounds.flatMap(r => r.holes.flatMap(h => h.shots));
+  const rangeShots = state.rangeShots || [];
+  const carries = {};
+  function addC(key, c) { if (!carries[key]) carries[key]=[]; carries[key].push(c); }
+  roundShots.forEach(s => {
+    if (s.type==='putt'||(s.strike||'good')!=='good'||(s.shape||'straight')==='punch') return;
+    const c = s.distFrom - s.distTo; if (c<=0) return;
+    const key = WEDGE_CLUBS.includes(s.club)&&s.swingType?`${s.club}|${s.swingType}`:s.club;
+    addC(key,c);
+  });
+  rangeShots.forEach(s => {
+    if ((s.strike||'good')!=='good'||!s.carry||s.carry<=0) return;
+    const key = WEDGE_CLUBS.includes(s.club)&&s.swingType?`${s.club}|${s.swingType}`:s.club;
+    addC(key,s.carry);
+  });
+  const avgCarry = {};
+  Object.entries(carries).forEach(([k,arr])=>{ avgCarry[k]=Math.round(arr.reduce((a,b)=>a+b,0)/arr.length); });
+  if (!Object.keys(avgCarry).length) return;
+
+  // Distance to pin and suggested club
+  const midPt = (hd.points||[]).find(p => p.type==='green_middle' && p.lat && p.lng);
+  const distToPin = midPt ? Math.round(gpsYards(_gpsLat, _gpsLng, midPt.lat, midPt.lng)) : null;
+  let suggestedKey = null;
+  if (distToPin !== null) {
+    let minDiff = Infinity;
+    Object.entries(avgCarry).forEach(([key, avg]) => {
+      const diff = Math.abs(avg - distToPin);
+      if (diff < minDiff) { minDiff = diff; suggestedKey = key; }
+    });
+  }
+
+  // Direction toward green (or straight up)
+  let arcAngle = -Math.PI / 2;
+  if (midPt) {
+    const midPos = gpsToPixel(midPt.lat, midPt.lng, hd.transform);
+    if (midPos) arcAngle = Math.atan2(midPos.py - fromPy, midPos.px - fromPx);
+  }
+
+  const scale = hd.transform.scale;
+  const spreadRad = 22 * Math.PI / 180; // ±22° arc spread
+
+  // Sort by distance, only clubs with data
+  const clubList = Object.entries(avgCarry).sort((a,b) => a[1]-b[1]);
+
+  // Label position: end of arc at arcAngle + spreadRad (right side)
+  // Offset perpendicular to avoid overlap
+  const labelAngle = arcAngle + spreadRad;
+
+  clubList.forEach(([key, avg], idx) => {
+    const isSuggested = key === suggestedKey;
+    const radiusPx = avg / scale;
+    const [club, swing] = key.split('|');
+    const label = swing ? `${club} ${swing}` : club;
+
+    ctx.save();
+
+    // ── Arc line ──────────────────────────────────────────────────
+    if (isSuggested) {
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 3.5;
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.9;
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([10, 7]);
+      ctx.globalAlpha = 0.55;
+    }
+    ctx.beginPath();
+    ctx.arc(fromPx, fromPy, radiusPx, arcAngle - spreadRad, arcAngle + spreadRad);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ── Label: draw at the right-side tip of the arc ─────────────
+    const tipX = fromPx + radiusPx * Math.cos(labelAngle);
+    const tipY = fromPy + radiusPx * Math.sin(labelAngle);
+
+    ctx.globalAlpha = 1;
+    ctx.font = `bold ${isSuggested ? 13 : 11}px sans-serif`;
+    ctx.textAlign = 'left';
+
+    const yardTxt = `${avg}y`;
+    const labelTxt = label;
+    const maxW = Math.max(ctx.measureText(yardTxt).width, ctx.measureText(labelTxt).width);
+    const pillW = maxW + 14;
+    const pillH = isSuggested ? 30 : 25;
+
+    // Background pill
+    ctx.fillStyle = isSuggested ? '#16a34a' : 'rgba(15,23,42,0.75)';
+    const px = tipX + 8;
+    const py = tipY - pillH / 2;
+    if (ctx.roundRect) ctx.roundRect(px, py, pillW, pillH, 5);
+    else ctx.rect(px, py, pillW, pillH);
+    ctx.fill();
+
+    // Club name
+    ctx.fillStyle = 'white';
+    ctx.font = `bold ${isSuggested ? 12 : 10}px sans-serif`;
+    ctx.fillText(labelTxt, px + 7, py + (isSuggested ? 12 : 10));
+
+    // Yardage
+    ctx.font = `${isSuggested ? 11 : 9}px sans-serif`;
+    ctx.fillStyle = isSuggested ? '#bbf7d0' : '#94a3b8';
+    ctx.fillText(yardTxt, px + 7, py + (isSuggested ? 24 : 20));
+
+    // Small tick connecting arc tip to pill
+    ctx.strokeStyle = isSuggested ? '#22c55e' : 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(px, tipY);
+    ctx.stroke();
+
+    ctx.restore();
+  });
 }
 
 function renderHmrDistPanel() {
