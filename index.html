@@ -31,7 +31,6 @@
   /* ── screens ── */
   .screen { display: none; min-height: 100vh; flex-direction: column; }
   #s-gps-map { height: 100vh; min-height: unset; overflow: hidden; }
-  #s-hole-map-editor { height: 100vh; min-height: unset; overflow: hidden; }
   #s-hole-map-round { height: 100vh; min-height: unset; overflow: hidden; }
   #s-live-map { height: 100vh; min-height: unset; overflow: hidden; background: #0f172a; }
   .screen.active { display: flex; }
@@ -885,38 +884,95 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     SCREEN: HOLE MAP POINT EDITOR (tap image to place)
+     SCREEN: UNIFIED HOLE MAP EDITOR
+     Single screen: tap to add, pinch to zoom, GPS stamps
 ═══════════════════════════════════════════════════ -->
-<!-- ═══════════════════════════════════════════════════
-     SCREEN: HOLE MAP EDITOR (Configure mode — Admin)
-═══════════════════════════════════════════════════ -->
-<div class="screen" id="s-hole-map-editor">
+<div class="screen" id="s-hole-map-editor" style="height:100vh;min-height:unset;overflow:hidden;flex-direction:column;">
   <div class="hdr" style="padding-bottom:8px;">
     <button class="back-btn" onclick="closeHoleMapEditor()">←</button>
     <div style="text-align:center">
-      <div class="hdr-title" id="hme-title">Map Points</div>
-      <div class="hdr-sub" id="hme-sub">Tap image to place a point</div>
+      <div class="hdr-title" id="hme-title">Hole Map</div>
+      <div class="hdr-sub" id="hme-sub">Tap image to add a point</div>
     </div>
     <button style="background:var(--green);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;" onclick="finishHoleMapEditor()">Done</button>
   </div>
+
   <!-- GPS status bar -->
-  <div id="hme-gps-bar" style="background:#1e3a5f;color:white;padding:6px 14px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
-    <span id="hme-gps-status">📡 GPS not started</span>
-    <button onclick="toggleHmeGPS()" id="hme-gps-btn" style="background:#2563eb;border:none;color:white;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;">Start GPS</button>
+  <div id="hme-gps-bar" style="padding:6px 14px;font-size:11px;display:flex;justify-content:space-between;align-items:center;background:#fef3c7;border-bottom:1px solid #fde68a;">
+    <span id="hme-gps-status">📡 Acquiring GPS…</span>
+    <button onclick="forceStartHmeGPS()" id="hme-gps-btn" style="background:#d97706;border:none;color:white;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;display:none;">Start GPS</button>
   </div>
-  <!-- Canvas -->
-  <div id="hme-canvas-wrap" style="flex:1;overflow:auto;position:relative;background:#111;">
-    <canvas id="hme-canvas" style="display:block;touch-action:none;cursor:crosshair;"></canvas>
+
+  <!-- Canvas: fills remaining space, touch-managed -->
+  <div id="hme-canvas-wrap" style="flex:1;overflow:hidden;position:relative;background:#f8f8f8;touch-action:none;">
+    <canvas id="hme-canvas" style="display:block;position:absolute;top:0;left:0;cursor:crosshair;transform-origin:0 0;"></canvas>
   </div>
-  <!-- Bottom toolbar -->
+
+  <!-- Bottom status bar -->
   <div style="padding:8px 14px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;align-items:center;">
     <div id="hme-point-count" style="flex:1;font-size:12px;font-weight:600;color:var(--green);"></div>
+    <div id="hme-cal-status" style="font-size:11px;color:var(--muted);"></div>
     <button onclick="hmeUndoLast()" style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">↩ Undo</button>
   </div>
 </div>
 
+<!-- Point add/edit bottom sheet (slides up over the editor) -->
+<div id="hme-sheet-backdrop" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.4);" onclick="cancelHmeSheet()"></div>
+<div id="hme-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:401;background:white;border-radius:20px 20px 0 0;max-height:88vh;overflow-y:auto;padding:16px 16px 32px;">
+  <div style="width:40px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px;"></div>
+  <div style="font-size:15px;font-weight:800;margin-bottom:4px;" id="hme-sheet-title">Add Point</div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;" id="hme-sheet-sub"></div>
+
+  <!-- GPS stamp — primary action -->
+  <div id="hme-sheet-gps" style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Your GPS position</div>
+      <div id="hme-sheet-gps-coords" style="font-size:12px;font-weight:600;color:#16a34a;">📡 Waiting…</div>
+    </div>
+    <button onclick="hmeStampGPS()" style="background:var(--green);border:none;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">📡 I'm standing here</button>
+  </div>
+
+  <!-- Type selector -->
+  <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Type</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;" id="hme-sheet-types"></div>
+
+  <!-- Quick labels -->
+  <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Label *</div>
+  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;" id="hme-quick-chips">
+    <button type="button" onclick="hmeSheetQuickLabel('Green Front')"    style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Front</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Green Back')"     style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Back</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Green Left')"     style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Left</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Green Right')"    style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Right</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Tee Box')"        style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Tee Box</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Bunker Front')"   style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Bunker Front</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Bunker Back')"    style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Bunker Back</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Fairway Corner')" style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Fairway Corner</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Dogleg')"         style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Dogleg</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Water Edge')"     style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Water Edge</button>
+    <button type="button" onclick="hmeSheetQuickLabel('OB Stake')"       style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">OB Stake</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Layup')"          style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Layup</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Sprinkler')"      style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Sprinkler</button>
+    <button type="button" onclick="hmeSheetQuickLabel('Carry')"          style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Carry</button>
+  </div>
+  <input type="text" id="hme-sheet-label" placeholder="Label this point" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin-bottom:10px;"/>
+
+  <!-- GPS coords (collapsed by default, shown if no auto-GPS) -->
+  <div id="hme-sheet-coords-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+    <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Latitude</div>
+    <input type="number" id="hme-sheet-lat" placeholder="40.2765" step="0.000001" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
+    <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Longitude</div>
+    <input type="number" id="hme-sheet-lng" placeholder="-79.3732" step="0.000001" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
+  </div>
+
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="cancelHmeSheet()">Cancel</button>
+    <button class="btn btn-sm" id="hme-sheet-save-btn" style="flex:2;background:var(--green);color:white;" onclick="saveHmeSheetPoint()">✅ Save Point</button>
+  </div>
+  <button id="hme-sheet-delete-btn" style="display:none;width:100%;margin-top:8px;padding:10px;border-radius:8px;border:1.5px solid #fca5a5;background:white;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;" onclick="deleteHmeSheetPoint()">🗑️ Delete This Point</button>
+</div>
+
 <!-- ═══════════════════════════════════════════════════
-     SCREEN: ADD/EDIT MAP POINT FORM
+     SCREEN: ADD/EDIT MAP POINT FORM (legacy — kept for compat)
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="s-hole-map-point">
   <div class="hdr">
@@ -5131,11 +5187,6 @@ function gpsToPixel(lat, lng, transform) {
 // ── State ─────────────────────────────────────────────────────────
 let _hmsHole = 1, _hmsStage = 1;
 let _hmsPendingRef = null;
-let _hmeHole = 1;
-let _hmeImg  = null;
-let _hmePendingPx = null, _hmePendingPy = null;
-let _hmeEditId = null;
-let _hmpSelectedType = 'green_edge';
 
 // ── Hole Setup Home ───────────────────────────────────────────────
 function showHoleSetupHome() {
@@ -5173,7 +5224,7 @@ function renderHoleSetupHome() {
   <div>${rows}</div>
   <div style="padding:16px;font-size:11px;color:var(--muted);text-align:center;line-height:1.6;">
     📌 Hole map data is permanent — it survives Reset All Data.<br>
-    Upload PuttView scans, calibrate with 2+ visible landmarks, then tap the image to map any course feature.
+    Tap any hole to open the map. Tap the image to add points. Stand at each spot and tap 📡 to stamp your GPS — the first 2 GPS-stamped points auto-calibrate the map.
   </div>`;
 }
 
@@ -5183,11 +5234,7 @@ function closeHoleSetup() {
 }
 
 function openHoleSetup(n) {
-  _hmsHole = n;
-  const hd = getHoleMap(n) || {};
-  _hmsStage = hd && hd.transform && hd.transform.scale ? 3 : 2;
-  showScreen('s-hole-setup');
-  renderHoleSetup();
+  openHoleMapEditor(n);
 }
 
 function renderHoleSetup() {
@@ -5462,233 +5509,478 @@ function clearAllHoleMapPoints() {
 }
 
 // ── Map Editor ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// UNIFIED HOLE MAP EDITOR
+// ═══════════════════════════════════════════════════════════════════
+let _hmeHole = 1;
+let _hmeImg = null;
+let _hmeGpsWatch = null;
+let _hmeEditId = null;
+let _hmePendingPx = null, _hmePendingPy = null;
+let _hmpSelectedType = 'green_edge';
+
+// Zoom/pan state
+let _hmeScale = 1, _hmeOffX = 0, _hmeOffY = 0;
+let _hmePinchStartDist = null, _hmePinchStartScale = null;
+let _hmePanStartX = null, _hmePanStartY = null, _hmePanStartOffX = null, _hmePanStartOffY = null;
+let _hmeTapTime = 0;
+
 function openHoleMapEditor(n) {
-  _hmeHole=n; _hmeEditId=null;
+  _hmeHole = n;
+  _hmeEditId = null;
+  _hmeScale = 1; _hmeOffX = 0; _hmeOffY = 0;
+
   showScreen('s-hole-map-editor');
-  document.getElementById('hme-title').textContent=`H${n} Points`;
-  document.getElementById('hme-sub').textContent='Tap image to add · Tap dot to edit';
-  document.getElementById('hme-point-count').textContent='';
-  const hd=getHoleMap(n);
-  _hmeImg=new Image();
-  _hmeImg.onload=()=>{ if(hd&&!hd.imageW){hd.imageW=_hmeImg.naturalWidth;hd.imageH=_hmeImg.naturalHeight;saveHoleMap(n,hd);} drawHmeCanvas(); };
-  _hmeImg.src=holeImageSrc(n);
-  // Auto-start GPS so it's ready when user taps a point
-  if (_hmeGpsWatch === null) toggleHmeGPS();
+  document.getElementById('hme-title').textContent = `Hole ${n} Map`;
+  document.getElementById('hme-sub').textContent = 'Tap to add · Pinch to zoom · Tap dot to edit';
+
+  const hd = getHoleMap(n);
+  _hmeImg = new Image();
+  _hmeImg.onload = () => {
+    if (hd && !hd.imageW) { hd.imageW = _hmeImg.naturalWidth; hd.imageH = _hmeImg.naturalHeight; saveHoleMap(n, hd); }
+    hmeFitCanvas();
+    drawHmeCanvas();
+  };
+  _hmeImg.src = holeImageSrc(n);
+
+  // Auto-start GPS
+  startHmeGPS();
+  setupHmeTouch();
+}
+
+function hmeFitCanvas() {
+  const wrap = document.getElementById('hme-canvas-wrap');
+  const canvas = document.getElementById('hme-canvas');
+  if (!wrap || !canvas || !_hmeImg) return;
+  // Fit image to wrap width initially
+  const scaleToFit = wrap.clientWidth / _hmeImg.naturalWidth;
+  canvas.width = _hmeImg.naturalWidth;
+  canvas.height = _hmeImg.naturalHeight;
+  canvas.style.width = _hmeImg.naturalWidth + 'px';
+  canvas.style.height = _hmeImg.naturalHeight + 'px';
+  _hmeScale = scaleToFit;
+  _hmeOffX = 0; _hmeOffY = 0;
+  applyHmeTransform();
+}
+
+function applyHmeTransform() {
+  const canvas = document.getElementById('hme-canvas');
+  if (!canvas) return;
+  canvas.style.transform = `translate(${_hmeOffX}px, ${_hmeOffY}px) scale(${_hmeScale})`;
+}
+
+function setupHmeTouch() {
+  const wrap = document.getElementById('hme-canvas-wrap');
+  const canvas = document.getElementById('hme-canvas');
+  if (!wrap || !canvas) return;
+
+  // Remove old listeners by replacing canvas
+  const newCanvas = canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(newCanvas, canvas);
+  const c = document.getElementById('hme-canvas');
+
+  c.addEventListener('touchstart', hmeTouchStart, { passive: false });
+  c.addEventListener('touchmove', hmeTouchMove, { passive: false });
+  c.addEventListener('touchend', hmeTouchEnd, { passive: false });
+  c.addEventListener('click', hmeTap);
+}
+
+function hmeTouchStart(e) {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    // Pinch start
+    _hmePinchStartDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    _hmePinchStartScale = _hmeScale;
+    _hmePanStartX = null; // cancel pan
+  } else if (e.touches.length === 1) {
+    _hmePanStartX = e.touches[0].clientX;
+    _hmePanStartY = e.touches[0].clientY;
+    _hmePanStartOffX = _hmeOffX;
+    _hmePanStartOffY = _hmeOffY;
+    _hmeTapTime = Date.now();
+  }
+}
+
+function hmeTouchMove(e) {
+  e.preventDefault();
+  if (e.touches.length === 2 && _hmePinchStartDist !== null) {
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const wrap = document.getElementById('hme-canvas-wrap');
+    const minScale = wrap ? wrap.clientWidth / _hmeImg.naturalWidth * 0.8 : 0.2;
+    _hmeScale = Math.max(minScale, Math.min(6, _hmePinchStartScale * dist / _hmePinchStartDist));
+    applyHmeTransform();
+  } else if (e.touches.length === 1 && _hmePanStartX !== null) {
+    const dx = e.touches[0].clientX - _hmePanStartX;
+    const dy = e.touches[0].clientY - _hmePanStartY;
+    // If moved more than 8px it's a pan, not a tap
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+      _hmeTapTime = 0; // cancel tap
+      _hmeOffX = _hmePanStartOffX + dx;
+      _hmeOffY = _hmePanStartOffY + dy;
+      applyHmeTransform();
+    }
+  }
+}
+
+function hmeTouchEnd(e) {
+  _hmePinchStartDist = null;
+  // Only treat as tap if it was quick and didn't move
+  if (_hmeTapTime && Date.now() - _hmeTapTime < 300 && e.changedTouches.length === 1) {
+    const touch = e.changedTouches[0];
+    hmeHandleTap(touch.clientX, touch.clientY);
+  }
+  _hmePanStartX = null;
+  _hmeTapTime = 0;
+}
+
+function hmeTap(e) {
+  // Desktop click fallback (not touch)
+  if (e.pointerType !== 'touch' && e.pointerType !== undefined) {
+    hmeHandleTap(e.clientX, e.clientY);
+  }
+}
+
+function hmeHandleTap(clientX, clientY) {
+  const canvas = document.getElementById('hme-canvas');
+  const wrap = document.getElementById('hme-canvas-wrap');
+  if (!canvas || !wrap) return;
+
+  const wrapRect = wrap.getBoundingClientRect();
+  // Convert client coords to canvas image coords accounting for zoom/pan
+  const px = (clientX - wrapRect.left - _hmeOffX) / _hmeScale;
+  const py = (clientY - wrapRect.top  - _hmeOffY) / _hmeScale;
+
+  const hd = getHoleMap(_hmeHole);
+  const allPts = getAllHmePoints(hd);
+
+  // Check if tapping an existing point (hit radius 20px in image space)
+  const hitR = 20 / _hmeScale;
+  const hit = allPts.find(p => Math.sqrt((p.px - px) ** 2 + (p.py - py) ** 2) < hitR);
+  if (hit) {
+    openHmeSheet(hit.id, hit._isRef, hit.px, hit.py);
+  } else {
+    openHmeSheet(null, false, px, py);
+  }
+}
+
+// Get all points (named + refs) as a flat list with a flag
+function getAllHmePoints(hd) {
+  const pts = (hd?.points || []).map(p => ({ ...p, _isRef: false }));
+  const refs = (hd?.transform?.refs || []).map((r, i) => ({
+    id: 'ref_' + i, px: r.px, py: r.py, lat: r.lat, lng: r.lng,
+    label: r.label || `Ref ${i + 1}`, type: 'ref', _isRef: true, _refIdx: i
+  }));
+  return [...refs, ...pts];
 }
 
 function drawHmeCanvas() {
-  const hd=getHoleMap(_hmeHole);
-  if (!_hmeImg||!hd) return;
-  const wrap=document.getElementById('hme-canvas-wrap');
-  const canvas=document.getElementById('hme-canvas');
-  if (!canvas) return;
-  const cw=wrap.clientWidth;
-  canvas.width=_hmeImg.naturalWidth;
-  canvas.height=_hmeImg.naturalHeight;
-  canvas.style.width=cw+'px';
-  canvas.style.height=(cw/_hmeImg.naturalWidth*_hmeImg.naturalHeight)+'px';
-  const ctx=canvas.getContext('2d');
-  ctx.drawImage(_hmeImg,0,0);
-  // Draw cal refs
-  (hd.transform?.refs||[]).forEach((r,i)=>{
-    ctx.beginPath(); ctx.arc(r.px,r.py,16,0,Math.PI*2);
-    ctx.fillStyle='#3b82f688'; ctx.fill();
-    ctx.strokeStyle='#3b82f6'; ctx.lineWidth=2; ctx.stroke();
-    ctx.fillStyle='white'; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
-    ctx.fillText((i+1).toString(),r.px,r.py+4);
+  const hd = getHoleMap(_hmeHole);
+  const canvas = document.getElementById('hme-canvas');
+  if (!canvas || !_hmeImg) return;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(_hmeImg, 0, 0);
+
+  const pts = getAllHmePoints(hd);
+  const hasGPS = pts.filter(p => p.lat && p.lng).length;
+  const calOk = !!(hd?.transform?.scale);
+
+  pts.forEach((p, i) => {
+    const isRef = p._isRef;
+    const td = isRef ? { color: '#3b82f6', icon: '📐' } : (PT_MAP[p.type] || PT_MAP.other);
+
+    // Outer ring (blue for refs, coloured for points)
+    ctx.beginPath(); ctx.arc(p.px, p.py, 18, 0, Math.PI * 2);
+    ctx.fillStyle = td.color + '33'; ctx.fill();
+    if (isRef) { ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]); }
+
+    // Inner dot
+    ctx.beginPath(); ctx.arc(p.px, p.py, 12, 0, Math.PI * 2);
+    ctx.fillStyle = td.color; ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 2.5; ctx.stroke();
+
+    // Icon/number
+    ctx.fillStyle = 'white'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(isRef ? (p._refIdx + 1).toString() : td.icon, p.px, p.py + 4);
+
+    // If this ref needs re-tapping, show a warning
+    if (isRef && p._needsReplace) {
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText('⚠️ re-tap', p.px, p.py + 28);
+    }
+
+    // Label above
+    const lbl = p.label.slice(0, 18);
+    const lw = ctx.measureText(lbl).width + 10;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(p.px - lw/2, p.py - 30, lw, 14, 3);
+    else ctx.rect(p.px - lw/2, p.py - 30, lw, 14);
+    ctx.fill();
+    ctx.fillStyle = 'white'; ctx.font = 'bold 9px sans-serif';
+    ctx.fillText(lbl, p.px, p.py - 20);
   });
-  // Draw points
-  (hd.points||[]).forEach(p=>{
-    const td=PT_MAP[p.type]||PT_MAP.other;
-    ctx.beginPath(); ctx.arc(p.px,p.py,18,0,Math.PI*2);
-    ctx.fillStyle=td.color+'cc'; ctx.fill();
-    ctx.strokeStyle='white'; ctx.lineWidth=3; ctx.stroke();
-    ctx.fillStyle='white'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
-    ctx.fillText(p.label.slice(0,14),p.px,p.py-22);
-    ctx.fillText(td.icon,p.px,p.py+5);
+
+  // Update bottom bar
+  const countEl = document.getElementById('hme-point-count');
+  const calEl = document.getElementById('hme-cal-status');
+  if (countEl) countEl.textContent = `${pts.length} point${pts.length !== 1 ? 's' : ''}`;
+  if (calEl) {
+    const gpsCount = pts.filter(p => p.lat && p.lng).length;
+    if (calOk) calEl.textContent = `✅ Calibrated · ${hd.transform.scale.toFixed(3)} yds/px`;
+    else if (gpsCount >= 2) calEl.textContent = '⏳ Computing…';
+    else calEl.textContent = `📐 Need ${2 - gpsCount} more GPS point${2-gpsCount!==1?'s':''} to calibrate`;
+  }
+}
+
+// ── Bottom sheet ──────────────────────────────────────────────────────
+let _hmeSheetEditId = null;
+let _hmeSheetIsRef = false;
+let _hmeSheetPx = null, _hmeSheetPy = null;
+
+function openHmeSheet(existingId, isRef, px, py) {
+  _hmeSheetEditId = existingId;
+  _hmeSheetIsRef = isRef;
+  _hmeSheetPx = px; _hmeSheetPy = py;
+
+  const hd = getHoleMap(_hmeHole);
+  const allPts = getAllHmePoints(hd);
+  const existing = existingId ? allPts.find(p => p.id === existingId) : null;
+  const isEdit = !!existing;
+
+  document.getElementById('hme-sheet-title').textContent = isEdit ? 'Edit Point' : 'Add Point';
+  document.getElementById('hme-sheet-sub').textContent = isEdit
+    ? `Hole ${_hmeHole} · ${existing.label}`
+    : `Hole ${_hmeHole} · Tap 📡 to stamp your GPS`;
+
+  // Update GPS coords display
+  updateHmeSheetGpsDisplay();
+
+  // Pre-fill GPS if editing
+  if (isEdit) {
+    document.getElementById('hme-sheet-lat').value = existing.lat?.toFixed(6) || '';
+    document.getElementById('hme-sheet-lng').value = existing.lng?.toFixed(6) || '';
+  } else if (hd?.transform?.scale) {
+    // Auto-compute GPS from pixel position if calibrated
+    const gps = pixelToGPS(px, py, hd.transform);
+    if (gps) {
+      document.getElementById('hme-sheet-lat').value = gps.lat.toFixed(6);
+      document.getElementById('hme-sheet-lng').value = gps.lng.toFixed(6);
+    } else {
+      document.getElementById('hme-sheet-lat').value = '';
+      document.getElementById('hme-sheet-lng').value = '';
+    }
+  } else {
+    document.getElementById('hme-sheet-lat').value = '';
+    document.getElementById('hme-sheet-lng').value = '';
+  }
+
+  document.getElementById('hme-sheet-label').value = existing?.label || '';
+
+  // Type buttons
+  const selType = existing?.type || 'green_edge';
+  _hmpSelectedType = selType;
+  document.getElementById('hme-sheet-types').innerHTML = POINT_TYPES.map(t =>
+    `<button type="button" onclick="hmeSelectType('${t.key}')" id="hme-type-${t.key}"
+      style="padding:6px 4px;border:2px solid ${selType===t.key?t.color:'#e5e7eb'};background:${selType===t.key?t.color+'22':'white'};border-radius:8px;font-size:10px;cursor:pointer;flex:1;min-width:46px;text-align:center;">
+      ${t.icon}<br>${t.label}</button>`
+  ).join('');
+
+  // Delete button
+  const delBtn = document.getElementById('hme-sheet-delete-btn');
+  if (delBtn) delBtn.style.display = isEdit ? 'block' : 'none';
+
+  document.getElementById('hme-sheet-backdrop').style.display = '';
+  document.getElementById('hme-sheet').style.display = '';
+}
+
+function updateHmeSheetGpsDisplay() {
+  const coordsEl = document.getElementById('hme-sheet-gps-coords');
+  if (!coordsEl) return;
+  if (_gpsLat !== null) {
+    coordsEl.textContent = `📡 ±${_gpsAcc||'?'}m · ${_gpsLat.toFixed(5)}, ${_gpsLng.toFixed(5)}`;
+    coordsEl.style.color = '#16a34a';
+  } else {
+    coordsEl.textContent = '📡 Acquiring GPS…';
+    coordsEl.style.color = '#92400e';
+  }
+}
+
+function hmeStampGPS() {
+  if (_gpsLat === null) {
+    alert('GPS not acquired yet — make sure you\'re outdoors with a clear sky view.');
+    return;
+  }
+  document.getElementById('hme-sheet-lat').value = _gpsLat.toFixed(6);
+  document.getElementById('hme-sheet-lng').value = _gpsLng.toFixed(6);
+  // Visual feedback
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '✅ Stamped!';
+  btn.style.background = '#16a34a';
+  setTimeout(() => { btn.textContent = orig; btn.style.background = 'var(--green)'; }, 1200);
+}
+
+function hmeSelectType(key) {
+  _hmpSelectedType = key;
+  POINT_TYPES.forEach(t => {
+    const b = document.getElementById('hme-type-' + t.key); if (!b) return;
+    b.style.borderColor = t.key === key ? t.color : '#e5e7eb';
+    b.style.background  = t.key === key ? t.color + '22' : 'white';
   });
-  const pts=hd.points||[];
-  document.getElementById('hme-point-count').textContent=`${pts.length} pt${pts.length!==1?'s':''}`;
-  canvas.onclick=handleHmeTap;
 }
 
-function handleHmeTap(e) {
-  const canvas=e.currentTarget;
-  const rect=canvas.getBoundingClientRect();
-  const px=(e.clientX-rect.left)*(canvas.width/rect.width);
-  const py=(e.clientY-rect.top)*(canvas.height/rect.height);
-  const hd=getHoleMap(_hmeHole);
-  const hitR=24*(canvas.width/rect.width);
-  const hit=(hd?.points||[]).find(p=>Math.sqrt((p.px-px)**2+(p.py-py)**2)<hitR);
-  if (hit) { _hmeHole=_hmeHole; editHoleMapPoint(hit.id,true); return; }
-  _hmePendingPx=px; _hmePendingPy=py;
-  openHoleMapPointForm(null);
-}
-
-function finishHoleMapEditor() { showScreen('s-hole-setup'); _hmsStage=3; renderHoleSetup(); }
-function closeHoleMapEditor() { finishHoleMapEditor(); }
-
-// ── Point form ────────────────────────────────────────────────────
-function openHoleMapPointForm(existingId) {
-  _hmeEditId=existingId;
-  showScreen('s-hole-map-point');
-  const hd=getHoleMap(_hmeHole);
-  const existing=existingId?(hd?.points||[]).find(p=>p.id===existingId):null;
-  const isEdit=!!existing;
-  document.getElementById('hmp-title').textContent=isEdit?'Edit Point':'New Point';
-  document.getElementById('hmp-sub').textContent=`Hole ${_hmeHole}`;
-  let lat='',lng='';
-  if (!isEdit&&hd?.transform?.scale) {
-    const gps=pixelToGPS(_hmePendingPx,_hmePendingPy,hd.transform);
-    if (gps) {lat=gps.lat.toFixed(6);lng=gps.lng.toFixed(6);}
-  } else if (existing) {lat=existing.lat?.toFixed(6)||'';lng=existing.lng?.toFixed(6)||'';}
-  const selType=existing?.type||'green_edge';
-  _hmpSelectedType=selType;
-  const typeButtons=POINT_TYPES.map(t=>`<button type="button" onclick="selectHmpType('${t.key}',this)" id="hmp-type-${t.key}"
-    style="padding:8px 4px;border:2px solid ${selType===t.key?t.color:'#e5e7eb'};background:${selType===t.key?t.color+'22':'white'};border-radius:8px;font-size:10px;cursor:pointer;flex:1;min-width:50px;text-align:center;">
-    ${t.icon}<br>${t.label}</button>`).join('');
-  document.getElementById('hmp-content').innerHTML=`
-    <div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:600;margin-bottom:8px;">Type</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;">${typeButtons}</div></div>
-    <div style="margin-bottom:8px;">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Label *</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;">
-        ${['Green','Sprinkler','Sand Trap','Water','Tee Box','OB Stake','Layup','Dogleg','Tree Line','Bunker Edge','Carry'].map(t=>
-          `<button type="button" onclick="hmpQuickLabel('${t}')"
-            style="padding:4px 10px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:12px;font-weight:600;cursor:pointer;color:var(--dark);">${t}</button>`
-        ).join('')}
-      </div>
-      <input type="text" id="hmp-label" placeholder="e.g. Sprinkler - 201" value="${existing?.label||''}"
-        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;"/>
-    </div>
-    <div style="margin-bottom:12px;">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px;">GPS Position</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Latitude</div>
-        <input type="number" id="hmp-lat" value="${lat}" placeholder="40.2765" step="0.000001"
-          style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
-        <label><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Longitude</div>
-        <input type="number" id="hmp-lng" value="${lng}" placeholder="-79.3732" step="0.000001"
-          style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
-      </div>
-      ${hd?.transform?.scale?`<div style="font-size:11px;color:#16a34a;margin-bottom:6px;">✓ Auto-computed from calibrated image</div>`:
-        `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Image not calibrated — enter GPS manually or walk there</div>`}
-      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="useMyGPSForPoint()">📡 Use My GPS</button>
-    </div>
-    <label style="display:block;margin-bottom:16px;">
-      <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Note (optional)</div>
-      <input type="text" id="hmp-note" placeholder="e.g. Aim left of flag" value="${existing?.note||''}"
-        style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/>
-    </label>
-    <div style="display:flex;gap:8px;">
-      <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="cancelHoleMapPoint()">Cancel</button>
-      <button class="btn btn-sm" style="flex:2;background:var(--green);color:white;" onclick="saveHoleMapPoint()">${isEdit?'✅ Update':'✅ Save'}</button>
-    </div>
-    ${isEdit?`<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;color:var(--red);" onclick="confirmDeleteAndReturn('${existingId}')">🗑️ Delete This Point</button>`:''}`;
-}
-
-function confirmDeleteAndReturn(id) {
-  if (!confirm('Delete this point?')) return;
-  const hd=getHoleMap(_hmeHole)||{}; hd.points=(hd.points||[]).filter(p=>p.id!==id);
-  saveHoleMap(_hmeHole,hd); showScreen('s-hole-map-editor'); drawHmeCanvas();
-}
-
-function selectHmpType(key, btn) {
-  _hmpSelectedType=key;
-  POINT_TYPES.forEach(t=>{
-    const b=document.getElementById('hmp-type-'+t.key); if(!b) return;
-    b.style.borderColor=t.key===key?t.color:'#e5e7eb';
-    b.style.background =t.key===key?t.color+'22':'white';
-  });
-}
-
-function hmpQuickLabel(text) {
-  const el = document.getElementById('hmp-label');
+function hmeSheetQuickLabel(text) {
+  const el = document.getElementById('hme-sheet-label');
   if (!el) return;
-  // Set to "Text - " so user just types the number, or replace if already has a quick label
-  const cur = el.value.trim();
-  // If the field already ends with " - " or is empty, just set prefix
   el.value = text + ' - ';
   el.focus();
-  // Move cursor to end
   el.setSelectionRange(el.value.length, el.value.length);
 }
 
-function useMyGPSForPoint() {
-  if (_gpsLat===null) {
-    alert('GPS not acquired yet — make sure you\'re outdoors with a clear sky view. The app is trying to get your position automatically.');
+function cancelHmeSheet() {
+  document.getElementById('hme-sheet-backdrop').style.display = 'none';
+  document.getElementById('hme-sheet').style.display = 'none';
+}
+
+function saveHmeSheetPoint() {
+  const label = document.getElementById('hme-sheet-label')?.value.trim();
+  const lat   = parseFloat(document.getElementById('hme-sheet-lat')?.value);
+  const lng   = parseFloat(document.getElementById('hme-sheet-lng')?.value);
+  if (!label) { alert('Please enter a label for this point.'); return; }
+  if (isNaN(lat) || isNaN(lng)) {
+    alert('No GPS coordinates yet — tap "📡 I\'m standing here" while standing at this spot, or enter coordinates manually.');
     return;
   }
-  document.getElementById('hmp-lat').value=_gpsLat.toFixed(6);
-  document.getElementById('hmp-lng').value=_gpsLng.toFixed(6);
-}
 
-function saveHoleMapPoint() {
-  const label=document.getElementById('hmp-label')?.value.trim();
-  const lat=parseFloat(document.getElementById('hmp-lat')?.value);
-  const lng=parseFloat(document.getElementById('hmp-lng')?.value);
-  const note=document.getElementById('hmp-note')?.value.trim()||'';
-  if (!label) {alert('Please enter a label.'); return;}
-  if (isNaN(lat)||isNaN(lng)) {alert('Please enter GPS coordinates.'); return;}
-  const hd=getHoleMap(_hmeHole)||{}; if (!hd.points) hd.points=[];
-  if (_hmeEditId) {
-    const pt=hd.points.find(p=>p.id===_hmeEditId);
-    if (pt) {pt.label=label;pt.type=_hmpSelectedType;pt.lat=lat;pt.lng=lng;pt.note=note;}
+  const hd = getHoleMap(_hmeHole) || {};
+  if (!hd.points) hd.points = [];
+  if (!hd.transform) hd.transform = {};
+  if (!hd.transform.refs) hd.transform.refs = [];
+
+  if (_hmeSheetEditId && _hmeSheetIsRef) {
+    // Edit existing ref point
+    const ri = _hmeSheetEditId.replace('ref_', '');
+    if (hd.transform.refs[ri]) {
+      hd.transform.refs[ri] = { ...hd.transform.refs[ri], lat, lng, label };
+    }
+  } else if (_hmeSheetEditId) {
+    // Edit existing named point
+    const pt = hd.points.find(p => p.id === _hmeSheetEditId);
+    if (pt) { pt.label = label; pt.type = _hmpSelectedType; pt.lat = lat; pt.lng = lng; }
   } else {
-    hd.points.push({id:'pt_'+Date.now().toString(36), label, type:_hmpSelectedType,
-      px:_hmePendingPx, py:_hmePendingPy, lat, lng, note, ts:Date.now()});
+    // New point — always save as named point
+    // If we have < 2 GPS-stamped ref points, also save as a ref for calibration
+    const gpsNamedPts = hd.points.filter(p => p.lat && p.lng);
+    const refCount = hd.transform.refs.length;
+    if (refCount < 2) {
+      // Save as both a ref AND a named point so it contributes to calibration
+      hd.transform.refs.push({ px: _hmeSheetPx, py: _hmeSheetPy, lat, lng, label });
+    }
+    hd.points.push({
+      id: 'pt_' + Date.now().toString(36),
+      label, type: _hmpSelectedType,
+      px: _hmeSheetPx, py: _hmeSheetPy,
+      lat, lng, ts: Date.now()
+    });
   }
-  saveHoleMap(_hmeHole,hd);
-  showScreen('s-hole-map-editor'); drawHmeCanvas();
+
+  // Recompute calibration transform
+  const t = computeTransform(hd.transform.refs);
+  if (t) Object.assign(hd.transform, t);
+
+  saveHoleMap(_hmeHole, hd);
+  cancelHmeSheet();
+  drawHmeCanvas();
 }
 
-function cancelHoleMapPoint() {
-  showScreen('s-hole-map-editor'); drawHmeCanvas();
-}
-
-function editHoleMapPoint(id, fromEditor) {
-  _hmeEditId=id; _hmePendingPx=null; _hmePendingPy=null;
-  openHoleMapPointForm(id);
-}
-
-// ── "You Are Here" on hole map ─────────────────────────────────────
-// ── Legacy live map stubs (old screen, kept for DOM compatibility) ──
-function closeLiveMap() { showScreen('s-hole'); }
-function lmRefresh() { /* no-op — use s-hole-map-round instead */ }
-
-// ── Admin editor missing stubs ─────────────────────────────────────
-let _hmeGpsWatch = null;
-
-function toggleHmeGPS() {
-  const btn = document.getElementById('hme-gps-btn');
-  const status = document.getElementById('hme-gps-status');
-  if (_hmeGpsWatch !== null) {
-    navigator.geolocation.clearWatch(_hmeGpsWatch);
-    _hmeGpsWatch = null;
-    if (btn) btn.textContent = 'Start GPS';
-    if (status) status.textContent = '📡 GPS stopped';
+function deleteHmeSheetPoint() {
+  if (!_hmeSheetEditId) return;
+  if (!confirm('Delete this point?')) return;
+  const hd = getHoleMap(_hmeHole) || {};
+  if (_hmeSheetIsRef) {
+    const ri = parseInt(_hmeSheetEditId.replace('ref_', ''));
+    hd.transform.refs.splice(ri, 1);
+    const t = computeTransform(hd.transform.refs);
+    if (t) Object.assign(hd.transform, t);
+    else { delete hd.transform.scale; delete hd.transform.angle; }
   } else {
-    if (status) status.textContent = '📡 Acquiring…';
-    _hmeGpsWatch = navigator.geolocation.watchPosition(pos => {
-      _gpsLat = pos.coords.latitude;
-      _gpsLng = pos.coords.longitude;
-      _gpsAcc = Math.round(pos.coords.accuracy);
-      if (status) status.textContent = `📡 ±${_gpsAcc}m — ${_gpsLat.toFixed(5)}, ${_gpsLng.toFixed(5)}`;
-      if (btn) btn.textContent = 'Stop GPS';
-    }, err => {
-      if (status) status.textContent = '❌ GPS error: ' + err.message;
-    }, { enableHighAccuracy: true, maximumAge: 2000 });
+    hd.points = (hd.points || []).filter(p => p.id !== _hmeSheetEditId);
   }
+  saveHoleMap(_hmeHole, hd);
+  cancelHmeSheet();
+  drawHmeCanvas();
 }
 
 function hmeUndoLast() {
   const hd = getHoleMap(_hmeHole);
   if (!hd?.points?.length) return;
-  if (!confirm('Remove the last placed point?')) return;
+  if (!confirm('Remove the last added point?')) return;
   hd.points.pop();
   saveHoleMap(_hmeHole, hd);
   drawHmeCanvas();
 }
+
+function finishHoleMapEditor() {
+  stopHmeGPS();
+  cancelHmeSheet();
+  showHoleSetupHome();
+}
+
+function closeHoleMapEditor() { finishHoleMapEditor(); }
+
+// ── GPS for editor ────────────────────────────────────────────────────
+function startHmeGPS() {
+  if (_hmeGpsWatch !== null) return;
+  if (!navigator.geolocation) {
+    const el = document.getElementById('hme-gps-status');
+    if (el) el.textContent = '❌ GPS not supported';
+    return;
+  }
+  _hmeGpsWatch = navigator.geolocation.watchPosition(pos => {
+    _gpsLat = pos.coords.latitude;
+    _gpsLng = pos.coords.longitude;
+    _gpsAcc = Math.round(pos.coords.accuracy);
+    const bar = document.getElementById('hme-gps-bar');
+    const status = document.getElementById('hme-gps-status');
+    const btn = document.getElementById('hme-gps-btn');
+    if (bar) { bar.style.background = '#f0fdf4'; bar.style.borderColor = '#bbf7d0'; }
+    if (status) { status.style.color = '#16a34a'; status.textContent = `📡 GPS Active · ±${_gpsAcc}m`; }
+    if (btn) btn.style.display = 'none';
+    updateHmeSheetGpsDisplay();
+  }, err => {
+    const status = document.getElementById('hme-gps-status');
+    const btn = document.getElementById('hme-gps-btn');
+    if (status) status.textContent = `❌ GPS error`;
+    if (btn) btn.style.display = '';
+  }, { enableHighAccuracy: true, maximumAge: 3000 });
+}
+
+function stopHmeGPS() {
+  if (_hmeGpsWatch !== null) { navigator.geolocation.clearWatch(_hmeGpsWatch); _hmeGpsWatch = null; }
+}
+
+function forceStartHmeGPS() {
+  stopHmeGPS();
+  const status = document.getElementById('hme-gps-status');
+  if (status) status.textContent = '📡 Requesting GPS…';
+  startHmeGPS();
+}
+
+// Keep toggleHmeGPS for any legacy references
+function toggleHmeGPS() { if (_hmeGpsWatch !== null) stopHmeGPS(); else startHmeGPS(); }
+
+// ── Legacy compat stubs ───────────────────────────────────────────────
+function openHoleMapPointForm(existingId) { /* handled by openHmeSheet now */ }
+function cancelHoleMapPoint() { cancelHmeSheet(); showScreen('s-hole-map-editor'); }
+function saveHoleMapPoint() { saveHmeSheetPoint(); }
+
 
 // ── Show/hide 🗺️ map button based on whether hole has a map ─────────
 function updateHoleMapBtn(holeN) {
@@ -6019,6 +6311,43 @@ function scrollToPointOnCanvas(px, py) {
 
 loadState();
 renderHome();
+
+// ── Migrate existing hole map data to unified structure ────────────────
+// Runs once on load — safe to run multiple times (idempotent).
+// Handles: refs without px/py (marks them as needing re-tap),
+//          points that were accidentally duplicated as refs.
+(function migrateHoleMapData() {
+  try {
+    const data = JSON.parse(localStorage.getItem('lcc_hole_map') || '{}');
+    let changed = false;
+
+    Object.keys(data).forEach(n => {
+      const hd = data[n];
+      if (!hd) return;
+
+      // Ensure arrays exist
+      if (!hd.points) { hd.points = []; changed = true; }
+      if (!hd.transform) hd.transform = {};
+      if (!hd.transform.refs) { hd.transform.refs = []; changed = true; }
+
+      // Mark refs that are missing pixel coords so the editor knows to flag them
+      hd.transform.refs.forEach((r, i) => {
+        if (r.px === undefined || r.px === null) {
+          r.px = 50; r.py = 50 + i * 40; // placeholder top-left area
+          r._needsReplace = true;
+          changed = true;
+        }
+      });
+    });
+
+    if (changed) {
+      localStorage.setItem('lcc_hole_map', JSON.stringify(data));
+      console.log('✅ Hole map data migrated to unified structure');
+    } else {
+      console.log('✅ Hole map data already compatible — no migration needed');
+    }
+  } catch(e) { console.warn('Migration skipped:', e); }
+})();
 
 function showYouAreHere(holeN) {
   const hd=getHoleMap(holeN);
