@@ -922,7 +922,11 @@
   <div style="padding:8px 14px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;align-items:center;">
     <div id="hme-point-count" style="flex:1;font-size:12px;font-weight:600;color:var(--green);"></div>
     <div id="hme-cal-status" style="font-size:11px;color:var(--muted);"></div>
+    <button onclick="hmeAddAtGPS()" style="background:#0d9488;border:none;color:white;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">📡 Add Here</button>
     <button onclick="hmeUndoLast()" style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">↩ Undo</button>
+  </div>
+  <!-- Point list — tap any point to edit or delete -->
+  <div id="hme-point-list" style="background:#f9fafb;border-top:1px solid #e5e7eb;max-height:140px;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -975,11 +979,11 @@
     <input type="number" id="hme-sheet-lng" placeholder="-79.3732" step="0.000001" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
   </div>
 
+  <button id="hme-sheet-delete-btn" style="display:none;width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1.5px solid #fca5a5;background:#fff5f5;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;" onclick="deleteHmeSheetPoint()">🗑️ Delete This Point</button>
   <div style="display:flex;gap:8px;">
     <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="cancelHmeSheet()">Cancel</button>
     <button class="btn btn-sm" id="hme-sheet-save-btn" style="flex:2;background:var(--green);color:white;" onclick="saveHmeSheetPoint()">✅ Save Point</button>
   </div>
-  <button id="hme-sheet-delete-btn" style="display:none;width:100%;margin-top:8px;padding:10px;border-radius:8px;border:1.5px solid #fca5a5;background:white;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;" onclick="deleteHmeSheetPoint()">🗑️ Delete This Point</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
@@ -5769,9 +5773,11 @@ function hmeHandleTap(clientX, clientY) {
   const hd = getHoleMap(_hmeHole);
   const allPts = getAllHmePoints(hd);
 
-  // Check if tapping an existing point (hit radius 20px in image space)
-  const hitR = 20 / _hmeScale;
-  const hit = allPts.find(p => Math.sqrt((p.px - px) ** 2 + (p.py - py) ** 2) < hitR);
+  // Hit radius: 44 screen pixels converted to image-space (good touch target)
+  const hitR = 44 / _hmeScale;
+  const hit = allPts.find(p =>
+    p.px != null && Math.sqrt((p.px - px) ** 2 + (p.py - py) ** 2) < hitR
+  );
   if (hit) {
     openHmeSheet(hit.id, hit._isRef, hit.px, hit.py);
   } else {
@@ -5848,6 +5854,28 @@ function drawHmeCanvas() {
     else if (calOk && !hasMiddle) calEl.textContent = `⚠️ Add 🎯 Green Middle for pin distance`;
     else if (gpsCount >= 2) calEl.textContent = '⏳ Computing…';
     else calEl.textContent = `📐 Need ${2 - gpsCount} more GPS point${2-gpsCount!==1?'s':''} to calibrate`;
+  }
+
+  // ── Point list (tap to edit/delete any point by name) ────────────
+  const listEl = document.getElementById('hme-point-list');
+  if (listEl) {
+    if (!pts.length) {
+      listEl.innerHTML = '<div style="padding:10px 14px;font-size:11px;color:var(--muted);text-align:center;">No points yet — tap the image or 📡 Add Here</div>';
+    } else {
+      listEl.innerHTML = pts.map(p => {
+        const td = p._isRef ? { icon:'📐', color:'#3b82f6' } : (PT_MAP[p.type] || PT_MAP.other);
+        const gpsTag = p.lat && p.lng ? `<span style="color:#16a34a;font-size:10px;">📡 GPS</span>` : `<span style="color:#d97706;font-size:10px;">⚠️ No GPS</span>`;
+        return `<div onclick="openHmeSheet('${p.id}',${p._isRef},${p.px??0},${p.py??0})"
+          style="display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #e5e7eb;cursor:pointer;active:background:#f3f4f6;">
+          <span style="font-size:16px;">${td.icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.label}</div>
+            <div style="font-size:10px;color:var(--muted);">${p._isRef?'Calibration ref':'Point'} · ${gpsTag}</div>
+          </div>
+          <span style="color:var(--muted);font-size:16px;">›</span>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
@@ -6032,6 +6060,46 @@ function deleteHmeSheetPoint() {
   saveHoleMap(_hmeHole, hd);
   cancelHmeSheet();
   drawHmeCanvas();
+}
+
+function hmeAddAtGPS() {
+  if (_gpsLat === null) {
+    alert('GPS not acquired yet — step outside and wait for the 📡 indicator to turn green, then try again.');
+    return;
+  }
+  // Place the point visually in the centre of the current canvas view
+  // (pixel position is approximate — distances use GPS directly)
+  const canvas = document.getElementById('hme-canvas');
+  const wrap = document.getElementById('hme-canvas-wrap');
+  let px = canvas ? canvas.width / 2 : 100;
+  let py = canvas ? canvas.height / 2 : 100;
+
+  // If calibrated, compute the actual pixel from GPS
+  const hd = getHoleMap(_hmeHole);
+  if (hd?.transform?.scale) {
+    const pos = gpsToPixel(_gpsLat, _gpsLng, hd.transform);
+    if (pos && pos.px > 0 && pos.px < canvas.width && pos.py > 0 && pos.py < canvas.height) {
+      px = pos.px; py = pos.py;
+    }
+  }
+
+  // Open the sheet and immediately stamp GPS
+  openHmeSheet(null, false, px, py);
+
+  // Pre-fill GPS coords and trigger visual stamp confirmation
+  document.getElementById('hme-sheet-lat').value = _gpsLat.toFixed(6);
+  document.getElementById('hme-sheet-lng').value = _gpsLng.toFixed(6);
+
+  // Update GPS display to show it's already stamped
+  const coordsEl = document.getElementById('hme-sheet-gps-coords');
+  if (coordsEl) {
+    coordsEl.textContent = `✅ Stamped · ±${_gpsAcc||'?'}m · ${_gpsLat.toFixed(5)}, ${_gpsLng.toFixed(5)}`;
+    coordsEl.style.color = '#16a34a';
+  }
+
+  // Update subtitle
+  const sub = document.getElementById('hme-sheet-sub');
+  if (sub) sub.textContent = `GPS stamped — add label and type, then Save`;
 }
 
 function hmeUndoLast() {
@@ -6431,9 +6499,6 @@ function renderHmrCanvas() {
       ctx.font = 'bold 8px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('YOU', pos.px, pos.py + 3);
-
-      // ── Club dispersion arcs from current position ───────────────
-      drawClubArcs(ctx, pos.px, pos.py, hd);
     }
   }
 
