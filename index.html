@@ -8,25 +8,25 @@
 <meta name="apple-mobile-web-app-title" content="LCC Strokes">
 <title>LCC · Strokes Gained</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap" rel="stylesheet">
 <style>
   :root {
-    --green:    #2d5a27;
-    --green2:   #3d7a35;
-    --fairway:  #4a8c40;
+    --green:    #155c35;
+    --green2:   #1a7a45;
+    --fairway:  #1e8c4f;
     --gold:     #c9a84c;
     --gold2:    #e8c96a;
-    --cream:    #f5f0e8;
-    --dark:     #1a1f16;
+    --cream:    #f8faf8;
+    --dark:     #111827;
     --card:     #ffffff;
-    --muted:    #6b7280;
-    --red:      #c0392b;
-    --blue:     #2563eb;
+    --muted:    #9ca3af;
+    --red:      #dc2626;
+    --blue:     #1d4ed8;
     --radius:   16px;
-    --shadow:   0 4px 24px rgba(0,0,0,0.12);
+    --shadow:   0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; background: var(--cream); font-family: 'DM Sans', sans-serif; color: var(--dark); overflow-x: hidden; }
+  html, body { height: 100%; background: var(--cream); font-family: 'Inter', sans-serif; color: var(--dark); overflow-x: hidden; }
 
   /* ── screens ── */
   .screen { display: none; min-height: 100vh; flex-direction: column; }
@@ -37,52 +37,48 @@
 
   /* ── header ── */
   .hdr {
-    background: linear-gradient(135deg, var(--green) 0%, var(--green2) 100%);
-    padding: 52px 20px 20px;
-    color: white;
+    background: #f8faf8;
+    padding: 52px 20px 16px;
+    color: var(--dark);
     position: relative;
-    overflow: hidden;
+    border-bottom: 0.5px solid #e5e7eb;
   }
-  .hdr::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.03) 20px, rgba(255,255,255,0.03) 40px);
-  }
-  .hdr-title { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 900; position: relative; }
-  .hdr-sub { font-size: 13px; opacity: 0.75; margin-top: 2px; position: relative; letter-spacing: 0.05em; }
-  .hdr-gold { color: var(--gold2); }
+  .hdr-title { font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 800; color: var(--dark); position: relative; }
+  .hdr-sub { font-size: 12px; color: var(--muted); margin-top: 2px; position: relative; font-weight: 500; }
+  .hdr-gold { color: var(--gold); }
   .back-btn {
-    position: absolute; top: 52px; left: 16px;
-    background: rgba(255,255,255,0.15); border: none; color: white;
-    width: 36px; height: 36px; border-radius: 50%; font-size: 18px;
+    position: absolute; top: 50px; left: 16px;
+    background: white; border: 0.5px solid #e5e7eb; color: var(--green);
+    width: 34px; height: 34px; border-radius: 50%; font-size: 16px;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    z-index: 10;
+    z-index: 10; font-weight: 700;
   }
 
   /* ── content ── */
-  .content { flex: 1; padding: 16px; overflow-y: auto; }
+  .content { flex: 1; padding: 16px; overflow-y: auto; background: var(--cream); }
 
   /* ── cards ── */
   .card {
     background: var(--card); border-radius: var(--radius);
     padding: 16px; margin-bottom: 12px;
-    box-shadow: var(--shadow);
+    border: 0.5px solid #e5e7eb;
   }
-  .card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 10px; font-weight: 600; }
+  .card-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 10px; font-weight: 700; }
 
   /* ── buttons ── */
   .btn {
-    border: none; border-radius: 12px; padding: 14px 20px;
-    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+    border: none; border-radius: 100px; padding: 14px 20px;
+    font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700;
     cursor: pointer; transition: all 0.15s; width: 100%; display: block; text-align: center;
   }
   .btn-primary { background: var(--green); color: white; }
-  .btn-primary:active { background: var(--green2); transform: scale(0.98); }
+  .btn-primary:active { opacity: 0.88; transform: scale(0.98); }
   .btn-gold { background: var(--gold); color: var(--dark); }
-  .btn-gold:active { background: var(--gold2); transform: scale(0.98); }
-  .btn-ghost { background: transparent; border: 2px solid var(--green); color: var(--green); }
+  .btn-gold:active { opacity: 0.88; transform: scale(0.98); }
+  .btn-ghost { background: white; border: 0.5px solid #e5e7eb; color: var(--dark); }
+  .btn-ghost:active { background: #f3f4f6; transform: scale(0.98); }
   .btn-danger { background: var(--red); color: white; }
-  .btn-sm { padding: 10px 14px; font-size: 13px; border-radius: 10px; }
+  .btn-sm { padding: 10px 16px; font-size: 13px; }
 
   /* ── grid buttons ── */
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -90,19 +86,19 @@
   .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; }
 
   .sel-btn {
-    border: 2px solid #e5e7eb; border-radius: 10px; padding: 12px 8px;
-    background: white; font-family: 'DM Sans', sans-serif; font-size: 13px;
-    font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: center;
+    border: 0.5px solid #e5e7eb; border-radius: 12px; padding: 12px 8px;
+    background: white; font-family: 'Inter', sans-serif; font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center;
     color: var(--dark);
   }
-  .sel-btn.active { border-color: var(--green); background: #edf7eb; color: var(--green); font-weight: 600; }
+  .sel-btn.active { border-color: var(--green); background: #ecfdf5; color: var(--green); font-weight: 700; }
   .sel-btn:active { transform: scale(0.96); }
   .sel-btn .icon { font-size: 20px; display: block; margin-bottom: 4px; }
 
   /* ── shot type pills ── */
   .shot-pill {
-    border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 6px 12px;
-    background: white; font-family: 'DM Sans', sans-serif; font-size: 12px;
+    border: 0.5px solid #e5e7eb; border-radius: 100px; padding: 7px 14px;
+    background: white; font-family: 'Inter', sans-serif; font-size: 12px;
     font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap;
     color: var(--muted);
   }
@@ -112,26 +108,26 @@
   /* ── distance slider ── */
   .dist-display {
     text-align: center; padding: 16px;
-    font-family: 'Playfair Display', serif; font-size: 52px; font-weight: 900;
-    color: var(--green); line-height: 1;
+    font-family: 'Inter', sans-serif; font-size: 52px; font-weight: 800;
+    color: var(--gold); line-height: 1;
   }
-  .dist-display span { font-size: 18px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-weight: 400; }
+  .dist-display span { font-size: 18px; color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 400; }
   input[type=range] {
-    -webkit-appearance: none; width: 100%; height: 6px;
+    -webkit-appearance: none; width: 100%; height: 5px;
     border-radius: 3px; background: #e5e7eb; outline: none; margin: 8px 0;
   }
   input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 28px; height: 28px;
+    -webkit-appearance: none; width: 26px; height: 26px;
     border-radius: 50%; background: var(--green); cursor: pointer;
-    box-shadow: 0 2px 8px rgba(45,90,39,0.4);
+    box-shadow: 0 2px 8px rgba(21,92,53,0.35);
   }
   .dist-presets { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
   .dist-preset {
-    border: 1.5px solid #d1d5db; border-radius: 20px; padding: 5px 12px;
+    border: 0.5px solid #e5e7eb; border-radius: 100px; padding: 5px 14px;
     font-size: 12px; font-weight: 600; background: white; cursor: pointer;
     color: var(--muted); transition: all 0.15s;
   }
-  .dist-preset:active { border-color: var(--green); color: var(--green); background: #edf7eb; }
+  .dist-preset:active { border-color: var(--green); color: var(--green); background: #ecfdf5; }
 
   /* ── miss compass ── */
   .compass {
@@ -141,57 +137,57 @@
     gap: 6px; max-width: 280px; margin: 0 auto;
   }
   .compass-btn {
-    border: 2px solid #e5e7eb; border-radius: 10px; padding: 10px 6px;
+    border: 0.5px solid #e5e7eb; border-radius: 10px; padding: 10px 6px;
     background: white; font-size: 11px; font-weight: 600; cursor: pointer;
     text-align: center; color: var(--muted); transition: all 0.15s;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
   }
-  .compass-btn.active { border-color: var(--gold); background: #fdf8ee; color: #8b6914; }
-  .compass-btn.center { border-color: var(--green); background: #edf7eb; color: var(--green); font-size: 12px; }
+  .compass-btn.active { border-color: var(--gold); background: #fefce8; color: #92400e; }
+  .compass-btn.center { border-color: var(--green); background: #ecfdf5; color: var(--green); font-size: 12px; }
   .compass-btn.center.active { border-color: var(--green2); background: var(--green); color: white; }
   .compass-btn:active { transform: scale(0.95); }
 
   /* ── hole list ── */
   .hole-item {
     display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px; border-radius: 12px; cursor: pointer;
-    transition: background 0.15s; margin-bottom: 4px;
-    background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    padding: 12px 16px; border-radius: 14px; cursor: pointer;
+    transition: background 0.15s; margin-bottom: 6px;
+    background: white; border: 0.5px solid #e5e7eb;
   }
-  .hole-item:active { background: #edf7eb; }
+  .hole-item:active { background: #f9fafb; }
   .hole-num {
-    width: 36px; height: 36px; border-radius: 50%;
+    width: 36px; height: 36px; border-radius: 10px;
     background: var(--green); color: white;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 14px; flex-shrink: 0;
+    font-weight: 800; font-size: 14px; flex-shrink: 0;
   }
-  .hole-num.has-data { background: var(--gold); color: var(--dark); }
+  .hole-num.has-data { background: var(--gold); color: white; }
   .hole-info { flex: 1; }
-  .hole-name { font-weight: 600; font-size: 15px; }
+  .hole-name { font-weight: 700; font-size: 15px; }
   .hole-detail { font-size: 12px; color: var(--muted); margin-top: 1px; }
   .hole-sg { font-size: 13px; font-weight: 700; }
-  .sg-pos { color: var(--green2); }
+  .sg-pos { color: var(--green); }
   .sg-neg { color: var(--red); }
 
   /* ── shot list ── */
   .shot-row {
     display: flex; align-items: center; gap: 10px;
-    padding: 10px 0; border-bottom: 1px solid #f3f4f6;
+    padding: 10px 0; border-bottom: 0.5px solid #f3f4f6;
   }
   .shot-row:last-child { border-bottom: none; }
   .shot-num { width: 24px; height: 24px; border-radius: 50%; background: var(--green); color: white; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .shot-info { flex: 1; font-size: 13px; }
-  .shot-type { font-weight: 600; }
+  .shot-type { font-weight: 700; }
   .shot-detail { color: var(--muted); font-size: 12px; }
   .shot-sg-val { font-size: 13px; font-weight: 700; }
 
   /* ── stats ── */
-  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid #f3f4f6; }
   .stat-row:last-child { border-bottom: none; }
   .stat-label { font-size: 14px; color: var(--dark); }
   .stat-val { font-size: 16px; font-weight: 700; }
   .big-stat { text-align: center; padding: 20px; }
-  .big-stat .num { font-family: 'Playfair Display', serif; font-size: 56px; font-weight: 900; line-height: 1; }
+  .big-stat .num { font-family: 'Inter', sans-serif; font-size: 56px; font-weight: 800; line-height: 1; }
   .big-stat .lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
 
   /* ── miss heatmap ── */
@@ -200,54 +196,63 @@
 
   /* ── tab bar ── */
   .tabbar {
-    display: flex; background: white; border-top: 1px solid #e5e7eb;
+    display: flex; background: white; border-top: 0.5px solid #e5e7eb;
     padding: 8px 0 20px; position: sticky; bottom: 0;
   }
-  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px; cursor: pointer; color: var(--muted); font-size: 10px; font-weight: 600; border: none; background: none; font-family: 'DM Sans', sans-serif; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px; cursor: pointer; color: var(--muted); font-size: 10px; font-weight: 600; border: none; background: none; font-family: 'Inter', sans-serif; text-transform: uppercase; letter-spacing: .04em; }
   .tab.active { color: var(--green); }
-  .tab-icon { font-size: 22px; }
+  .tab.active::before { content: ''; display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--green); margin-bottom: 2px; }
+  .tab-icon { font-size: 20px; }
 
   /* ── home ── */
   .home-hero {
-    background: linear-gradient(160deg, var(--green) 0%, #1a3d15 100%);
-    padding: 60px 24px 36px; color: white; text-align: center;
+    background: var(--green);
+    padding: 60px 24px 32px; color: white;
     position: relative; overflow: hidden;
   }
   .home-hero::before {
-    content: '⛳'; font-size: 160px; opacity: 0.06;
-    position: absolute; bottom: -20px; right: -20px;
+    content: ''; position: absolute;
+    width: 200px; height: 200px; border-radius: 50%;
+    border: 30px solid rgba(255,255,255,0.06);
+    top: -50px; right: -50px;
   }
-  .home-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 900; line-height: 1.1; }
-  .home-course { font-size: 13px; letter-spacing: 0.1em; opacity: 0.7; margin-top: 6px; text-transform: uppercase; }
-  .home-actions { padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .home-hero::after {
+    content: ''; position: absolute;
+    width: 130px; height: 130px; border-radius: 50%;
+    border: 22px solid rgba(255,255,255,0.05);
+    bottom: -30px; right: 60px;
+  }
+  .home-title { font-family: 'Inter', sans-serif; font-size: 30px; font-weight: 800; line-height: 1.15; }
+  .home-course { font-size: 12px; letter-spacing: 0.08em; opacity: 0.6; margin-top: 6px; text-transform: uppercase; font-weight: 600; }
+  .home-actions { padding: 20px 16px; display: flex; flex-direction: column; gap: 8px; background: var(--cream); }
 
   .round-card {
     background: white; border-radius: 14px; padding: 14px 16px;
     display: flex; align-items: center; gap: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer;
+    border: 0.5px solid #e5e7eb; cursor: pointer;
   }
   .round-card:active { background: #f9fafb; }
-  .round-icon { font-size: 28px; }
+  .round-icon { font-size: 24px; }
   .round-info { flex: 1; }
-  .round-date { font-size: 13px; font-weight: 600; }
+  .round-date { font-size: 13px; font-weight: 700; }
   .round-detail { font-size: 12px; color: var(--muted); }
-  .round-score { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--green); }
+  .round-score { font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 800; color: var(--gold); }
 
-  .pill { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 700; }
   .pill-green { background: #dcfce7; color: #166534; }
   .pill-red { background: #fee2e2; color: #991b1b; }
   .pill-gold { background: #fef3c7; color: #92400e; }
 
   /* number input */
   .num-input-row { display: flex; align-items: center; gap: 12px; justify-content: center; padding: 8px 0; }
-  .num-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--green); background: white; color: var(--green); font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .num-val { font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 900; color: var(--green); min-width: 80px; text-align: center; }
+  .num-btn { width: 44px; height: 44px; border-radius: 50%; border: 0.5px solid #e5e7eb; background: white; color: var(--green); font-size: 22px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .num-val { font-family: 'Inter', sans-serif; font-size: 48px; font-weight: 800; color: var(--gold); min-width: 80px; text-align: center; }
 
-  .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 16px 0 8px; }
-  .progress-bar { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; margin-top: 6px; }
-  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 16px 0 8px; }
+  .progress-bar { height: 6px; border-radius: 3px; background: #e5e7eb; overflow: hidden; margin-top: 6px; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
 
-  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; background: #f3f4f6; color: var(--muted); }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; background: #f3f4f6; color: var(--muted); }
 
   .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); }
   .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
@@ -261,17 +266,17 @@
 ═══════════════════════════════════════════════════ -->
 <div class="screen active" id="s-home">
   <div class="home-hero">
-    <div class="home-title">Strokes<br><span class="hdr-gold">Gained</span></div>
     <div class="home-course">Latrobe Country Club · White Tees</div>
+    <div class="home-title">Strokes<br><span style="color:var(--gold);">Gained</span></div>
   </div>
   <div class="home-actions">
 
     <!-- Primary CTA -->
-    <button class="btn btn-primary" style="font-size:17px;padding:18px;text-align:left;" onclick="startNewRound()">⛳ Start New Round</button>
+    <button class="btn btn-primary" style="font-size:16px;padding:16px 22px;" onclick="startNewRound()">⛳ Start New Round</button>
 
     <!-- Recent Rounds submenu -->
     <div style="margin-top:8px;">
-      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-recent')" style="text-align:left;display:flex;align-items:center;justify-content:space-between;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-recent')" style="display:flex;align-items:center;justify-content:space-between;">
         <span>🕐 Recent Rounds</span><span id="icon-sub-recent" style="font-size:12px;">▶</span>
       </button>
       <div id="sub-recent" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
@@ -281,7 +286,7 @@
 
     <!-- Stats submenu -->
     <div style="margin-top:6px;">
-      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-stats')" style="text-align:left;display:flex;align-items:center;justify-content:space-between;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-stats')" style="display:flex;align-items:center;justify-content:space-between;">
         <span>📊 Stats</span><span id="icon-sub-stats" style="font-size:12px;">▶</span>
       </button>
       <div id="sub-stats" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
@@ -301,7 +306,7 @@
 
     <!-- Admin submenu -->
     <div style="margin-top:6px;">
-      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-admin')" style="text-align:left;display:flex;align-items:center;justify-content:space-between;">
+      <button class="btn btn-ghost btn-sm" onclick="toggleSubmenu('sub-admin')" style="display:flex;align-items:center;justify-content:space-between;">
         <span>⚙️ Admin</span><span id="icon-sub-admin" style="font-size:12px;">▶</span>
       </button>
       <div id="sub-admin" style="display:none;background:#f9fafb;border-radius:12px;margin-top:4px;overflow:hidden;">
@@ -333,10 +338,10 @@
   <div class="content">
     <div class="card" style="padding:12px 16px;">
       <div style="display:flex;gap:16px;justify-content:center;text-align:center;">
-        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;" id="round-score-disp">—</div><div style="font-size:11px;color:var(--muted);">Score</div></div>
-        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;color:var(--green);" id="round-sg-disp">—</div><div style="font-size:11px;color:var(--muted);">Total SG</div></div>
-        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;color:var(--gold);" id="round-holes-disp">0</div><div style="font-size:11px;color:var(--muted);">Holes</div></div>
-        <div><div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;" id="round-shots-disp">0</div><div style="font-size:11px;color:var(--muted);">Shots</div></div>
+        <div><div style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;" id="round-score-disp">—</div><div style="font-size:11px;color:var(--muted);">Score</div></div>
+        <div><div style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;color:var(--green);" id="round-sg-disp">—</div><div style="font-size:11px;color:var(--muted);">Total SG</div></div>
+        <div><div style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;color:var(--gold);" id="round-holes-disp">0</div><div style="font-size:11px;color:var(--muted);">Holes</div></div>
+        <div><div style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;" id="round-shots-disp">0</div><div style="font-size:11px;color:var(--muted);">Shots</div></div>
       </div>
     </div>
     <div id="hole-list"></div>
@@ -358,9 +363,9 @@
   <div class="content">
     <div class="card">
       <div style="display:flex;gap:16px;justify-content:center;text-align:center;">
-        <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;" id="hole-score-disp">—</div><div style="font-size:11px;color:var(--muted);">Score</div></div>
-        <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;" id="hole-vs-par-disp">—</div><div style="font-size:11px;color:var(--muted);">vs Par</div></div>
-        <div><div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:var(--green);" id="hole-sg-disp">—</div><div style="font-size:11px;color:var(--muted);">SG Total</div></div>
+        <div><div style="font-size:28px;font-weight:800;font-family:'Inter',sans-serif;" id="hole-score-disp">—</div><div style="font-size:11px;color:var(--muted);">Score</div></div>
+        <div><div style="font-size:28px;font-weight:800;font-family:'Inter',sans-serif;" id="hole-vs-par-disp">—</div><div style="font-size:11px;color:var(--muted);">vs Par</div></div>
+        <div><div style="font-size:28px;font-weight:800;font-family:'Inter',sans-serif;color:var(--green);" id="hole-sg-disp">—</div><div style="font-size:11px;color:var(--muted);">SG Total</div></div>
       </div>
     </div>
     <!-- Action buttons row -->
@@ -403,7 +408,7 @@
         <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Distance to Pin</div>
           <div style="display:flex;align-items:baseline;gap:6px;">
-            <span id="shot-dist-big" style="font-family:'Playfair Display',serif;font-size:48px;font-weight:900;line-height:1;color:var(--green);">—</span>
+            <span id="shot-dist-big" style="font-family:'Inter',sans-serif;font-size:48px;font-weight:800;line-height:1;color:var(--green);">—</span>
             <span id="shot-dist-unit" style="font-size:18px;color:var(--muted);">yds</span>
           </div>
           <div id="shot-gps-status" style="font-size:10px;color:var(--muted);margin-top:3px;">📡 Starting GPS…</div>
@@ -853,28 +858,28 @@
      SCREEN: IN-ROUND HOLE MAP (distances overlay)
 ═══════════════════════════════════════════════════ -->
 <div class="screen" id="s-hole-map-round" style="height:100vh;min-height:unset;overflow:hidden;">
-  <div class="hdr" style="padding-bottom:8px;">
-    <button class="back-btn" onclick="closeHoleMapRound()">←</button>
+  <div class="hdr" style="padding-bottom:8px;background:#0f172a;border-bottom-color:#1e293b;">
+    <button class="back-btn" style="background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.12);color:white;" onclick="closeHoleMapRound()">←</button>
     <div style="text-align:center">
-      <div class="hdr-title" id="hmr-title">Hole 1 Map</div>
-      <div class="hdr-sub" id="hmr-sub">Starting GPS…</div>
+      <div class="hdr-title" style="color:white;" id="hmr-title">Hole 1 Map</div>
+      <div class="hdr-sub" style="color:#64748b;" id="hmr-sub">Starting GPS…</div>
     </div>
     <div style="display:flex;gap:6px;">
-      <button onclick="hmrFitCanvas()" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;" title="Fit to screen">⤢</button>
-      <button style="background:var(--green);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;" onclick="closeHoleMapRound()">Done</button>
+      <button onclick="hmrFitCanvas()" style="background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.12);color:white;border-radius:100px;padding:6px 10px;font-size:13px;cursor:pointer;" title="Fit to screen">⤢</button>
+      <button style="background:var(--green);color:white;border:none;border-radius:100px;padding:6px 14px;font-size:13px;font-weight:700;" onclick="closeHoleMapRound()">Done</button>
     </div>
   </div>
   <!-- GPS status bar -->
-  <div id="hmr-gps-bar" style="background:#1e3a5f;color:white;padding:5px 14px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
-    <span id="hmr-gps-status">📡 Acquiring GPS…</span>
-    <span id="hmr-gps-acc" style="color:#93c5fd;"></span>
+  <div id="hmr-gps-bar" style="background:#0f172a;border-bottom:0.5px solid #1e293b;padding:5px 16px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
+    <span id="hmr-gps-status" style="color:#86efac;font-weight:700;">📡 Acquiring GPS…</span>
+    <span id="hmr-gps-acc" style="color:#475569;font-size:10px;"></span>
   </div>
   <!-- Canvas: full image with distance overlays, pinch-zoom + pan -->
   <div id="hmr-canvas-wrap" style="flex:1;overflow:hidden;position:relative;background:#111;touch-action:none;">
     <canvas id="hmr-canvas" style="display:block;position:absolute;top:0;left:0;transform-origin:0 0;"></canvas>
   </div>
   <!-- Bottom: scrollable distance panel -->
-  <div id="hmr-dist-panel" style="max-height:180px;overflow-y:auto;background:white;border-top:2px solid #e5e7eb;padding:8px 12px;">
+  <div id="hmr-dist-panel" style="max-height:180px;overflow-y:auto;background:white;border-top:0.5px solid #e5e7eb;padding:10px 14px;">
     <div style="font-size:11px;color:var(--muted);text-align:center;padding:8px;">Waiting for GPS…</div>
   </div>
 </div>
@@ -886,8 +891,8 @@
   <div class="hdr">
     <button class="back-btn" onclick="closeHoleSetup()">←</button>
     <div style="text-align:center">
-      <div class="hdr-title" id="hms-title">Hole Map Setup</div>
-      <div class="hdr-sub" id="hms-sub">Upload · Calibrate · Map Points</div>
+      <div class="hdr-title" id="hms-title">Hole Maps</div>
+      <div class="hdr-sub" id="hms-sub">Latrobe CC · 18 holes</div>
     </div>
   </div>
   <div class="content" id="hms-content" style="padding:0;"></div>
@@ -904,13 +909,13 @@
       <div class="hdr-title" id="hme-title">Hole Map</div>
       <div class="hdr-sub" id="hme-sub">Tap image to add a point</div>
     </div>
-    <button style="background:var(--green);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;" onclick="finishHoleMapEditor()">Done</button>
+    <button style="background:var(--green);color:white;border:none;border-radius:100px;padding:6px 14px;font-size:13px;font-weight:700;" onclick="finishHoleMapEditor()">Done</button>
   </div>
 
   <!-- GPS status bar -->
-  <div id="hme-gps-bar" style="padding:6px 14px;font-size:11px;display:flex;justify-content:space-between;align-items:center;background:#fef3c7;border-bottom:1px solid #fde68a;">
-    <span id="hme-gps-status">📡 Acquiring GPS…</span>
-    <button onclick="forceStartHmeGPS()" id="hme-gps-btn" style="background:#d97706;border:none;color:white;border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;display:none;">Start GPS</button>
+  <div id="hme-gps-bar" style="padding:7px 16px;font-size:11px;display:flex;justify-content:space-between;align-items:center;background:#ecfdf5;border-bottom:0.5px solid #a7f3d0;">
+    <span id="hme-gps-status" style="font-weight:700;color:#059669;">📡 Acquiring GPS…</span>
+    <button onclick="forceStartHmeGPS()" id="hme-gps-btn" style="background:var(--green);border:none;color:white;border-radius:100px;padding:3px 12px;font-size:11px;font-weight:700;cursor:pointer;display:none;">Start GPS</button>
   </div>
 
   <!-- Canvas: fills remaining space, touch-managed -->
@@ -919,39 +924,39 @@
   </div>
 
   <!-- Bottom status bar -->
-  <div style="padding:8px 14px;background:white;border-top:1px solid #e5e7eb;display:flex;gap:8px;align-items:center;">
-    <div id="hme-point-count" style="flex:1;font-size:12px;font-weight:600;color:var(--green);"></div>
-    <div id="hme-cal-status" style="font-size:11px;color:var(--muted);"></div>
-    <button onclick="hmeAddAtGPS()" style="background:#0d9488;border:none;color:white;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;">📡 Add Here</button>
-    <button onclick="hmeUndoLast()" style="background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">↩ Undo</button>
+  <div style="padding:8px 14px;background:white;border-top:0.5px solid #e5e7eb;display:flex;gap:8px;align-items:center;">
+    <div id="hme-point-count" style="flex:1;font-size:12px;font-weight:700;color:var(--green);"></div>
+    <div id="hme-cal-status" style="font-size:10px;color:var(--muted);"></div>
+    <button onclick="hmeAddAtGPS()" style="background:var(--green);border:none;color:white;border-radius:100px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;">📡 Add Here</button>
+    <button onclick="hmeUndoLast()" style="background:white;border:0.5px solid #e5e7eb;border-radius:100px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;">↩ Undo</button>
   </div>
   <!-- Point list — tap any point to edit or delete -->
-  <div id="hme-point-list" style="background:#f9fafb;border-top:1px solid #e5e7eb;max-height:140px;overflow-y:auto;"></div>
+  <div id="hme-point-list" style="background:white;border-top:0.5px solid #e5e7eb;max-height:140px;overflow-y:auto;"></div>
   </div>
 </div>
 
 <!-- Point add/edit bottom sheet (slides up over the editor) -->
 <div id="hme-sheet-backdrop" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.4);" onclick="cancelHmeSheet()"></div>
-<div id="hme-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:401;background:white;border-radius:20px 20px 0 0;max-height:88vh;overflow-y:auto;padding:16px 16px 32px;">
+<div id="hme-sheet" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:401;background:#f8faf8;border-radius:20px 20px 0 0;max-height:88vh;overflow-y:auto;padding:16px 16px 32px;">
   <div style="width:40px;height:4px;background:#e5e7eb;border-radius:2px;margin:0 auto 14px;"></div>
   <div style="font-size:15px;font-weight:800;margin-bottom:4px;" id="hme-sheet-title">Add Point</div>
   <div style="font-size:12px;color:var(--muted);margin-bottom:12px;" id="hme-sheet-sub"></div>
 
   <!-- GPS stamp — primary action -->
-  <div id="hme-sheet-gps" style="background:#f0fdf4;border:2px solid #bbf7d0;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+  <div id="hme-sheet-gps" style="background:var(--green);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
     <div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:2px;">Your GPS position</div>
-      <div id="hme-sheet-gps-coords" style="font-size:12px;font-weight:600;color:#16a34a;">📡 Waiting…</div>
+      <div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Your GPS position</div>
+      <div id="hme-sheet-gps-coords" style="font-size:12px;font-weight:700;color:#86efac;">📡 Waiting…</div>
     </div>
-    <button onclick="hmeStampGPS()" style="background:var(--green);border:none;color:white;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">📡 I'm standing here</button>
+    <button onclick="hmeStampGPS()" style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:100px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;">📡 I'm here</button>
   </div>
 
   <!-- Type selector -->
-  <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Type</div>
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;">Type</div>
   <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;" id="hme-sheet-types"></div>
 
   <!-- Quick labels -->
-  <div style="font-size:12px;font-weight:600;margin-bottom:6px;">Label *</div>
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px;">Label</div>
   <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;" id="hme-quick-chips">
     <button type="button" onclick="hmeSheetQuickLabel('Green Middle')"   style="padding:4px 9px;border:1.5px solid #16a34a;border-radius:16px;background:#f0fdf4;font-size:11px;font-weight:700;cursor:pointer;color:#16a34a;">🎯 Green Middle</button>
     <button type="button" onclick="hmeSheetQuickLabel('Green Front')"    style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Green Front</button>
@@ -969,7 +974,7 @@
     <button type="button" onclick="hmeSheetQuickLabel('Sprinkler')"      style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Sprinkler</button>
     <button type="button" onclick="hmeSheetQuickLabel('Carry')"          style="padding:4px 9px;border:1.5px solid #d1d5db;border-radius:16px;background:white;font-size:11px;font-weight:600;cursor:pointer;">Carry</button>
   </div>
-  <input type="text" id="hme-sheet-label" placeholder="Label this point" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;margin-bottom:10px;"/>
+  <input type="text" id="hme-sheet-label" placeholder="Label this point" style="width:100%;box-sizing:border-box;padding:10px 14px;border:0.5px solid #e5e7eb;border-radius:12px;font-size:14px;font-weight:500;margin-bottom:10px;background:white;font-family:Inter,sans-serif;"/>
 
   <!-- GPS coords (collapsed by default, shown if no auto-GPS) -->
   <div id="hme-sheet-coords-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
@@ -979,10 +984,10 @@
     <input type="number" id="hme-sheet-lng" placeholder="-79.3732" step="0.000001" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;"/></label>
   </div>
 
-  <button id="hme-sheet-delete-btn" style="display:none;width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1.5px solid #fca5a5;background:#fff5f5;color:#dc2626;font-size:13px;font-weight:600;cursor:pointer;" onclick="deleteHmeSheetPoint()">🗑️ Delete This Point</button>
+  <button id="hme-sheet-delete-btn" style="display:none;width:100%;margin-bottom:8px;padding:11px;border-radius:100px;border:0.5px solid #fca5a5;background:#fff5f5;color:#dc2626;font-size:13px;font-weight:700;cursor:pointer;" onclick="deleteHmeSheetPoint()">🗑️ Delete This Point</button>
   <div style="display:flex;gap:8px;">
-    <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="cancelHmeSheet()">Cancel</button>
-    <button class="btn btn-sm" id="hme-sheet-save-btn" style="flex:2;background:var(--green);color:white;" onclick="saveHmeSheetPoint()">✅ Save Point</button>
+    <button style="flex:1;padding:12px;border-radius:100px;border:0.5px solid #e5e7eb;background:white;font-size:13px;font-weight:600;color:var(--muted);font-family:Inter,sans-serif;cursor:pointer;" onclick="cancelHmeSheet()">Cancel</button>
+    <button id="hme-sheet-save-btn" style="flex:2;padding:12px;border-radius:100px;border:none;background:var(--green);color:white;font-size:13px;font-weight:700;font-family:Inter,sans-serif;cursor:pointer;" onclick="saveHmeSheetPoint()">Save Point</button>
   </div>
 </div>
 
@@ -2060,15 +2065,15 @@ function showClubDispersion() {
     const hi = sorted[Math.floor(sorted.length*0.9)];
     statsHtml += `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:14px;">
       <div style="background:#f0fdf4;border-radius:10px;padding:10px 6px;">
-        <div style="font-size:22px;font-weight:900;color:var(--green);">${avg}</div>
+        <div style="font-size:22px;font-weight:800;color:var(--green);">${avg}</div>
         <div style="font-size:10px;color:var(--muted);">Avg carry (yds)</div>
       </div>
       <div style="background:#fef3c7;border-radius:10px;padding:10px 6px;">
-        <div style="font-size:22px;font-weight:900;color:#92400e;">${lo}–${hi}</div>
+        <div style="font-size:22px;font-weight:800;color:#92400e;">${lo}–${hi}</div>
         <div style="font-size:10px;color:var(--muted);">80% range</div>
       </div>
       <div style="background:#f0f9ff;border-radius:10px;padding:10px 6px;">
-        <div style="font-size:22px;font-weight:900;color:#0369a1;">${allCarries.length}</div>
+        <div style="font-size:22px;font-weight:800;color:#0369a1;">${allCarries.length}</div>
         <div style="font-size:10px;color:var(--muted);">shots tracked</div>
       </div>
     </div>`;
@@ -2649,7 +2654,7 @@ function showRoundSummary(r) {
 
   document.getElementById('summary-content').innerHTML = `
     <div class="card" style="text-align:center;padding:24px 16px;">
-      <div style="font-family:'Playfair Display',serif;font-size:64px;font-weight:900;color:${diff<=0?'var(--green2)':'var(--red)'};">${diffStr}</div>
+      <div style="font-family:'Inter',sans-serif;font-size:64px;font-weight:800;color:${diff<=0?'var(--green2)':'var(--red)'};">${diffStr}</div>
       <div style="color:var(--muted);font-size:14px;">${score} strokes · Par ${par}</div>
       <div style="margin-top:12px;font-size:18px;font-weight:700;color:${totalSG>=0?'var(--green2)':'var(--red)'};">${totalSG>=0?'+':''}${totalSG.toFixed(2)} Strokes Gained</div>
     </div>
@@ -3045,12 +3050,12 @@ function showStats() {
     <div class="card">
       <div style="display:flex;gap:12px;margin-bottom:14px;">
         <div style="flex:1;background:#dcfce7;border-radius:10px;padding:12px;text-align:center;">
-          <div style="font-size:22px;font-weight:900;color:var(--green);">${goodCount}</div>
+          <div style="font-size:22px;font-weight:800;color:var(--green);">${goodCount}</div>
           <div style="font-size:11px;color:var(--muted);">Good Strikes</div>
           <div style="font-size:13px;font-weight:600;color:var(--green2);">${goodSG>=0?'+':''}${goodSG.toFixed(2)} avg SG</div>
         </div>
         <div style="flex:1;background:#fee2e2;border-radius:10px;padding:12px;text-align:center;">
-          <div style="font-size:22px;font-weight:900;color:var(--red);">${badCount}</div>
+          <div style="font-size:22px;font-weight:800;color:var(--red);">${badCount}</div>
           <div style="font-size:11px;color:var(--muted);">Bad Strikes</div>
           <div style="font-size:13px;font-weight:600;color:var(--red);">${badSG>=0?'+':''}${badSG.toFixed(2)} avg SG</div>
         </div>
@@ -3355,17 +3360,17 @@ function renderClubDetail() {
     <div class="card" style="text-align:center;padding:16px;">
       <div style="display:flex;gap:0;justify-content:center;">
         <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
-          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--green);">${avgCarry}</div>
+          <div style="font-family:'Inter',sans-serif;font-size:36px;font-weight:800;color:var(--green);">${avgCarry}</div>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Avg Carry (yds)</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px;">Good strikes</div>
         </div>
         <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
-          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--gold);">${lo10}–${hi90}</div>
+          <div style="font-family:'Inter',sans-serif;font-size:36px;font-weight:800;color:var(--gold);">${lo10}–${hi90}</div>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">10–90% Range</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px;">yds carry</div>
         </div>
         <div style="flex:1;padding:8px;">
-          <div style="font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:var(--blue);">${goodShots.length}</div>
+          <div style="font-family:'Inter',sans-serif;font-size:36px;font-weight:800;color:var(--blue);">${goodShots.length}</div>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Good Strikes</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px;">of ${clubShots.length} total</div>
         </div>
@@ -3623,7 +3628,7 @@ function showPuttStats() {
         const col = isTarget || intensity>0.5 ? 'white' : count>0 ? 'var(--red)' : 'var(--muted)';
         return `<div style="background:${bg};color:${col};border-radius:6px;padding:7px 2px;text-align:center;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
           <div style="font-size:9px;font-weight:600;line-height:1.2;">${d.replace(/-/g,'<br>')}</div>
-          <div style="font-size:14px;font-weight:900;margin-top:1px;">${pct}%</div>
+          <div style="font-size:14px;font-weight:800;margin-top:1px;">${pct}%</div>
         </div>`;
       }).join('')}
     </div>`;
@@ -3635,15 +3640,15 @@ function showPuttStats() {
     <div class="card" style="padding:16px;">
       <div style="display:flex;gap:0;text-align:center;">
         <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
-          <div style="font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--green);">${pph}</div>
+          <div style="font-family:'Inter',sans-serif;font-size:32px;font-weight:800;color:var(--green);">${pph}</div>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Putts/Hole</div>
         </div>
         <div style="flex:1;border-right:1px solid #e5e7eb;padding:8px;">
-          <div style="font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--gold);">${onePutts}</div>
+          <div style="font-family:'Inter',sans-serif;font-size:32px;font-weight:800;color:var(--gold);">${onePutts}</div>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">1-Putts</div>
         </div>
         <div style="flex:1;padding:8px;">
-          <div style="font-family:'Playfair Display',serif;font-size:32px;font-weight:900;color:var(--red);">${threePutts}</div>
+          <div style="font-family:'Inter',sans-serif;font-size:32px;font-weight:800;color:var(--red);">${threePutts}</div>
           <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">3-Putts</div>
         </div>
       </div>
@@ -3689,15 +3694,15 @@ function showPuttStats() {
     <div class="card" style="padding:16px;">
       <div style="display:flex;gap:0;text-align:center;margin-bottom:14px;">
         <div style="flex:1;border-right:1px solid #e5e7eb;padding:6px;">
-          <div style="font-size:22px;font-weight:900;color:var(--green);">${lagPutts.length}</div>
+          <div style="font-size:22px;font-weight:800;color:var(--green);">${lagPutts.length}</div>
           <div style="font-size:11px;color:var(--muted);">Lag Putts</div>
         </div>
         <div style="flex:1;border-right:1px solid #e5e7eb;padding:6px;">
-          <div style="font-size:22px;font-weight:900;color:var(--gold);">${avgLagLeft} ft</div>
+          <div style="font-size:22px;font-weight:800;color:var(--gold);">${avgLagLeft} ft</div>
           <div style="font-size:11px;color:var(--muted);">Avg Left</div>
         </div>
         <div style="flex:1;padding:6px;">
-          <div style="font-size:22px;font-weight:900;color:var(--blue);">${lagLeft.length ? Math.round(lag3ft/lagLeft.length*100) : 0}%</div>
+          <div style="font-size:22px;font-weight:800;color:var(--blue);">${lagLeft.length ? Math.round(lag3ft/lagLeft.length*100) : 0}%</div>
           <div style="font-size:11px;color:var(--muted);">Inside 3 ft</div>
         </div>
       </div>
@@ -3819,7 +3824,7 @@ function renderPuttComboMatrix() {
         <div onclick="selectPuttCombo('${br}','${sl}')"
           style="background:${bgColor};border:${border};border-radius:10px;padding:10px 4px;text-align:center;cursor:pointer;transition:all .15s;min-width:72px;">
           ${pct !== null
-            ? `<div style="font-size:20px;font-weight:900;color:${textColor};">${pct}%</div>
+            ? `<div style="font-size:20px;font-weight:800;color:${textColor};">${pct}%</div>
                <div style="font-size:10px;color:${textColor};opacity:.8;margin-top:1px;">${made}/${combo.length}</div>`
             : `<div style="font-size:11px;color:var(--muted);">—</div>`}
         </div>
@@ -3971,7 +3976,7 @@ function renderRangeLog() {
   }
   el.innerHTML = shots.slice(0,40).map(s =>
     `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:white;border-radius:10px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.08);">
-      <div style="font-size:18px;font-weight:900;color:var(--green);min-width:36px;">${s.club}</div>
+      <div style="font-size:18px;font-weight:800;color:var(--green);min-width:36px;">${s.club}</div>
       <div style="flex:1;">
         <div style="font-size:14px;font-weight:700;">${s.carry} yds carry${s.swingType?' · '+s.swingType:''}</div>
         <div style="font-size:11px;color:var(--muted);">${s.miss==='on-target'?'On target':s.miss.replace(/-/g,' ')} · ${(s.strike||'good')==='good'?'✅ Good':'❌ Bad'} · ${s.date}</div>
@@ -4101,7 +4106,7 @@ function renderDistances() {
               ? `<span style="font-size:11px;color:var(--muted);font-weight:600;background:#f3f4f6;border-radius:6px;padding:2px 7px;margin-right:2px;">${r.swing}</span>`
               : ''
             }
-            <span style="font-family:'Playfair Display',serif;font-size:${r.swing?'18px':'22px'};font-weight:900;color:var(--dark);line-height:1;">${st.avg}<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:2px;">yds</span></span>
+            <span style="font-family:'Inter',sans-serif;font-size:${r.swing?'18px':'22px'};font-weight:800;color:var(--dark);line-height:1;">${st.avg}<span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:2px;">yds</span></span>
             <span style="margin-left:auto;font-size:10px;color:var(--muted);">${st.n} shot${st.n!==1?'s':''}</span>
           </div>
           <!-- dispersion bar -->
@@ -4184,7 +4189,7 @@ function renderDistances() {
                 const avg = Math.round(arr.reduce((a,b)=>a+b,0)/arr.length);
                 const mn = Math.min(...arr), mx = Math.max(...arr);
                 return `<td style="padding:8px 6px;text-align:center;">
-                  <div style="font-size:20px;font-weight:900;font-family:'Playfair Display',serif;color:var(--dark);">${avg}</div>
+                  <div style="font-size:20px;font-weight:800;font-family:'Inter',sans-serif;color:var(--dark);">${avg}</div>
                   <div style="font-size:10px;color:var(--muted);margin-top:1px;">${mn}–${mx}</div>
                   <div style="font-size:9px;color:var(--muted);">${arr.length} shot${arr.length!==1?'s':''}</div>
                 </td>`;
@@ -4288,14 +4293,14 @@ function showHoleStats() {
       <div class="card" style="padding:14px 16px;${isWorst?'border-left:3px solid var(--red);':isBest?'border-left:3px solid var(--green2);':''}">
         <div style="display:flex;align-items:center;gap:12px;">
           <div style="min-width:44px;text-align:center;">
-            <div style="font-size:22px;font-weight:900;font-family:'Playfair Display',serif;color:var(--green);">#${r.n}</div>
+            <div style="font-size:22px;font-weight:800;font-family:'Inter',sans-serif;color:var(--green);">#${r.n}</div>
             <div style="font-size:10px;color:var(--muted);">Par ${r.hInfo.par} · ${r.hInfo.yds}y</div>
           </div>
           <div style="flex:1;">
             <div style="display:flex;gap:16px;margin-bottom:6px;">
-              <div><div style="font-size:18px;font-weight:900;color:${diffColor};">${diffStr}</div><div style="font-size:10px;color:var(--muted);">vs par</div></div>
-              <div><div style="font-size:18px;font-weight:900;color:${sgColor};">${r.avgSG>=0?'+':''}${r.avgSG.toFixed(2)}</div><div style="font-size:10px;color:var(--muted);">avg SG</div></div>
-              <div><div style="font-size:18px;font-weight:900;">${r.avgScore.toFixed(1)}</div><div style="font-size:10px;color:var(--muted);">avg score</div></div>
+              <div><div style="font-size:18px;font-weight:800;color:${diffColor};">${diffStr}</div><div style="font-size:10px;color:var(--muted);">vs par</div></div>
+              <div><div style="font-size:18px;font-weight:800;color:${sgColor};">${r.avgSG>=0?'+':''}${r.avgSG.toFixed(2)}</div><div style="font-size:10px;color:var(--muted);">avg SG</div></div>
+              <div><div style="font-size:18px;font-weight:800;">${r.avgScore.toFixed(1)}</div><div style="font-size:10px;color:var(--muted);">avg score</div></div>
               <div style="margin-left:auto;text-align:right;"><div style="font-size:12px;color:var(--muted);">${r.rounds} round${r.rounds!==1?'s':''}</div>${r.topMiss?`<div style="font-size:11px;color:var(--muted);">Miss: ${missLabel(r.topMiss[0])}</div>`:''}</div>
             </div>
             <!-- Score distribution mini bar -->
@@ -4408,15 +4413,15 @@ function showTrends() {
     <div class="card" style="padding:14px 16px;">
       <div style="display:flex;gap:0;justify-content:center;">
         <div style="flex:1;text-align:center;border-right:1px solid #e5e7eb;padding:8px;">
-          <div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:${avgTotal>=0?'var(--green2)':'var(--red)'};">${avgTotal>=0?'+':''}${avgTotal.toFixed(1)}</div>
+          <div style="font-size:28px;font-weight:800;font-family:'Inter',sans-serif;color:${avgTotal>=0?'var(--green2)':'var(--red)'};">${avgTotal>=0?'+':''}${avgTotal.toFixed(1)}</div>
           <div style="font-size:11px;color:var(--muted);">Avg SG/round</div>
         </div>
         <div style="flex:1;text-align:center;border-right:1px solid #e5e7eb;padding:8px;">
-          <div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;color:${trend>=0?'var(--green2)':'var(--red)'};">${trend>=0?'↑':'↓'}${Math.abs(trend).toFixed(1)}</div>
+          <div style="font-size:28px;font-weight:800;font-family:'Inter',sans-serif;color:${trend>=0?'var(--green2)':'var(--red)'};">${trend>=0?'↑':'↓'}${Math.abs(trend).toFixed(1)}</div>
           <div style="font-size:11px;color:var(--muted);">Trend (early→late)</div>
         </div>
         <div style="flex:1;text-align:center;padding:8px;">
-          <div style="font-size:28px;font-weight:900;font-family:'Playfair Display',serif;">${rounds.length}</div>
+          <div style="font-size:28px;font-weight:800;font-family:'Inter',sans-serif;">${rounds.length}</div>
           <div style="font-size:11px;color:var(--muted);">Rounds</div>
         </div>
       </div>
@@ -4537,7 +4542,7 @@ function showYardageCard() {
     <div style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12);">
       <!-- Header -->
       <div style="background:var(--green);color:white;padding:14px 16px;text-align:center;">
-        <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;">Latrobe CC</div>
+        <div style="font-family:'Inter',sans-serif;font-size:20px;font-weight:800;">Latrobe CC</div>
         <div style="font-size:12px;opacity:0.85;">White Tees · Yardage Card · Good Strikes Only</div>
       </div>
 
@@ -4554,7 +4559,7 @@ function showYardageCard() {
         <tbody>
           ${fullRows.map((r,i) => `<tr style="border-bottom:1px solid #f3f4f6;background:${i%2?'#fafafa':'white'};">
             <td style="padding:9px 12px;font-weight:800;font-size:16px;color:var(--green);">${r.club}</td>
-            <td style="padding:9px 6px;text-align:center;font-weight:900;font-size:18px;font-family:'Playfair Display',serif;">${r.avg}</td>
+            <td style="padding:9px 6px;text-align:center;font-weight:800;font-size:18px;font-family:'Inter',sans-serif;">${r.avg}</td>
             <td style="padding:9px 6px;text-align:center;font-size:12px;color:var(--muted);">${r.lo}–${r.hi}</td>
           </tr>`).join('')}
         </tbody>
@@ -4576,7 +4581,7 @@ function showYardageCard() {
           ${wedgeRows.map((r,i) => `<tr style="border-bottom:1px solid #fef3c7;background:${i%2?'#fffbeb':'white'};">
             <td style="padding:8px 12px;font-weight:800;font-size:15px;color:var(--gold);">${r.club}</td>
             <td style="padding:8px 6px;font-size:12px;color:var(--muted);font-weight:600;">${r.swing}</td>
-            <td style="padding:8px 6px;text-align:center;font-weight:900;font-size:17px;font-family:'Playfair Display',serif;">${r.avg}</td>
+            <td style="padding:8px 6px;text-align:center;font-weight:800;font-size:17px;font-family:'Inter',sans-serif;">${r.avg}</td>
             <td style="padding:8px 6px;text-align:center;font-size:11px;color:var(--muted);">${r.lo}–${r.hi}</td>
           </tr>`).join('')}
         </tbody>
@@ -4955,7 +4960,7 @@ function renderGPS() {
       <!-- Header -->
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">
         <div>
-          <span style="font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--green);">Hole ${h.n}</span>
+          <span style="font-family:'Inter',sans-serif;font-size:20px;font-weight:800;color:var(--green);">Hole ${h.n}</span>
           <span style="font-size:12px;color:var(--muted);margin-left:6px;">Par ${h.par} · ${h.yds} yds</span>
         </div>
         ${td ? `<span style="font-size:11px;color:var(--muted);">Tee: ${td} yds</span>` : ''}
@@ -4969,7 +4974,7 @@ function renderGPS() {
         </div>
         <div style="background:#eff6ff;border-radius:8px;padding:8px 4px;border:2px solid #bfdbfe;">
           <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Middle</div>
-          <div style="font-size:${hasGPS?'22px':'14px'};font-weight:900;color:${mdCol};">${md ? md+' yds' : '—'}</div>
+          <div style="font-size:${hasGPS?'22px':'14px'};font-weight:800;color:${mdCol};">${md ? md+' yds' : '—'}</div>
         </div>
         <div style="background:#fef3f2;border-radius:8px;padding:8px 4px;">
           <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Back</div>
@@ -5330,9 +5335,9 @@ function renderHoleSetupHome() {
   }).join('');
   el.innerHTML = `<div style="padding:14px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb;">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">
-      <div><div style="font-size:22px;font-weight:900;color:var(--green);">${holesWithImage}</div><div style="font-size:10px;color:var(--muted);">Images</div></div>
-      <div><div style="font-size:22px;font-weight:900;color:var(--green);">${holesCalibrated}</div><div style="font-size:10px;color:var(--muted);">Calibrated</div></div>
-      <div><div style="font-size:22px;font-weight:900;color:var(--green);">${totalPoints}</div><div style="font-size:10px;color:var(--muted);">Points</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:var(--green);">${holesWithImage}</div><div style="font-size:10px;color:var(--muted);">Images</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:var(--green);">${holesCalibrated}</div><div style="font-size:10px;color:var(--muted);">Calibrated</div></div>
+      <div><div style="font-size:22px;font-weight:800;color:var(--green);">${totalPoints}</div><div style="font-size:10px;color:var(--muted);">Points</div></div>
     </div>
   </div>
   <div>${rows}</div>
